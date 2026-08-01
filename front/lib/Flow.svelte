@@ -123,11 +123,28 @@
     return oklchToHex(gamutMap({ l: mood.l, c: mood.c, h: mood.hue }, 'srgb'));
   }
 
-  function surprise(): void {
-    const h = Math.random() * 360;
-    const l = 0.45 + Math.random() * 0.25;
-    const c = 0.1 + Math.random() * 0.1;
-    settings.baseColor = oklchToHex(gamutMap({ l, c, h }, 'srgb'));
+  // Import d'une palette existante (le point d'entrée le plus fréquent :
+  // une charte à valider ou à compléter).
+  let pastedColors = $state('');
+  const parsedPaste = $derived(
+    pastedColors
+      .split(/[\s,;]+/)
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .map((t) => parseToOklch(t))
+      .filter((c): c is NonNullable<typeof c> => c !== null)
+      .map((c) => oklchToHex(gamutMap(c, 'srgb'))),
+  );
+
+  function importPasted(): void {
+    if (parsedPaste.length === 0) return;
+    settings.colors = parsedPaste.map((hex, i) => ({
+      id: `p${i}`,
+      hex,
+      label: `Couleur ${i + 1}`,
+    }));
+    settings.baseColor = parsedPaste[0] as string;
+    next();
   }
 
   const baseValid = $derived(parseToOklch(settings.baseColor) !== null);
@@ -233,10 +250,37 @@
           >
             <strong>Une ambiance</strong><small>au feeling</small>
           </button>
-          <button class="choice" onclick={() => { surprise(); next(); }}>
-            <strong>Surprends-moi</strong><small>au hasard</small>
+          <button
+            class="choice"
+            role="radio"
+            aria-checked={startMode === 'palette'}
+            onclick={() => (startMode = 'palette')}
+          >
+            <strong>J’ai une palette</strong><small>à valider, à compléter</small>
           </button>
         </div>
+        {#if startMode === 'palette'}
+          <div class="paste">
+            <label class="paste-label" for="paste-hex">
+              Collez vos couleurs (hex, une par ligne ou séparées par des espaces)
+            </label>
+            <textarea
+              id="paste-hex"
+              rows="4"
+              bind:value={pastedColors}
+              placeholder="#1a1a2e&#10;#f7f5ef&#10;#c0392b"
+              spellcheck="false"
+            ></textarea>
+            <button class="solid" onclick={importPasted} disabled={parsedPaste.length === 0}>
+              Importer {parsedPaste.length > 0 ? `${parsedPaste.length} couleur${parsedPaste.length > 1 ? 's' : ''}` : ''}
+            </button>
+            {#if parsedPaste.length > 0}
+              <span class="paste-preview" aria-hidden="true">
+                {#each parsedPaste as hex (hex)}<span style="background:{hex}"></span>{/each}
+              </span>
+            {/if}
+          </div>
+        {/if}
         {#if startMode === 'mood'}
           <div class="moods">
             {#each MOODS as mood (mood.id)}
@@ -265,7 +309,6 @@
               aria-label="Couleur en hexadécimal"
             />
             <p class="muted">Conservée exactement — tout se construit autour.</p>
-            <button onclick={surprise}>Une autre au hasard</button>
           </div>
         </div>
         {#if palette}
@@ -581,6 +624,34 @@
   .choice[aria-checked='true'] {
     border-color: var(--ink);
     background: var(--paper);
+  }
+
+  .paste {
+    display: grid;
+    gap: 0.6rem;
+    justify-items: start;
+  }
+
+  .paste-label {
+    font-size: 0.85rem;
+    color: var(--ink-2);
+  }
+
+  .paste textarea {
+    inline-size: 100%;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+  }
+
+  .paste-preview {
+    display: flex;
+    gap: 3px;
+  }
+
+  .paste-preview span {
+    inline-size: 2rem;
+    block-size: 2rem;
+    border-radius: 4px;
   }
 
   .moods {

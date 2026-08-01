@@ -114,3 +114,13 @@ export {
   type PrintProcess,
 } from './print/cmyk';
 export { socialPalette, SOCIAL_NOTE, type SocialColor } from './harmony/social';
+export {
+  matchSpot,
+  findSpotCollisions,
+  interpretDeltaE,
+  SPOT_NOTE,
+  SPOT_DISTINCT_THRESHOLD,
+  type SpotEntry,
+  type SpotMatch,
+  type SpotCollision,
+} from './print/spot';

@@ -144,6 +144,54 @@ captures d'un outil de référence en inspiration (« tu peux adapter »).
 
 ---
 
+## Nouveau brief — arbitrages validés (2026-08-01)
+
+Cindy a fourni un second brief, rédigé sans connaître le code existant.
+Questions posées avant de coder (comme le demande son §11), réponses :
+
+- **Stack** : le brief impose React + Tailwind + Zustand ; Cindy tranche
+  que « le brief a tort, pas la base de code ». On garde **Svelte 5 +
+  CSS natif**. Ses arguments (retenus) : le moteur est déjà en TS pur
+  conforme à la règle d'architecture ; les runes donnent une réactivité
+  à granularité fine adaptée à la matrice n² ; Tailwind ne peut pas
+  générer de classes depuis des couleurs dynamiques, il faudrait de
+  toute façon des custom properties — donc deux systèmes au lieu d'un.
+- **Hébergement** : question écartée par Cindy (« ne prends pas en compte
+  cette partie ») → on conserve le déploiement Cloudflare + partage KV.
+- **Tons directs** : Cindy confirme qu'il n'existe pas de source à la fois
+  libre, fiable et maintenue, et que sa propre section était bancale.
+  → **aucune correspondance automatique en V1**. `print/spot.ts` fait
+  deux choses exactes : (1) comparer la couleur écran à l'encre que la
+  graphiste LIT sur son nuancier physique (référence + Lab saisis),
+  avec ΔE00 et les quatre paliers d'interprétation du brief ; (2)
+  détecter les couleurs de la palette **non distinguables en ton
+  direct** — un simple ΔE entre deux couleurs, aucune donnée
+  commerciale requise. C'est le contrôle le plus utile et il reste
+  faisable sans nuancier.
+- **Aléatoire** : retiré complètement (anti-objectif du brief). Remplacé
+  par « J'ai une palette » — collage de hex pour valider/compléter une
+  charte existante, qui est le vrai point d'entrée de la cible.
+
+### Ajouté dans la foulée
+
+- **Matrice croisée complète** restaurée dans l'étape Contraste (cœur de
+  l'étape 3 du brief) : toutes les paires, avec le meilleur usage
+  possible par paire (Tout / Texte / Titre / Non) et les associations à
+  éviter entourées.
+- Collisions ton direct affichées dans la même étape.
+- 209 tests.
+
+### Reste à traiter du nouveau brief
+
+k-means OKLab depuis image · pipette EyeDropper · détection de schéma
+dominant et de fausses notes · contrôle 60-30-10 · riso/sérigraphie ·
+simulation papier avec engraissement · calcul CO₂ + garde-fou
+greenwashing · DTCG/SCSS/ASE/PDF · localStorage + import/export JSON ·
+undo/redo · noms français d'un mot · score de santé pondéré
+(30/20/20/15/15).
+
+---
+
 ## Parcours unique et outil de graphiste (2026-08-01)
 
 Retours de Cindy : « il y en a de partout, je veux que ce soit par step le
