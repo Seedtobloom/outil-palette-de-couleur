@@ -6,23 +6,24 @@ responsables, harmonieuses, suffisamment contrastées et suffisamment fournies.
 ## Où est le front, où est le back
 
 ```
-FRONT  (l'application dans le navigateur — déployée sur Cloudflare Pages)
-  front/            interface Svelte + moteur colorimétrique (100 % client)
-  index.html        page d'entrée
-  dist/             résultat du build (npm run build) — c'est lui que Pages publie
+LES DEUX FICHIERS À COPIER-COLLER dans tes Workers « Hello World » :
+  front.js   → à coller dans le Worker du FRONT (sert l'application complète)
+  back.js    → à coller dans le Worker du BACK (l'API de sauvegarde/partage)
 
-BACK   (l'API de sauvegarde/partage — un Worker Cloudflare + stockage KV)
-  back-a-coller.js  LE FICHIER À COLLER dans le Worker « Hello World » du dashboard
-  back/             son code source : logique d'API + enrobages Worker
-  functions/        variante optionnelle : même API intégrée à Pages
-                    (ce nom exact est imposé par Cloudflare, sinon il s'appellerait back aussi)
+Leur code source :
+  front/     interface Svelte + moteur colorimétrique (100 % client)
+  back/      logique d'API (validation, sauvegarde, lecture) + enrobages
+  functions/ variante optionnelle : même API intégrée à Cloudflare Pages
+             (ce nom exact est imposé par Cloudflare, sinon il s'appellerait back aussi)
 
 AUTRES
+  index.html, dist/                 page d'entrée et build du front
   brief-outil-palette-couleurs.md   le brief technique, source de vérité
   NOTES.md                          journal des décisions
 ```
 
 Chaque dossier contient son propre petit README qui rappelle son rôle.
+`front.js` et `back.js` sont régénérés par `npm run build:colle`.
 
 ## Commandes
 
@@ -38,72 +39,74 @@ npm run deploy   # build + déploiement Cloudflare (front + back)
 
 ## Déploiement à la main via le dashboard Cloudflare (sans wrangler)
 
-Trois briques, toutes créées en cliquant dans le dashboard :
-le **front** sur Pages, le **back** en Worker créé depuis le template
-« Hello World », et le **stockage** en KV. Le moteur colorimétrique reste
-entièrement côté client ; le back ne fait que la sauvegarde/partage.
+Deux Workers créés depuis le template « Hello World » — un **front**, un
+**back** — plus un namespace **KV** pour la base. Tout se fait en
+copiant-collant `front.js` et `back.js` et en cliquant dans le dashboard.
+Le moteur colorimétrique reste entièrement côté client ; le back ne fait
+que la sauvegarde/partage.
 
-### 1. Le FRONT — projet Pages
+### 1. Le BACK — Worker + fichier `back.js`
 
 1. Dashboard Cloudflare → **Workers & Pages** → **Create** → onglet
-   **Pages** → **Connect to Git**.
-2. Choisir ce dépôt GitHub et la branche à déployer.
-3. Réglages de build :
-   - **Build command** : `npm run build`
-   - **Build output directory** : `dist`
-4. **Save and Deploy** → le site est en ligne sur `https://….pages.dev`.
-
-### 2. Le BACK — Worker créé depuis « Hello World »
-
-1. **Workers & Pages** → **Create** → onglet **Workers** → template
-   **Hello World** → nom : `nuancier-api` → **Deploy**.
-2. Sur la page du Worker : **Edit code** (l'éditeur en ligne s'ouvre sur
-   le hello world).
+   **Workers** → template **Hello World** → nom : `nuancier-back` →
+   **Deploy**.
+2. Sur la page du Worker : **Edit code**.
 3. **Supprimer tout le contenu** du fichier et coller à la place
-   l'intégralité de [`back-a-coller.js`](./back-a-coller.js)
+   l'intégralité de [`back.js`](./back.js)
    (ouvrir le fichier sur GitHub → bouton « Copy raw file »).
 4. **Deploy** (en haut à droite de l'éditeur).
-5. Vérifier : `https://nuancier-api.<ton-compte>.workers.dev/api/health`
+5. Vérifier : `https://nuancier-back.<ton-compte>.workers.dev/api/health`
    doit répondre `{"ok":true,"service":"nuancier"}`.
 
-À ce stade l'API répond mais dit « stockage non configuré » sur le
-partage : il lui faut sa base.
-
-### 3. La BASE — namespace KV + binding
+### 2. La BASE — namespace KV relié au back
 
 1. Dashboard → **Storage & Databases** → **KV** → **Create a namespace**
    → nom libre, ex. `nuancier-palettes`.
-2. Retour sur le Worker `nuancier-api` → **Settings** → **Bindings**
-   (ou « Variables ») → **Add** → type **KV namespace** :
+2. Worker `nuancier-back` → **Settings** → **Bindings** (ou « Variables »)
+   → **Add** → type **KV namespace** :
    - **Variable name** : `NUANCIER_KV` (exactement, majuscules comprises)
    - **KV namespace** : `nuancier-palettes`
-3. **Save** (le Worker redémarre avec sa base).
+3. **Save**.
 
-### 4. Relier le front au back
+### 3. Le FRONT — Worker + fichier `front.js`
 
-Le front doit connaître l'adresse du Worker :
+1. **Workers & Pages** → **Create** → onglet **Workers** → template
+   **Hello World** → nom : `nuancier` (ce nom sera dans l'adresse du
+   site) → **Deploy**.
+2. **Edit code** → supprimer tout → coller l'intégralité de
+   [`front.js`](./front.js) → **Deploy**.
+3. Relier le back : Worker `nuancier` → **Settings** → **Bindings** →
+   **Add** → type **Service binding** :
+   - **Variable name** : `BACK` (exactement)
+   - **Service** : `nuancier-back`
+4. **Save**.
 
-1. Projet Pages → **Settings** → **Environment variables** → **Add** :
-   - **Variable name** : `VITE_API_BASE`
-   - **Value** : `https://nuancier-api.<ton-compte>.workers.dev`
-   - à ajouter pour **Production** (et Preview si tu veux le partage sur
-     les URL d'aperçu).
-2. C'est une variable **de build** : relancer un déploiement
-   (**Deployments** → **⋯** → **Retry deployment**).
-3. Tester : sur le site, « Créer un lien de partage » doit produire un
-   lien, et l'ouvrir doit recharger la palette.
+### 4. Vérifier
 
-> Alternative sans Worker séparé : le dossier `functions/` embarque la
-> même API directement dans Pages — il suffit alors d'ajouter le binding
-> KV `NUANCIER_KV` au **projet Pages** (Settings → Bindings) et de ne PAS
-> définir `VITE_API_BASE`. Les deux chemins partagent le même code.
+1. Ouvre `https://nuancier.<ton-compte>.workers.dev` : l'application
+   complète se charge.
+2. Onglet « Construire une palette » → **Créer un lien de partage** → un
+   lien apparaît ; ouvre-le dans un onglet privé : la palette se recharge.
+3. Curieuse ? **Storage & Databases → KV → nuancier-palettes → View** :
+   une clé `palette:…` par lien créé.
 
-### Mise à jour du back
+Si le partage répond « Back non relié », c'est le binding `BACK` de
+l'étape 3.3 ; s'il répond « stockage non configuré », c'est le binding
+`NUANCIER_KV` de l'étape 2.
 
-Le Worker collé à la main ne se met pas à jour tout seul : quand
-`back-a-coller.js` change dans le dépôt (le commit le régénère via
-`npm run build:worker`), recoller son contenu dans l'éditeur du Worker et
-**Deploy**. Le front, lui, se redéploie automatiquement à chaque poussée.
+### Mise à jour
+
+Les Workers collés à la main ne se mettent pas à jour tout seuls : quand
+`front.js` ou `back.js` changent dans le dépôt (régénérés par
+`npm run build:colle` à chaque évolution), recoller le contenu dans
+l'éditeur du Worker concerné et **Deploy**. En pratique le front bougera
+à chaque phase du produit ; le back, rarement.
+
+> Alternative sans copier-coller : un projet **Cloudflare Pages** connecté
+> à ce dépôt Git redéploie le front automatiquement à chaque poussée
+> (build `npm run build`, dossier `dist`), et le dossier `functions/` y
+> embarque la même API — il suffit d'ajouter le binding KV `NUANCIER_KV`
+> au projet Pages. Les deux chemins partagent le même code.
 
 ### API du back
 

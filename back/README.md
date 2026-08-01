@@ -8,8 +8,8 @@ La logique réelle :
 
 Les enrobages de déploiement :
 - `standalone.ts` — le Worker à créer **à la main dans le dashboard
-  Cloudflare** (template Hello World) : `npm run build:worker` le compile
-  en **`back-a-coller.js`** (à la racine du dépôt), le fichier unique à
+  Cloudflare** (template Hello World) : `npm run build:back` le compile
+  en **`back.js`** (à la racine du dépôt), le fichier unique à
   coller dans l'éditeur en ligne.
 - `index.ts` — variante pour un déploiement en ligne de commande
   (wrangler), non nécessaire si tu passes par le dashboard.

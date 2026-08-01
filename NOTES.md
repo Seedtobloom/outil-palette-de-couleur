@@ -44,12 +44,27 @@ wrangler** → le chemin principal est Cloudflare Pages + Git.
   affiche en naviguant dans les dossiers.
 - **Renommage littéral demandé par Cindy** : `src/` → `front/`,
   `worker/` + `shared/` → `back/` (la logique d'API et ses deux enrobages
-  vivent ensemble), `worker-dashboard.js` → `back-a-coller.js`. Seule
-  exception : `functions/` garde son nom, imposé par la convention
-  Cloudflare Pages (documenté dans son README et dans l'arborescence).
-  Chemins mis à jour partout (index.html, tsconfig, vite/vitest,
-  wrangler.jsonc, imports des functions) ; tests, check et builds verts,
-  fichier à coller régénéré et re-testé.
+  vivent ensemble). Seule exception : `functions/` garde son nom, imposé
+  par la convention Cloudflare Pages (documenté dans son README et dans
+  l'arborescence). Chemins mis à jour partout (index.html, tsconfig,
+  vite/vitest, wrangler.jsonc, imports des functions).
+- **Précision suivante de Cindy : ce sont les fichiers à copier-coller
+  qui doivent s'appeler front et back.** → deux fichiers à la racine :
+  - **`back.js`** (ex back-a-coller.js) : l'API, à coller dans le Worker
+    du back (`npm run build:back`).
+  - **`front.js`** : NOUVEAU — l'application complète (HTML + CSS + JS du
+    build Vite inlinés par `scripts/build-front-file.mjs`) servie par un
+    Worker, à coller dans le Worker du front (`npm run build:front`).
+    Les routes `/api/*` y sont relayées au back via un **service
+    binding** nommé `BACK` (un clic dans le dashboard) : pas de CORS,
+    pas de variable d'URL à configurer, les deux Workers suffisent.
+    `npm run build:colle` régénère les deux.
+  - Piège technique géré : `</script>` échappé dans le JS inliné
+    (sinon le HTML se casse) ; vérifié en navigateur réel, zéro erreur.
+  - Ce mode remplace VITE_API_BASE pour ce déploiement (la variable
+    reste utile pour le mode Pages + Worker séparé).
+  - Testé : deux Workers wrangler dev reliés par service binding,
+    parcours complet navigateur (app inlinée + partage + réouverture).
 
 - **Un seul Worker** : le front (SPA Vite buildée dans `dist/`) est servi
   par les assets statiques de la plateforme (`not_found_handling:

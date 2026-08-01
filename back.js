@@ -1,4 +1,4 @@
-// Généré par 'npm run build:worker' — ne pas éditer à la main (source : back/standalone.ts + back/api.ts).
+// Généré par 'npm run build:back' — ne pas éditer à la main (source : back/standalone.ts + back/api.ts). BACK de Nuancier : à coller dans un Worker créé depuis le template Hello World.
 
 // back/validate.ts
 var SCHEMES = [

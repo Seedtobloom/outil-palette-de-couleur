@@ -2,9 +2,9 @@
  * Entrée « Worker autonome » : la version du back destinée à être créée
  * À LA MAIN dans le dashboard Cloudflare à partir du template Hello World.
  *
- * `npm run build:worker` bundle ce fichier (avec back/api.ts) en un seul
- * fichier `back-a-coller.js` à coller tel quel dans l'éditeur en ligne.
- * Ne pas éditer back-a-coller.js directement : modifier back/api.ts
+ * `npm run build:back` bundle ce fichier (avec back/api.ts) en un seul
+ * fichier `back.js` à coller tel quel dans l'éditeur en ligne.
+ * Ne pas éditer back.js directement : modifier back/api.ts
  * ou ce fichier, puis regénérer.
  *
  * Différences avec worker/index.ts (variante wrangler) :
