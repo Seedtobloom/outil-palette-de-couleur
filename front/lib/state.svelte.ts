@@ -1,74 +1,48 @@
 /**
- * État partagé de la palette en cours — la règle du prompt §3.2 :
- * on passe du mode guidé au mode atelier à tout moment SANS perdre son
- * travail. Les deux modes lisent et écrivent le même état.
+ * État partagé de la palette en cours. Tout le parcours lit et écrit ici :
+ * changer d'étape ne perd jamais le travail.
  */
 import type { SchemeName, ThemeMode, WheelName } from '../engine';
 
 export type UsageContext = 'web' | 'identity' | 'print' | 'dataviz';
 export type StartMode = 'color' | 'mood' | 'surprise';
 
+/** Une couleur du nuancier de travail (éditable par la graphiste). */
+export type PaletteEntry = { id: string; hex: string; label: string };
+
 export const settings = $state({
-  /** Étape 1 du guidé : à quoi sert la palette. */
-  usage: 'web' as UsageContext,
+  usage: 'identity' as UsageContext,
   baseColor: '#2563eb',
   scheme: 'split-complementary' as SchemeName,
   wheel: 'ryb' as WheelName,
-  /** Intensité générale, 0.5–1.2. */
   intensity: 1,
-  /** Chaleur des gris, 0–100. */
   neutralInfluence: 50,
-  /** Torsion de teinte, degrés. */
   hueTorsion: 0,
-  /** Thème d'aperçu. */
   previewMode: 'light' as ThemeMode,
+  /** Le nuancier de travail : rempli depuis la palette générée, puis
+   * librement modifiable (ajout, retrait, renommage). */
+  colors: [] as PaletteEntry[],
+  /** Vérification manuelle du critère WCAG de niveau A (SC 1.4.1). */
+  levelAConfirmed: false,
+  printProcess: 'uncoated',
+  substrate: 'uncoated-white',
 });
+
+/** Remplit le nuancier de travail depuis une palette générée. */
+export function fillColorsFrom(entries: PaletteEntry[]): void {
+  settings.colors = entries;
+}
 
 /**
  * Correspondances « ambiance → couleur de départ », explicites et
- * documentées (pas de magie, prompt §3.1) : une teinte, une intensité et
- * une clarté de départ par ambiance, modifiables ensuite librement.
+ * documentées (pas de magie) : une teinte, une intensité et une clarté
+ * de départ par ambiance, modifiables ensuite librement.
  */
 export const MOODS = [
-  {
-    id: 'vegetal',
-    label: 'Végétal, apaisant',
-    hue: 150,
-    c: 0.11,
-    l: 0.6,
-    why: 'verts moyens, ni acides ni sombres',
-  },
-  {
-    id: 'mineral',
-    label: 'Minéral, posé',
-    hue: 235,
-    c: 0.055,
-    l: 0.55,
-    why: 'bleus-gris peu saturés',
-  },
-  {
-    id: 'solaire',
-    label: 'Solaire, chaleureux',
-    hue: 70,
-    c: 0.14,
-    l: 0.72,
-    why: 'jaunes-orangés clairs',
-  },
-  {
-    id: 'terre',
-    label: 'Terreux, artisanal',
-    hue: 55,
-    c: 0.09,
-    l: 0.55,
-    why: 'ocres et bruns doux',
-  },
-  { id: 'pop', label: 'Vif, pop', hue: 340, c: 0.2, l: 0.6, why: 'roses francs très saturés' },
-  {
-    id: 'nocturne',
-    label: 'Profond, nocturne',
-    hue: 270,
-    c: 0.12,
-    l: 0.42,
-    why: 'violets sombres',
-  },
+  { id: 'vegetal', label: 'Végétal, apaisant', hue: 150, c: 0.11, l: 0.6, why: 'verts moyens' },
+  { id: 'mineral', label: 'Minéral, posé', hue: 235, c: 0.055, l: 0.55, why: 'bleus-gris' },
+  { id: 'solaire', label: 'Solaire, chaleureux', hue: 70, c: 0.14, l: 0.72, why: 'jaunes-orangés' },
+  { id: 'terre', label: 'Terreux, artisanal', hue: 55, c: 0.09, l: 0.55, why: 'ocres doux' },
+  { id: 'pop', label: 'Vif, pop', hue: 340, c: 0.2, l: 0.6, why: 'roses francs' },
+  { id: 'nocturne', label: 'Profond, nocturne', hue: 270, c: 0.12, l: 0.42, why: 'violets sombres' },
 ] as const;

@@ -144,6 +144,50 @@ captures d'un outil de référence en inspiration (« tu peux adapter »).
 
 ---
 
+## Parcours unique et outil de graphiste (2026-08-01)
+
+Retours de Cindy : « il y en a de partout, je veux que ce soit par step le
+tout » + une liste de manques (contraste par couleur avec textes, les
+trois A, nuancier éditable, conseils clair/foncé/moyen, couleurs réseaux
+sociaux, rôle de chaque couleur, print autant que web).
+
+### Décisions
+
+- **Un seul parcours, 10 étapes** : projet → départ → couleur →
+  génération → nuancier → rôles → contraste → impression → réseaux →
+  livraison. Les onglets « Atelier » et « Vérifier » sont SUPPRIMÉS
+  (c'était la dispersion dénoncée) ; leurs fonctions sont réparties dans
+  les étapes. L'étape Impression n'apparaît que si le projet est print ou
+  identité complète.
+- **Les trois niveaux, honnêtement** : AA et AAA sont calculés par paire
+  et par usage (texte courant / grand texte / composant). Le **niveau A**
+  est affiché comme ce qu'il est réellement (SC 1.4.1) : une question à
+  cocher — « une information est-elle portée par la couleur seule ? » —
+  avec son explication. Aucun ratio ne lui est associé nulle part
+  (règle de justesse n°1 du prompt).
+- **Nuancier éditable** (`analyze/coverage.ts`) : ajout/retrait/renommage,
+  bandes de clarté clair (L ≥ 0,80) / moyen / foncé (L ≤ 0,45), conseils
+  de manque avec couleur suggérée applicable en un clic, détection des
+  doublons (ΔE00 < 5), alerte palette trop maigre (< 3) ou touffue (> 9).
+- **Rôles déduits, pas déclarés** (`analyze/usage.ts`) : chaque couleur
+  reçoit ses rôles depuis ses contrastes réels — le piège de la couleur
+  moyenne (ni blanc ni noir lisible dessus) est nommé explicitement.
+- **Print** (`print/cmyk.ts`) : estimation CMJN avec GCR partiel et
+  respect du plafond d'encrage du procédé (comportement qualitatif d'un
+  profil réel, bien meilleur que K = 1 − max(R,G,B)), TAC par couleur et
+  moyen, conseils d'éco-encrage, aperçu sur le blanc du papier choisi
+  (jamais #FFFFFF, règle n°8). **Double avertissement affiché** : valeurs
+  indicatives non contractuelles, blancs de papier approchés — la vraie
+  conversion ICC reste la Phase 3 (règle n°7 : approximation autorisée en
+  V0 avec message clair).
+- **Réseaux sociaux** (`harmony/social.ts`) : 5 couleurs d'extension
+  dérivées de la marque, plus saturées (un post est vu petit, dans un flux
+  criard), avec leur contraste sur fond de flux clair ET sombre, un usage
+  décrit par couleur, et deux vignettes de post en situation.
+- 200 tests (17 nouveaux sur ces modules).
+
+---
+
 ## Refonte visuelle — épuré et visuel (2026-08-01)
 
 Retour de Cindy : « encore plus joli, pas trop chiant à utiliser, épuré,

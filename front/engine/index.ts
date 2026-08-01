@@ -91,3 +91,26 @@ export { buildTheme, type Theme, type ThemeMode, type AuditedPair } from './sema
 export { generatePalette, type GeneratedPalette, type PaletteOptions } from './palette';
 export { exportCss } from './export/css';
 export { exportTailwind } from './export/tailwind';
+
+export {
+  analyzeCoverage,
+  bandOf,
+  BAND_LABELS,
+  BAND_USES,
+  BAND_BOUNDS,
+  type Band,
+  type Advice,
+  type CoverageReport,
+  type NamedHex,
+} from './analyze/coverage';
+export { analyzeUsage, LEVEL_A_CHECK, type ColorUsage, type TextTest } from './analyze/usage';
+export {
+  estimateCmyk,
+  PROCESSES,
+  SUBSTRATES,
+  CMYK_DISCLAIMER,
+  SUBSTRATE_DISCLAIMER,
+  type CmykEstimate,
+  type PrintProcess,
+} from './print/cmyk';
+export { socialPalette, SOCIAL_NOTE, type SocialColor } from './harmony/social';

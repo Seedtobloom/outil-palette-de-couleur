@@ -1,4 +1,9 @@
 <script lang="ts">
+  /**
+   * LE parcours. Tout l'outil vit ici, étape par étape — rien n'est
+   * ailleurs. Les étapes print n'apparaissent que si le projet en a
+   * besoin (choix de l'usage à l'étape 1).
+   */
   import {
     gamutMap,
     oklchToHex,
@@ -6,47 +11,109 @@
     scorePalette,
     exportCss,
     exportTailwind,
+    generatePalette,
     SCHEMES,
     type GeneratedPalette,
   } from '../engine';
   import { settings, MOODS, type StartMode, type UsageContext } from './state.svelte';
+  import StepPalette from './StepPalette.svelte';
+  import StepContrast from './StepContrast.svelte';
+  import StepRoles from './StepRoles.svelte';
+  import StepPrint from './StepPrint.svelte';
+  import StepSocial from './StepSocial.svelte';
   import ShareLink from './ShareLink.svelte';
 
-  let {
-    palette,
-    onAtelier,
-  }: {
-    palette: GeneratedPalette | null;
-    showTechnical: boolean;
-    onAtelier: () => void;
-  } = $props();
+  let { palette, showTechnical }: { palette: GeneratedPalette | null; showTechnical: boolean } =
+    $props();
 
-  const STEPS = [
-    { n: 1, short: 'Usage', title: 'À quoi ça sert ?' },
-    { n: 2, short: 'Départ', title: 'D’où on part ?' },
-    { n: 3, short: 'Couleur', title: 'Votre couleur' },
-    { n: 4, short: 'Réglages', title: 'Affinez' },
-    { n: 5, short: 'Contrôle', title: 'Tout est vérifié' },
-    { n: 6, short: 'Livraison', title: 'C’est à vous' },
+  type StepDef = { id: string; short: string; title: string; lead?: string };
+
+  const ALL_STEPS: StepDef[] = [
+    { id: 'usage', short: 'Projet', title: 'C’est pour quoi ?' },
+    { id: 'start', short: 'Départ', title: 'D’où on part ?' },
+    { id: 'color', short: 'Couleur', title: 'Votre couleur' },
+    {
+      id: 'build',
+      short: 'Génération',
+      title: 'La palette se construit',
+      lead: 'Trois teintes de marque, des gris teintés, quatre couleurs fonctionnelles.',
+    },
+    {
+      id: 'palette',
+      short: 'Nuancier',
+      title: 'Votre nuancier',
+      lead: 'Ajoutez, retirez, renommez. L’outil vous dit ce qui manque.',
+    },
+    {
+      id: 'roles',
+      short: 'Rôles',
+      title: 'À quoi sert chaque couleur',
+      lead: 'Déduit des contrastes réels, pas de l’intention.',
+    },
+    {
+      id: 'contrast',
+      short: 'Contraste',
+      title: 'Lisibilité, couleur par couleur',
+      lead: 'Les quatre tests qui décident de tous les usages, et les niveaux atteints.',
+    },
+    {
+      id: 'print',
+      short: 'Impression',
+      title: 'À l’impression',
+      lead: 'Estimation des encres, taux d’encrage, rendu sur le papier choisi.',
+    },
+    {
+      id: 'social',
+      short: 'Réseaux',
+      title: 'Pour les réseaux sociaux',
+      lead: 'Des couleurs de la même famille, mais qui tiennent dans un flux.',
+    },
+    { id: 'deliver', short: 'Livraison', title: 'C’est à vous' },
   ];
 
-  let step = $state(1);
-  let maxReached = $state(1);
+  const steps = $derived(
+    ALL_STEPS.filter((s) => {
+      if (s.id === 'print') return settings.usage === 'print' || settings.usage === 'identity';
+      return true;
+    }),
+  );
+
+  let index = $state(0);
+  let maxReached = $state(0);
   let startMode: StartMode = $state('color');
 
-  function goTo(n: number): void {
-    if (n >= 1 && n <= maxReached) step = n;
+  const current = $derived(steps[Math.min(index, steps.length - 1)] as StepDef);
+
+  function go(i: number): void {
+    if (i >= 0 && i <= maxReached && i < steps.length) index = i;
   }
 
   function next(): void {
-    if (step < 6) {
-      step += 1;
-      maxReached = Math.max(maxReached, step);
+    // En entrant dans le nuancier, on le pré-remplit depuis la palette
+    // générée si la graphiste n'y a pas encore touché.
+    const upcoming = steps[index + 1];
+    if (upcoming?.id === 'palette' && settings.colors.length === 0 && palette) {
+      seedColors(palette);
+    }
+    if (index < steps.length - 1) {
+      index += 1;
+      maxReached = Math.max(maxReached, index);
     }
   }
 
+  function seedColors(p: GeneratedPalette): void {
+    const t = p.themes.light.tokens;
+    settings.colors = [
+      { id: 'g1', hex: t.primary.hex, label: 'Principale' },
+      { id: 'g2', hex: t.secondary.hex, label: 'Secondaire' },
+      { id: 'g3', hex: t.accent.hex, label: 'Accent' },
+      { id: 'g4', hex: p.ramps.neutral.steps[1]!.hex, label: 'Gris clair' },
+      { id: 'g5', hex: p.ramps.neutral.steps[9]!.hex, label: 'Gris foncé' },
+    ];
+  }
+
   const USAGES: { id: UsageContext; label: string; hint: string }[] = [
-    { id: 'web', label: 'Un site', hint: 'clair + sombre' },
+    { id: 'web', label: 'Un site', hint: 'écran, clair + sombre' },
     { id: 'identity', label: 'Une identité', hint: 'écran + papier' },
     { id: 'print', label: 'Un imprimé', hint: 'papier' },
     { id: 'dataviz', label: 'Des graphiques', hint: 'séries distinctes' },
@@ -64,7 +131,7 @@
   }
 
   const baseValid = $derived(parseToOklch(settings.baseColor) !== null);
-  const report = $derived(step >= 5 && palette ? scorePalette(palette) : null);
+  const report = $derived(palette ? scorePalette(palette) : null);
 
   const auditSummary = $derived.by(() => {
     if (!palette) return null;
@@ -79,12 +146,6 @@
     }
     return { tested, failures };
   });
-
-  const cvdOk = $derived(
-    report
-      ? !report.diagnostics.some((d) => d.status === 'fail' && d.id.startsWith('constraint:cvd'))
-      : true,
-  );
 
   let exportFormat: 'css' | 'tailwind' = $state('css');
   let copied = $state(false);
@@ -105,26 +166,26 @@
     ['neutral', 'Gris'],
   ] as const;
 
-  const SEMANTIC_RAMPS_UI = [
+  const SEM_RAMPS = [
     ['success', 'Succès'],
     ['warning', 'Attention'],
     ['error', 'Erreur'],
     ['info', 'Info'],
   ] as const;
+
+  void generatePalette; // (le calcul vit dans App, qui passe `palette`)
 </script>
 
 <div class="flow">
-  <!-- Progression : fine, horizontale, cliquable -->
   <nav class="progress" aria-label="Étapes">
-    {#each STEPS as s (s.n)}
+    {#each steps as s, i (s.id)}
       <button
         class="dot"
-        class:current={step === s.n}
-        class:done={maxReached > s.n}
-        disabled={s.n > maxReached}
-        aria-current={step === s.n ? 'step' : undefined}
-        onclick={() => goTo(s.n)}
-        title={s.title}
+        class:current={index === i}
+        class:done={maxReached > i}
+        disabled={i > maxReached}
+        aria-current={index === i ? 'step' : undefined}
+        onclick={() => go(i)}
       >
         <span class="dot-mark" aria-hidden="true"></span>
         <span class="dot-label">{s.short}</span>
@@ -132,15 +193,18 @@
     {/each}
   </nav>
 
-  {#key step}
-    <section class="stage" aria-labelledby="stage-title">
+  {#key current.id}
+    <section class="stage" class:wide={['palette', 'contrast', 'roles', 'print', 'social'].includes(current.id)}>
       <header class="stage-head">
-        <h2 id="stage-title">{STEPS[step - 1]?.title}</h2>
-        <span class="stage-count num">{step}/6</span>
+        <div>
+          <h2>{current.title}</h2>
+          {#if current.lead}<p class="lead">{current.lead}</p>{/if}
+        </div>
+        <span class="count num">{index + 1}/{steps.length}</span>
       </header>
 
-      {#if step === 1}
-        <div class="choices four">
+      {#if current.id === 'usage'}
+        <div class="choices two">
           {#each USAGES as u (u.id)}
             <button
               class="choice"
@@ -156,54 +220,30 @@
             </button>
           {/each}
         </div>
-      {:else if step === 2}
+      {:else if current.id === 'start'}
         <div class="choices three">
-          <button
-            class="choice"
-            role="radio"
-            aria-checked={startMode === 'color'}
-            onclick={() => {
-              startMode = 'color';
-              next();
-            }}
-          >
-            <strong>J’ai une couleur</strong>
-            <small>un hex, un logo</small>
+          <button class="choice" onclick={() => { startMode = 'color'; next(); }}>
+            <strong>J’ai une couleur</strong><small>un hex, un logo</small>
           </button>
           <button
             class="choice"
-            role="radio"
             aria-checked={startMode === 'mood'}
+            role="radio"
             onclick={() => (startMode = 'mood')}
           >
-            <strong>Une ambiance</strong>
-            <small>choisir au feeling</small>
+            <strong>Une ambiance</strong><small>au feeling</small>
           </button>
-          <button
-            class="choice"
-            role="radio"
-            aria-checked={startMode === 'surprise'}
-            onclick={() => {
-              startMode = 'surprise';
-              surprise();
-              next();
-            }}
-          >
-            <strong>Surprends-moi</strong>
-            <small>au hasard</small>
+          <button class="choice" onclick={() => { surprise(); next(); }}>
+            <strong>Surprends-moi</strong><small>au hasard</small>
           </button>
         </div>
-
         {#if startMode === 'mood'}
           <div class="moods">
             {#each MOODS as mood (mood.id)}
               <button
                 class="mood"
-                onclick={() => {
-                  settings.baseColor = moodHex(mood);
-                  next();
-                }}
                 style="--mood:{moodHex(mood)}"
+                onclick={() => { settings.baseColor = moodHex(mood); next(); }}
               >
                 <span class="mood-fill" aria-hidden="true"></span>
                 <span class="mood-name">{mood.label}</span>
@@ -211,7 +251,7 @@
             {/each}
           </div>
         {/if}
-      {:else if step === 3}
+      {:else if current.id === 'color'}
         <div class="pick">
           <label class="pick-swatch" style="background:{baseValid ? settings.baseColor : '#ccc'}">
             <input type="color" bind:value={settings.baseColor} aria-label="Choisir la couleur" />
@@ -224,7 +264,7 @@
               spellcheck="false"
               aria-label="Couleur en hexadécimal"
             />
-            <p class="pick-note">Conservée exactement — tout se construit autour.</p>
+            <p class="muted">Conservée exactement — tout se construit autour.</p>
             <button onclick={surprise}>Une autre au hasard</button>
           </div>
         </div>
@@ -235,9 +275,9 @@
             {/each}
           </div>
         {/if}
-      {:else if step === 4}
+      {:else if current.id === 'build'}
         {#if palette}
-          <div class="ramps-grid">
+          <div class="ramps">
             {#each BRAND_RAMPS as [key, label] (key)}
               <div class="ramp-row">
                 <span class="ramp-name">{label}</span>
@@ -248,10 +288,10 @@
                 </span>
               </div>
             {/each}
-            <div class="ramp-row semantics">
+            <div class="ramp-row">
               <span class="ramp-name">Fonctionnelles</span>
               <span class="sem-group" aria-hidden="true">
-                {#each SEMANTIC_RAMPS_UI as [key, label] (key)}
+                {#each SEM_RAMPS as [key, label] (key)}
                   <span class="sem" title={label}>
                     {#each palette.ramps[key].steps.slice(2, 9) as s (s.step)}
                       <span style="background:{s.hex}"></span>
@@ -262,96 +302,62 @@
             </div>
           </div>
         {/if}
-
         <div class="knobs">
           <label class="knob">
             <span class="knob-label">Caractère</span>
             <select bind:value={settings.scheme}>
-              {#each SCHEMES as s (s.name)}
-                <option value={s.name}>{s.label}</option>
-              {/each}
+              {#each SCHEMES as s (s.name)}<option value={s.name}>{s.label}</option>{/each}
             </select>
           </label>
           <div class="knob">
             <span class="knob-label">Roue</span>
-            <div class="seg" role="group" aria-label="Roue chromatique">
-              <button
-                aria-pressed={settings.wheel === 'ryb'}
-                onclick={() => (settings.wheel = 'ryb')}>Peintres</button
+            <div class="seg" role="group" aria-label="Roue">
+              <button aria-pressed={settings.wheel === 'ryb'} onclick={() => (settings.wheel = 'ryb')}
+                >Peintres</button
               >
-              <button
-                aria-pressed={settings.wheel === 'rgb'}
-                onclick={() => (settings.wheel = 'rgb')}>Écrans</button
+              <button aria-pressed={settings.wheel === 'rgb'} onclick={() => (settings.wheel = 'rgb')}
+                >Écrans</button
               >
             </div>
           </div>
           <label class="knob">
-            <span class="knob-label">
-              Intensité <span class="num">{Math.round(settings.intensity * 100)}</span>
-            </span>
+            <span class="knob-label"
+              >Intensité <span class="num">{Math.round(settings.intensity * 100)}</span></span
+            >
             <input type="range" min="0.5" max="1.2" step="0.05" bind:value={settings.intensity} />
           </label>
           <label class="knob">
-            <span class="knob-label">
-              Gris teintés <span class="num">{settings.neutralInfluence}</span>
-            </span>
+            <span class="knob-label"
+              >Gris teintés <span class="num">{settings.neutralInfluence}</span></span
+            >
             <input type="range" min="0" max="100" step="5" bind:value={settings.neutralInfluence} />
           </label>
         </div>
+        {#if auditSummary}
+          <p class="verdict-line" data-ok={auditSummary.failures === 0}>
+            {auditSummary.failures === 0
+              ? `✓ Les ${auditSummary.tested} paires utilisées passent WCAG 2.2 AA, clair et sombre.`
+              : `✗ ${auditSummary.failures} paires échouent.`}
+            {#if report}· score {report.score}/100{/if}
+          </p>
+        {/if}
         <details class="why">
           <summary>Pourquoi ces couleurs&nbsp;?</summary>
           <ul>
-            {#each palette?.explanations.slice(1, 5) ?? [] as e, i (i)}
-              <li>{e}</li>
-            {/each}
+            {#each palette?.explanations.slice(1, 5) ?? [] as e, i (i)}<li>{e}</li>{/each}
           </ul>
         </details>
-      {:else if step === 5}
-        <div class="verdicts">
-          <div class="verdict" data-ok={auditSummary?.failures === 0}>
-            <span class="verdict-mark" aria-hidden="true"></span>
-            <strong>Lisible</strong>
-            <small>{auditSummary?.tested ?? 0} paires · WCAG 2.2 AA · clair + sombre</small>
-          </div>
-          <div class="verdict" data-ok={cvdOk}>
-            <span class="verdict-mark" aria-hidden="true"></span>
-            <strong>Daltonisme</strong>
-            <small>succès et erreur restent distincts</small>
-          </div>
-          <div class="verdict" data-ok={true}>
-            <span class="verdict-mark" aria-hidden="true"></span>
-            <strong>Complète</strong>
-            <small>{palette ? Object.keys(palette.themes.light.tokens).length : 0} rôles · 88 valeurs</small>
-          </div>
-          <div class="verdict" data-pending={true}>
-            <span class="verdict-mark" aria-hidden="true"></span>
-            <strong>Encre & énergie</strong>
-            <small>à venir — aucun chiffre inventé</small>
-          </div>
-        </div>
-
-        {#if report}
-          <div class="score-line">
-            <span class="score-num num">{report.score}</span>
-            <span class="score-bar" aria-hidden="true">
-              <span style="inline-size:{report.score}%"></span>
-            </span>
-            <span class="score-cap">score de contraintes</span>
-          </div>
-          {#if report.diagnostics.length > 0}
-            <details class="why">
-              <summary>
-                {report.diagnostics.length} remarque{report.diagnostics.length > 1 ? 's' : ''}
-              </summary>
-              <ul>
-                {#each report.diagnostics as d (d.id)}
-                  <li data-status={d.status}>{d.plain}</li>
-                {/each}
-              </ul>
-            </details>
-          {/if}
-        {/if}
-      {:else if step === 6}
+      {:else if current.id === 'palette'}
+        <StepPalette {palette} />
+      {:else if current.id === 'roles'}
+        <StepRoles />
+      {:else if current.id === 'contrast'}
+        <StepContrast {showTechnical} />
+      {:else if current.id === 'print'}
+        <StepPrint />
+      {:else if current.id === 'social'}
+        <StepSocial />
+      {:else if current.id === 'deliver'}
         {#if palette}
           <div class="previews">
             {#each ['light', 'dark'] as const as mode (mode)}
@@ -365,11 +371,10 @@
                     {mode === 'light' ? 'Clair' : 'Sombre'}
                   </p>
                   <p class="preview-body" style="color:{t['text-secondary'].hex}">
-                    Un texte, un <span style="color:{t['text-muted'].hex}">détail atténué</span>.
+                    Un texte, un <span style="color:{t['text-muted'].hex}">détail</span>.
                   </p>
                   <p class="preview-actions">
-                    <span style="background:{t.primary.hex};color:{t['on-primary'].hex}">Action</span
-                    >
+                    <span style="background:{t.primary.hex};color:{t['on-primary'].hex}">Action</span>
                     <span
                       style="background:{t['success-surface'].hex};color:{t['success-content']
                         .hex};border:1px solid {t['success-border'].hex}">✓</span
@@ -383,9 +388,8 @@
               </div>
             {/each}
           </div>
-
-          <div class="deliver">
-            <div class="seg" role="group" aria-label="Format d’export">
+          <div class="deliver-row">
+            <div class="seg" role="group" aria-label="Format">
               <button aria-pressed={exportFormat === 'css'} onclick={() => (exportFormat = 'css')}
                 >CSS</button
               >
@@ -394,31 +398,24 @@
                 onclick={() => (exportFormat = 'tailwind')}>Tailwind</button
               >
             </div>
-            <button class="solid" onclick={copyExport}>{copied ? 'Copié ✓' : 'Copier le code'}</button
-            >
+            <button class="solid" onclick={copyExport}>{copied ? 'Copié ✓' : 'Copier le code'}</button>
           </div>
           <details class="why">
             <summary>Voir le code</summary>
-            <textarea readonly rows="9" value={exportText} aria-label="Code exporté"></textarea>
+            <textarea readonly rows="8" value={exportText} aria-label="Code exporté"></textarea>
           </details>
-          <div class="deliver">
-            <ShareLink />
-          </div>
+          <ShareLink />
         {/if}
       {/if}
 
       <footer class="stage-foot">
-        {#if step > 1}
-          <button class="ghost" onclick={() => (step -= 1)}>← Retour</button>
-        {:else}
-          <button class="ghost" onclick={onAtelier}>Tout ouvrir (atelier)</button>
-        {/if}
-        {#if step < 6}
-          <button class="solid" onclick={next} disabled={step === 3 && !baseValid}>
+        {#if index > 0}
+          <button class="ghost" onclick={() => (index -= 1)}>← Retour</button>
+        {:else}<span></span>{/if}
+        {#if index < steps.length - 1}
+          <button class="solid" onclick={next} disabled={current.id === 'color' && !baseValid}>
             Continuer →
           </button>
-        {:else}
-          <button class="ghost" onclick={onAtelier}>Affiner en atelier →</button>
         {/if}
       </footer>
     </section>
@@ -428,29 +425,29 @@
 <style>
   .flow {
     display: grid;
-    gap: 1.6rem;
+    gap: 1.5rem;
     justify-items: center;
   }
 
-  /* — Progression — */
   .progress {
     display: flex;
     align-items: center;
-    gap: 0.15rem;
+    gap: 0.1rem;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .dot {
     border: none;
     background: none;
-    padding: 0.3rem 0.55rem;
+    padding: 0.3rem 0.5rem;
     display: grid;
     justify-items: center;
     gap: 0.35rem;
-    border-radius: var(--radius-sm);
   }
 
   .dot:hover {
-    background: transparent;
+    background: none;
   }
 
   .dot:disabled {
@@ -474,8 +471,7 @@
   }
 
   .dot-label {
-    font-size: 0.7rem;
-    letter-spacing: 0.04em;
+    font-size: 0.68rem;
     color: var(--hairline-strong);
   }
 
@@ -487,29 +483,31 @@
     color: var(--ink);
   }
 
-  /* — Scène — */
   .stage {
     inline-size: 100%;
     max-inline-size: 44rem;
     background: var(--paper);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
-    padding: 2.2rem 2.4rem 1.4rem;
+    padding: 2rem 2.2rem 1.3rem;
     display: grid;
-    gap: 1.5rem;
+    gap: 1.4rem;
     align-content: start;
-    min-block-size: 25rem;
+    min-block-size: 22rem;
+  }
+
+  .stage.wide {
+    max-inline-size: 60rem;
   }
 
   @media (prefers-reduced-motion: no-preference) {
     .stage {
-      animation: rise 260ms cubic-bezier(0.2, 0.7, 0.3, 1);
+      animation: rise 240ms cubic-bezier(0.2, 0.7, 0.3, 1);
     }
-
     @keyframes rise {
       from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(8px);
       }
       to {
         opacity: 1;
@@ -526,21 +524,27 @@
   }
 
   .stage-head h2 {
-    font-size: 1.9rem;
+    font-size: 1.75rem;
   }
 
-  .stage-count {
+  .lead {
+    margin: 0.25rem 0 0;
+    color: var(--ink-2);
+    font-size: 0.88rem;
+  }
+
+  .count {
     color: var(--hairline-strong);
-    font-size: 0.85rem;
+    font-size: 0.82rem;
+    white-space: nowrap;
   }
 
-  /* — Choix — */
   .choices {
     display: grid;
     gap: 0.6rem;
   }
 
-  .choices.four {
+  .choices.two {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -550,29 +554,28 @@
 
   .choice {
     display: grid;
-    gap: 0.15rem;
+    gap: 0.1rem;
     justify-items: start;
     text-align: left;
-    padding: 1.15rem 1.25rem;
+    padding: 1.1rem 1.2rem;
     border: 1px solid var(--hairline);
     border-radius: var(--radius);
     background: var(--paper-sunken);
   }
 
   .choice strong {
-    font-size: 1.05rem;
+    font-size: 1.02rem;
     font-weight: 500;
   }
 
   .choice small {
     color: var(--ink-2);
-    font-size: 0.82rem;
+    font-size: 0.8rem;
   }
 
   .choice:hover {
     border-color: var(--ink-2);
     background: var(--paper);
-    transform: translateY(-1px);
   }
 
   .choice[aria-checked='true'] {
@@ -580,7 +583,6 @@
     background: var(--paper);
   }
 
-  /* — Ambiances — */
   .moods {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -592,97 +594,88 @@
     background: none;
     padding: 0;
     display: grid;
-    gap: 0.4rem;
-    justify-items: stretch;
+    gap: 0.35rem;
   }
 
   .mood-fill {
-    display: block;
-    block-size: 4.5rem;
+    block-size: 4.2rem;
     border-radius: var(--radius);
     background: var(--mood);
   }
 
-  .mood:hover .mood-fill {
-    transform: scale(1.02);
-  }
-
   .mood-name {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     color: var(--ink-2);
     text-align: center;
   }
 
-  /* — Choix de la couleur — */
   .pick {
     display: grid;
-    grid-template-columns: 11rem 1fr;
-    gap: 1.6rem;
+    grid-template-columns: 10rem 1fr;
+    gap: 1.5rem;
     align-items: center;
   }
 
   .pick-swatch {
     position: relative;
-    block-size: 11rem;
+    block-size: 10rem;
     border-radius: var(--radius);
-    cursor: pointer;
     overflow: hidden;
+    cursor: pointer;
     box-shadow: inset 0 0 0 1px oklch(20% 0.01 260 / 0.08);
   }
 
-  .pick-swatch input[type='color'] {
+  .pick-swatch input {
     position: absolute;
     inset: 0;
     inline-size: 100%;
     block-size: 100%;
     opacity: 0;
-    cursor: pointer;
     border: none;
+    cursor: pointer;
   }
 
   .pick-side {
     display: grid;
-    gap: 0.7rem;
+    gap: 0.6rem;
     justify-items: start;
   }
 
   .pick-hex {
     font-family: var(--font-mono);
-    font-size: 1.5rem;
-    padding: 0.35rem 0.7rem;
+    font-size: 1.4rem;
     inline-size: 8.5ch;
-    text-transform: lowercase;
   }
 
-  .pick-note {
+  .muted {
     margin: 0;
     color: var(--ink-2);
-    font-size: 0.88rem;
+    font-size: 0.86rem;
   }
 
   .big-ramp {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
-    block-size: 3.4rem;
+    block-size: 3.2rem;
     border-radius: var(--radius-sm);
     overflow: hidden;
   }
 
-  .big-ramp .base {
+  .big-ramp .base,
+  .ramp-strip .base {
     outline: 2px solid var(--paper);
-    outline-offset: -6px;
+    outline-offset: -5px;
   }
 
-  /* — Rampes — */
-  .ramps-grid {
+  .ramps {
     display: grid;
     gap: 0.45rem;
   }
 
   .ramp-row {
     display: grid;
-    grid-template-columns: 5.5rem 1fr;
+    grid-template-columns: 6rem 1fr;
     align-items: center;
     gap: 0.9rem;
   }
@@ -697,14 +690,9 @@
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
-    block-size: 2.1rem;
+    block-size: 2rem;
     border-radius: var(--radius-sm);
     overflow: hidden;
-  }
-
-  .ramp-strip .base {
-    outline: 2px solid var(--paper);
-    outline-offset: -4px;
   }
 
   .sem-group {
@@ -722,11 +710,10 @@
     overflow: hidden;
   }
 
-  /* — Réglages — */
   .knobs {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.9rem 1.6rem;
+    gap: 0.9rem 1.5rem;
   }
 
   .knob {
@@ -749,6 +736,11 @@
   .seg button {
     flex: 1;
     padding: 0.3rem 0.6rem;
+    font-size: 0.86rem;
+  }
+
+  .verdict-line {
+    margin: 0;
     font-size: 0.88rem;
   }
 
@@ -776,97 +768,6 @@
     font-size: 0.72rem;
   }
 
-  /* — Verdicts — */
-  .verdicts {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.6rem;
-  }
-
-  .verdict {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-areas: 'mark title' 'mark sub';
-    column-gap: 0.7rem;
-    align-items: center;
-    padding: 0.9rem 1.1rem;
-    border-radius: var(--radius);
-    background: var(--paper-sunken);
-  }
-
-  .verdict-mark {
-    grid-area: mark;
-    inline-size: 1.4rem;
-    block-size: 1.4rem;
-    border-radius: 50%;
-    background: var(--ink);
-    position: relative;
-  }
-
-  .verdict-mark::after {
-    content: '✓';
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    color: var(--paper);
-    font-size: 0.8rem;
-  }
-
-  .verdict[data-ok='false'] .verdict-mark::after {
-    content: '✗';
-  }
-
-  .verdict[data-pending] .verdict-mark {
-    background: var(--hairline-strong);
-  }
-
-  .verdict[data-pending] .verdict-mark::after {
-    content: '…';
-  }
-
-  .verdict strong {
-    grid-area: title;
-    font-weight: 500;
-  }
-
-  .verdict small {
-    grid-area: sub;
-    color: var(--ink-2);
-    font-size: 0.78rem;
-  }
-
-  /* — Score — */
-  .score-line {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-  }
-
-  .score-num {
-    font-size: 1.6rem;
-  }
-
-  .score-bar {
-    flex: 1;
-    block-size: 4px;
-    background: var(--hairline);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .score-bar span {
-    display: block;
-    block-size: 100%;
-    background: var(--ink);
-  }
-
-  .score-cap {
-    font-size: 0.78rem;
-    color: var(--ink-2);
-  }
-
-  /* — Aperçus — */
   .previews {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -875,13 +776,13 @@
 
   .preview {
     border-radius: var(--radius);
-    padding: 1.1rem;
+    padding: 1rem;
   }
 
   .preview-card {
     border: 1px solid;
     border-radius: var(--radius-sm);
-    padding: 0.9rem 1rem;
+    padding: 0.85rem 0.95rem;
   }
 
   .preview-title {
@@ -890,7 +791,7 @@
   }
 
   .preview-body {
-    margin: 0 0 0.7rem;
+    margin: 0 0 0.6rem;
     font-size: 0.85rem;
   }
 
@@ -898,7 +799,7 @@
     display: flex;
     gap: 0.4rem;
     margin: 0;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
   }
 
   .preview-actions span {
@@ -906,20 +807,19 @@
     border-radius: 100px;
   }
 
-  .deliver {
+  .deliver-row {
     display: flex;
-    flex-wrap: wrap;
     gap: 0.6rem;
+    flex-wrap: wrap;
     align-items: center;
   }
 
-  /* — Pied — */
   .stage-foot {
     display: flex;
     justify-content: space-between;
     gap: 0.6rem;
-    margin-top: 0.4rem;
-    padding-top: 1.2rem;
+    margin-top: 0.3rem;
+    padding-top: 1.1rem;
     border-top: 1px solid var(--hairline);
   }
 
@@ -951,20 +851,16 @@
     border-color: var(--hairline-strong);
   }
 
-  @media (max-width: 44rem) {
+  @media (max-width: 46rem) {
     .stage {
-      padding: 1.5rem 1.3rem 1.1rem;
+      padding: 1.4rem 1.2rem 1rem;
     }
 
-    .choices.four,
+    .choices.two,
     .choices.three,
+    .moods,
     .knobs,
-    .verdicts,
     .previews,
-    .moods {
-      grid-template-columns: 1fr;
-    }
-
     .pick {
       grid-template-columns: 1fr;
     }

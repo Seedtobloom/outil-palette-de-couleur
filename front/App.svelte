@@ -6,13 +6,10 @@
     type WheelName,
   } from './engine';
   import { settings } from './lib/state.svelte';
-  import GuidedFlow from './lib/GuidedFlow.svelte';
-  import PaletteBuilder from './lib/PaletteBuilder.svelte';
-  import ColorChecker from './lib/ColorChecker.svelte';
+  import Flow from './lib/Flow.svelte';
   import ProofBar from './lib/ProofBar.svelte';
 
   let showTechnical = $state(false);
-  let view: 'guided' | 'atelier' | 'check' = $state('guided');
   let loadNotice = $state('');
 
   const API_BASE: string = ((import.meta.env.VITE_API_BASE as string | undefined) ?? '').replace(
@@ -59,7 +56,6 @@
         settings.intensity = stored.options.intensity;
         settings.neutralInfluence = Math.round(stored.options.neutralInfluence * 100);
         settings.hueTorsion = stored.options.hueTorsion;
-        view = 'atelier';
         loadNotice = 'Palette partagée chargée.';
       } catch {
         loadNotice =
@@ -81,17 +77,6 @@
         {/each}
       </div>
     {/if}
-    <nav aria-label="Modes">
-      <button aria-pressed={view === 'guided'} onclick={() => (view = 'guided')}>
-        Guidé
-      </button>
-      <button aria-pressed={view === 'atelier'} onclick={() => (view = 'atelier')}>
-        Atelier
-      </button>
-      <button aria-pressed={view === 'check'} onclick={() => (view = 'check')}>
-        Vérifier
-      </button>
-    </nav>
     <label class="tech-toggle">
       <input type="checkbox" bind:checked={showTechnical} />
       Détails
@@ -102,13 +87,7 @@
     {#if loadNotice}
       <p class="notice" role="status">{loadNotice}</p>
     {/if}
-    {#if view === 'guided'}
-      <GuidedFlow {palette} {showTechnical} onAtelier={() => (view = 'atelier')} />
-    {:else if view === 'atelier'}
-      <PaletteBuilder {palette} {showTechnical} />
-    {:else}
-      <ColorChecker {showTechnical} />
-    {/if}
+    <Flow {palette} {showTechnical} />
   </main>
 
   <footer>
@@ -119,9 +98,7 @@
   </footer>
 </div>
 
-{#if view !== 'check'}
-  <ProofBar {palette} />
-{/if}
+<ProofBar {palette} />
 
 <style>
   .shell {
@@ -158,16 +135,6 @@
     inline-size: 11rem;
     border-radius: 100px;
     overflow: hidden;
-  }
-
-  nav {
-    display: flex;
-    gap: 0.3rem;
-  }
-
-  nav button {
-    padding: 0.25rem 0.85rem;
-    font-size: 0.88rem;
   }
 
   .tech-toggle {
