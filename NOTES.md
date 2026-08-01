@@ -144,6 +144,47 @@ captures d'un outil de référence en inspiration (« tu peux adapter »).
 
 ---
 
+## Étape Harmonie + score de santé (2026-08-01)
+
+Suite du nouveau brief, dans l'ordre que j'ai proposé (les deux manques
+les plus criants du parcours).
+
+### Harmonie (`harmony/analysis.ts`, étape 2 du brief)
+
+- **Détection du schéma dominant** avec niveau de confiance : on mesure
+  les écarts de teinte au dominant (la couleur la plus chromatique) et on
+  compare aux cinq modèles canoniques ; en dessous de 0,45 de confiance
+  et au-delà de 45° d'étalement, le verdict est « libre » plutôt qu'un
+  schéma inventé.
+- **Fausses notes sur les trois axes** :
+  - intensité : chroma > 2× la médiane du reste ;
+  - clarté : plus de 1,9 écart-type du groupe ;
+  - teinte : plus de 75° de sa plus proche voisine chromatique.
+- **La correction ne touche QUE l'axe fautif** — c'est tout l'intérêt
+  d'OKLCH, et c'est testé explicitement (teinte et clarté préservées à
+  moins de 6° et 0,03 quand on corrige l'intensité).
+- **Cohérence stricte du verdict** (exigence ⚠ du brief) : un seul
+  verdict dérivé du calcul, testé impossible d'afficher « cohérent »
+  quand des fausses notes existent, et score décroissant avec leur
+  nombre.
+- Régularité des écarts affichée sur les trois axes.
+
+### Score de santé (`score.ts`, §8 du brief)
+
+- Pondération exacte du brief : accessibilité 30 %, harmonie 20 %,
+  complétude 20 %, équilibre 15 %, éco-encrage 15 %.
+- **Calculé, jamais estimé** : un test vérifie que le total est
+  exactement la somme pondérée des composantes — impossible qu'il
+  contredise le détail.
+- Chaque composante explique ce qu'elle mesure et **pointe vers l'étape**
+  qui fait perdre des points ; le panneau du header y navigue au clic.
+- Choix documenté : l'accessibilité ne compte que les « paires utiles »
+  (couleurs de bandes de clarté différentes) — deux fonds clairs ne sont
+  pas censés se porter l'un l'autre, les compter fausserait le score.
+- 223 tests (14 nouveaux).
+
+---
+
 ## Nouveau brief — arbitrages validés (2026-08-01)
 
 Cindy a fourni un second brief, rédigé sans connaître le code existant.

@@ -124,3 +124,13 @@ export {
   type SpotMatch,
   type SpotCollision,
 } from './print/spot';
+export {
+  analyzeHarmony,
+  SCHEME_LABELS,
+  AXIS_LABELS,
+  type HarmonyAnalysis,
+  type OffNote,
+  type SchemeGuess,
+  type Axis,
+} from './harmony/analysis';
+export { healthScore, type HealthScore, type ScoreComponent } from './score';

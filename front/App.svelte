@@ -8,9 +8,11 @@
   import { settings } from './lib/state.svelte';
   import Flow from './lib/Flow.svelte';
   import ProofBar from './lib/ProofBar.svelte';
+  import HealthBadge from './lib/HealthBadge.svelte';
 
   let showTechnical = $state(false);
   let loadNotice = $state('');
+  let goToStepId: ((id: string) => void) | undefined = $state();
 
   const API_BASE: string = ((import.meta.env.VITE_API_BASE as string | undefined) ?? '').replace(
     /\/$/,
@@ -77,6 +79,7 @@
         {/each}
       </div>
     {/if}
+    <HealthBadge onGoToStep={(id) => goToStepId?.(id)} />
     <label class="tech-toggle">
       <input type="checkbox" bind:checked={showTechnical} />
       Détails
@@ -87,7 +90,7 @@
     {#if loadNotice}
       <p class="notice" role="status">{loadNotice}</p>
     {/if}
-    <Flow {palette} {showTechnical} />
+    <Flow {palette} {showTechnical} bind:goToStepId />
   </main>
 
   <footer>

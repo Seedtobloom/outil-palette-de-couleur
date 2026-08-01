@@ -17,14 +17,22 @@
   } from '../engine';
   import { settings, MOODS, type StartMode, type UsageContext } from './state.svelte';
   import StepPalette from './StepPalette.svelte';
+  import StepHarmony from './StepHarmony.svelte';
   import StepContrast from './StepContrast.svelte';
   import StepRoles from './StepRoles.svelte';
   import StepPrint from './StepPrint.svelte';
   import StepSocial from './StepSocial.svelte';
   import ShareLink from './ShareLink.svelte';
 
-  let { palette, showTechnical }: { palette: GeneratedPalette | null; showTechnical: boolean } =
-    $props();
+  let {
+    palette,
+    showTechnical,
+    goToStepId = $bindable(),
+  }: {
+    palette: GeneratedPalette | null;
+    showTechnical: boolean;
+    goToStepId?: ((id: string) => void) | undefined;
+  } = $props();
 
   type StepDef = { id: string; short: string; title: string; lead?: string };
 
@@ -43,6 +51,12 @@
       short: 'Nuancier',
       title: 'Votre nuancier',
       lead: 'Ajoutez, retirez, renommez. L’outil vous dit ce qui manque.',
+    },
+    {
+      id: 'harmony',
+      short: 'Harmonie',
+      title: 'Le groupe tient-il ensemble ?',
+      lead: 'Le schéma réellement suivi, et les couleurs qui en sortent.',
     },
     {
       id: 'roles',
@@ -87,6 +101,15 @@
   function go(i: number): void {
     if (i >= 0 && i <= maxReached && i < steps.length) index = i;
   }
+
+  // Permet au score de santé d'ouvrir l'étape qui fait perdre des points.
+  goToStepId = (id: string) => {
+    const i = steps.findIndex((s) => s.id === id);
+    if (i >= 0) {
+      maxReached = Math.max(maxReached, i);
+      index = i;
+    }
+  };
 
   function next(): void {
     // En entrant dans le nuancier, on le pré-remplit depuis la palette
@@ -392,6 +415,8 @@
         </details>
       {:else if current.id === 'palette'}
         <StepPalette {palette} />
+      {:else if current.id === 'harmony'}
+        <StepHarmony />
       {:else if current.id === 'roles'}
         <StepRoles />
       {:else if current.id === 'contrast'}
