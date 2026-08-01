@@ -17,6 +17,17 @@ export type ConstraintReport = {
   diagnostics: Diagnostic[];
 };
 
+const SEMANTIC_LABELS: Record<string, string> = {
+  success: 'succès',
+  warning: 'avertissement',
+  error: 'erreur',
+  info: 'information',
+};
+
+function semLabel(id: string): string {
+  return SEMANTIC_LABELS[id] ?? id;
+}
+
 const PENALTIES = {
   contrastFailure: 15,
   cvdOpposedCollision: 12,
@@ -80,8 +91,8 @@ export function scorePalette(palette: GeneratedPalette): ConstraintReport {
         threshold: 10,
         rule: 'Distinguabilité CVD — Machado 2009, ΔE00 ≥ 10',
         plain: opposed
-          ? `« ${collision.a} » et « ${collision.b} » se confondent en ${typeLabel} : un succès et une erreur doivent rester différenciables sans la couleur exacte.`
-          : `« ${collision.a} » et « ${collision.b} » se rapprochent en ${typeLabel} : prévoir un second indice (icône, libellé) quand ces deux états cohabitent.`,
+          ? `« ${semLabel(collision.a)} » et « ${semLabel(collision.b)} » se confondent en ${typeLabel} : un succès et une erreur doivent rester différenciables sans la couleur exacte.`
+          : `« ${semLabel(collision.a)} » et « ${semLabel(collision.b)} » se rapprochent en ${typeLabel} : prévoir un second indice (icône, libellé) quand ces deux états cohabitent.`,
         why: 'Environ 8 % des hommes sont concernés ; deux états sémantiques qui se confondent font porter l’information par la couleur seule (ce que WCAG SC 1.4.1 interdit par ailleurs).',
         affected: [collision.a, collision.b],
         remedies: [
@@ -196,7 +207,7 @@ export function scorePalette(palette: GeneratedPalette): ConstraintReport {
           value: e,
           threshold: 5,
           rule: 'Harmonie — test niveaux de gris systématique',
-          plain: `Imprimés en noir et blanc, « ${a.id} » et « ${b.id} » deviennent presque identiques.`,
+          plain: `Imprimés en noir et blanc, « ${semLabel(a.id)} » et « ${semLabel(b.id)} » deviennent presque identiques.`,
           why: 'Une palette qui ne fonctionne pas en niveaux de gris échouera à la photocopie, au fax médical, et pour les achromates.',
           affected: [a.id, b.id],
           remedies: [

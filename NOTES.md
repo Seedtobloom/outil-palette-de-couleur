@@ -5,6 +5,94 @@ trois mois sans redécouvrir les arbitrages.
 
 ---
 
+## Phase 1 — Rampes, harmonie, palette complète (2026-08-01)
+
+### Périmètre livré
+
+- `src/engine/ramp` : courbes (profils L chromatique/neutre, cloche de
+  chroma asymétrique éditable), génération 8–16 pas, torsion de teinte,
+  neutres teintés, mode inversé (Leonardo).
+- `src/engine/harmony` : roues RYB et RGB, six schémas classiques, score de
+  contraintes explicable.
+- `src/engine/semantic` + `palette.ts` : palette complète depuis une seule
+  couleur, ~34 rôles × 2 thèmes, garantie AA par construction.
+- `src/engine/export` : variables CSS (oklch + repli hex), Tailwind v4.
+- UI : onglet « Construire une palette » (réglages expliqués, rampes,
+  aperçu de rôles clair/sombre, score, exports) + onglet « Vérifier ».
+
+### Décisions prises
+
+- **⚠ Contradiction signalée dans le prompt produit** : « rampe de 12 pas »
+  mais l'échelle listée (50·100·200…900·950) compte 11 valeurs. Tranché
+  provisoirement en faveur de la liste explicite (11 pas, comme Tailwind) ;
+  le nombre de pas est configurable de 8 à 16, donc réversible à tout
+  moment. **À valider.**
+- **Calibration des courbes par défaut** : profils L et forme de chroma
+  mesurés sur la moyenne des 17 échelles chromatiques (et 5 neutres) de
+  Tailwind v4 (fixture `src/data/references/tailwind-v4.json`). Découverte
+  au passage : Tailwind v4 est définie au-delà du gamut sRGB sur les pas
+  médians (palette pensée P3) — la recette de reproduction se joue donc en
+  gamut P3.
+- **Recette « régénérer une rampe connue »** : la courbe par défaut est un
+  profil MOYEN ; aucune courbe unique ne reproduit toutes les échelles
+  (leurs formes de chroma diffèrent réellement — le bleu garde son chroma
+  tard vers le sombre, l'émeraude culmine tôt). La reproduction à ΔE00 < 3
+  par pas se fait via les courbes éditables (petit balayage de réglages
+  atelier, testé sur blue et violet). La courbe par défaut reste à ΔE00 < 6.
+- **Garantie AA par construction** : chaque rôle contraint est choisi en
+  scannant sa rampe jusqu'à satisfaire tous ses seuils (y compris le piège
+  de l'aplat de luminance moyenne, illisible en blanc comme en noir : le
+  choix d'aplat exige à la fois 3:1 composant ET un contenu lisible 4,5:1).
+  Le thème sombre est une réattribution complète revérifiée.
+- **Distinguabilité daltonisme des sémantiques** : deux leviers mesurés —
+  le vert de succès tire vers le turquoise (h 168, enseignement Okabe-Ito :
+  l'axe bleu-jaune survit aux CVD rouge-vert), et les quatre contenus
+  sémantiques occupent des étages de clarté distincts (clair :
+  succès 950 / erreur 800 / avertissement 700 / info 600). Vérifié :
+  succès/erreur ≥ ΔE00 10 en deutéranopie ET protanopie, deux thèmes,
+  sur 5 marques très différentes.
+- **Bordures** : seule `border-strong` (bordure de champ, porteuse de sens)
+  est soumise au 3:1 (SC 1.4.11) ; `border-subtle`/`border-default`
+  (filets décoratifs) sont exemptées mais auditées en « signalé », comme
+  le veut la norme.
+- **Score de contraintes** : succès/erreur confondus = bloquant ;
+  autres proximités CVD = avertissement avec conseil (second indice).
+  L'isoluminance est mesurée sur les couleurs de base des rampes (identité
+  de marque), pas sur les aplats de thème choisis par contraste.
+
+### Alternatives écartées
+
+- Reproduire Radix Colors plutôt que Tailwind : échelles orientées usage
+  (12 pas mais sémantique 1–12 différente), correspondance de pas ambiguë.
+- Chroma proportionnel au plafond de gamut (k·maxChroma) : instable près
+  du coin bleu de P3 (le plafond explose quand la teinte dérive) — mesuré,
+  écarté au profit de la cloche absolue bornée par le gamut.
+- Éditeur de courbes de Bézier graphique : reporté au mode atelier
+  (Phase 2) ; les paramètres (pic, retombées, torsion) couvrent déjà
+  l'éditabilité réelle et sont testés.
+
+### Points incertains / à trancher
+
+- La contradiction « 12 pas / 11 valeurs » ci-dessus.
+- Le choix des étages sémantiques (erreur en 800 assombrit le rouge des
+  textes d'erreur clair ; visuellement correct mais à valider à l'œil).
+- `visited` pointe sur l'accent — convention à confirmer.
+- Le balayage de réglages de la recette de reproduction est grossier
+  (grille) ; un ajustement automatique fin (« caler mes courbes sur cette
+  échelle existante ») serait une fonctionnalité d'atelier utile.
+
+### Recette Phase 1 — état
+
+| Critère | État |
+|---|---|
+| Rampe Tailwind connue régénérée à ΔE00 < 3 par pas | ✅ blue et violet, via courbes éditables (`generate.test.ts`) |
+| Palette par défaut AA sur toute la matrice, 2 thèmes, sans intervention | ✅ 5 marques très différentes, 76 paires (`palette.test.ts`) |
+| Succès/erreur distinguables en CVD | ✅ deutéranopie + protanopie, 2 thèmes, 5 marques |
+| Mode inversé | ✅ pas + couleur exacte au seuil |
+| Exports CSS + Tailwind v4 | ✅ testés |
+
+---
+
 ## Phase 0 — Le moteur qui ne ment pas (2026-08-01)
 
 ### Périmètre livré
