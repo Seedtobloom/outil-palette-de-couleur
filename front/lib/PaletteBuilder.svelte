@@ -1,132 +1,31 @@
 <script lang="ts">
   import {
-    generatePalette,
     scorePalette,
     exportCss,
     exportTailwind,
-    parseToOklch,
-    gamutMap,
-    oklchToHex,
     SCHEMES,
     ROLE_LABELS,
-    type SchemeName,
-    type WheelName,
-    type ThemeMode,
+    type GeneratedPalette,
     type RoleName,
     type TokenRef,
   } from '../engine';
+  import { settings } from './state.svelte';
   import RampStrip from './RampStrip.svelte';
+  import ShareLink from './ShareLink.svelte';
 
-  let { showTechnical }: { showTechnical: boolean } = $props();
+  let {
+    palette,
+    showTechnical,
+  }: {
+    palette: GeneratedPalette | null;
+    showTechnical: boolean;
+  } = $props();
 
-  let baseColor = $state('#2563eb');
-  let scheme: SchemeName = $state('split-complementary');
-  let wheel: WheelName = $state('ryb');
-  let intensity = $state(1);
-  let neutralInfluence = $state(50);
-  let hueTorsion = $state(0);
-  let previewMode: ThemeMode = $state('light');
   let exportFormat: 'css' | 'tailwind' = $state('css');
   let copied = $state(false);
 
-  // — Partage via le back (API /api/palettes, stockage KV) —
-  // Par défaut l'API est appelée sur le même domaine (Pages Functions ou
-  // Worker routé). Si le back est un Worker séparé (*.workers.dev), définir
-  // VITE_API_BASE au build : variable d'environnement du projet Pages.
-  const API_BASE: string = ((import.meta.env.VITE_API_BASE as string | undefined) ?? '').replace(
-    /\/$/,
-    '',
-  );
-  let shareUrl = $state('');
-  let shareState: 'idle' | 'busy' | 'error' = $state('idle');
-  let shareCopied = $state(false);
-  let loadNotice = $state('');
-
-  function currentRecipe() {
-    const oklch = parseToOklch(baseColor);
-    return {
-      baseColor: oklch ? oklchToHex(gamutMap(oklch, 'srgb')) : baseColor,
-      options: {
-        scheme,
-        wheel,
-        intensity,
-        neutralInfluence: neutralInfluence / 100,
-        hueTorsion,
-      },
-    };
-  }
-
-  async function sharePalette(): Promise<void> {
-    shareState = 'busy';
-    shareUrl = '';
-    try {
-      const response = await fetch(`${API_BASE}/api/palettes`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(currentRecipe()),
-      });
-      if (!response.ok) throw new Error(String(response.status));
-      const { id } = (await response.json()) as { id: string };
-      shareUrl = `${location.origin}${location.pathname}?p=${id}`;
-      shareState = 'idle';
-    } catch {
-      shareState = 'error';
-    }
-  }
-
-  async function copyShareUrl(): Promise<void> {
-    await navigator.clipboard.writeText(shareUrl);
-    shareCopied = true;
-    setTimeout(() => (shareCopied = false), 1600);
-  }
-
-  // Chargement d'une palette partagée (?p=identifiant).
-  $effect(() => {
-    const id = new URLSearchParams(location.search).get('p');
-    if (!id || !/^[0-9a-z]{16}$/.test(id)) return;
-    void (async () => {
-      try {
-        const response = await fetch(`${API_BASE}/api/palettes/${id}`);
-        if (!response.ok) throw new Error(String(response.status));
-        const stored = (await response.json()) as {
-          baseColor: string;
-          options: {
-            scheme: SchemeName;
-            wheel: WheelName;
-            intensity: number;
-            neutralInfluence: number;
-            hueTorsion: number;
-          };
-        };
-        baseColor = stored.baseColor;
-        scheme = stored.options.scheme;
-        wheel = stored.options.wheel;
-        intensity = stored.options.intensity;
-        neutralInfluence = Math.round(stored.options.neutralInfluence * 100);
-        hueTorsion = stored.options.hueTorsion;
-        loadNotice = 'Palette partagée chargée.';
-      } catch {
-        loadNotice = 'Impossible de charger la palette partagée (lien expiré ou service indisponible).';
-      }
-    })();
-  });
-
-  const palette = $derived.by(() => {
-    try {
-      return generatePalette(baseColor, {
-        scheme,
-        wheel,
-        intensity,
-        neutralInfluence: neutralInfluence / 100,
-        hueTorsion,
-      });
-    } catch {
-      return null;
-    }
-  });
-
   const report = $derived(palette ? scorePalette(palette) : null);
-  const theme = $derived(palette ? palette.themes[previewMode] : null);
+  const theme = $derived(palette ? palette.themes[settings.previewMode] : null);
   const exportText = $derived(
     palette ? (exportFormat === 'css' ? exportCss(palette) : exportTailwind(palette)) : '',
   );
@@ -184,20 +83,20 @@
 </script>
 
 <section aria-labelledby="titre-construire">
-  <h2 id="titre-construire">Construire une palette</h2>
+  <h2 id="titre-construire">Mode atelier</h2>
   <p class="help">
-    Donnez une seule couleur : l’outil construit le système complet — teintes de marque,
-    gris, couleurs fonctionnelles — et garantit la lisibilité de chaque usage.
+    Tous les réglages, ouverts en même temps. Le parcours guidé reste disponible à tout
+    moment — vous ne perdez jamais votre travail en changeant de mode.
   </p>
 
   <div class="controls">
     <label class="ctrl">
       <span>Votre couleur</span>
       <span class="color-input">
-        <input type="color" bind:value={baseColor} aria-label="Sélecteur de couleur" />
+        <input type="color" bind:value={settings.baseColor} aria-label="Sélecteur de couleur" />
         <input
           type="text"
-          bind:value={baseColor}
+          bind:value={settings.baseColor}
           size="9"
           spellcheck="false"
           aria-label="Couleur de base en hexadécimal"
@@ -208,49 +107,47 @@
 
     <label class="ctrl">
       <span>Schéma d’harmonie</span>
-      <select bind:value={scheme}>
+      <select bind:value={settings.scheme}>
         {#each SCHEMES as s (s.name)}
           <option value={s.name}>{s.label}</option>
         {/each}
       </select>
-      <small>{SCHEMES.find((s) => s.name === scheme)?.effect}</small>
+      <small>{SCHEMES.find((s) => s.name === settings.scheme)?.effect}</small>
     </label>
 
     <fieldset class="ctrl">
       <legend>Roue</legend>
       <span class="radio-row">
-        <label><input type="radio" bind:group={wheel} value="ryb" /> Peintres (RYB)</label>
-        <label><input type="radio" bind:group={wheel} value="rgb" /> Écrans (RGB)</label>
+        <label><input type="radio" bind:group={settings.wheel} value="ryb" /> Peintres (RYB)</label>
+        <label><input type="radio" bind:group={settings.wheel} value="rgb" /> Écrans (RGB)</label>
       </span>
       <small>
-        {wheel === 'ryb'
+        {settings.wheel === 'ryb'
           ? 'La roue des pigments : le complémentaire du rouge est le vert.'
           : 'La roue de la lumière : le complémentaire du rouge est le cyan.'}
       </small>
     </fieldset>
 
     <label class="ctrl">
-      <span>Intensité générale <span class="num">{Math.round(intensity * 100)}&nbsp;%</span></span>
-      <input type="range" min="0.5" max="1.2" step="0.05" bind:value={intensity} />
+      <span>
+        Intensité générale <span class="num">{Math.round(settings.intensity * 100)}&nbsp;%</span>
+      </span>
+      <input type="range" min="0.5" max="1.2" step="0.05" bind:value={settings.intensity} />
       <small>Monte ou baisse la vivacité de toutes les couleurs, sans toucher aux clartés.</small>
     </label>
 
     <label class="ctrl">
-      <span>Chaleur des gris <span class="num">{neutralInfluence}&nbsp;%</span></span>
-      <input type="range" min="0" max="100" step="5" bind:value={neutralInfluence} />
+      <span>Chaleur des gris <span class="num">{settings.neutralInfluence}&nbsp;%</span></span>
+      <input type="range" min="0" max="100" step="5" bind:value={settings.neutralInfluence} />
       <small>À 0, les gris sont purs et paraissent étrangers à la marque.</small>
     </label>
 
     <label class="ctrl">
-      <span>Torsion de teinte <span class="num">{hueTorsion}°</span></span>
-      <input type="range" min="-15" max="15" step="1" bind:value={hueTorsion} />
+      <span>Torsion de teinte <span class="num">{settings.hueTorsion}°</span></span>
+      <input type="range" min="-15" max="15" step="1" bind:value={settings.hueTorsion} />
       <small>Fait glisser la teinte le long de la rampe : positif = plus froid vers le sombre.</small>
     </label>
   </div>
-
-  {#if loadNotice}
-    <p class="notice" role="status">{loadNotice}</p>
-  {/if}
 
   {#if !palette}
     <p class="parse-error" role="alert">Couleur illisible — donnez un hex comme #2563eb.</p>
@@ -301,10 +198,16 @@
 
     <h3>Les rôles</h3>
     <div class="theme-toggle" role="group" aria-label="Thème d’aperçu">
-      <button aria-pressed={previewMode === 'light'} onclick={() => (previewMode = 'light')}>
+      <button
+        aria-pressed={settings.previewMode === 'light'}
+        onclick={() => (settings.previewMode = 'light')}
+      >
         Thème clair
       </button>
-      <button aria-pressed={previewMode === 'dark'} onclick={() => (previewMode = 'dark')}>
+      <button
+        aria-pressed={settings.previewMode === 'dark'}
+        onclick={() => (settings.previewMode = 'dark')}
+      >
         Thème sombre
       </button>
     </div>
@@ -385,21 +288,7 @@
       Crée un lien qui rouvre exactement cette palette (la recette est sauvegardée côté
       serveur, la palette est régénérée à l’identique à l’ouverture).
     </p>
-    <div class="share-row">
-      <button onclick={sharePalette} disabled={shareState === 'busy'}>
-        {shareState === 'busy' ? 'Création…' : 'Créer un lien de partage'}
-      </button>
-      {#if shareUrl}
-        <input class="share-url" type="text" readonly value={shareUrl} aria-label="Lien de partage" />
-        <button onclick={copyShareUrl}>{shareCopied ? 'Copié ✓' : 'Copier'}</button>
-      {/if}
-    </div>
-    {#if shareState === 'error'}
-      <p class="parse-error" role="alert">
-        Le partage nécessite le back déployé avec son stockage (binding KV
-        «&nbsp;NUANCIER_KV&nbsp;» — voir le README, section déploiement).
-      </p>
-    {/if}
+    <ShareLink />
   {/if}
 </section>
 
@@ -633,28 +522,12 @@
     font-size: 0.75rem;
   }
 
-  .parse-error,
-  .notice {
+  .parse-error {
     color: var(--ink);
     background: var(--paper-sunken);
     border-left: 3px solid var(--hairline-strong);
     padding: 0.4rem 0.6rem;
     font-size: 0.85rem;
     max-width: 46rem;
-  }
-
-  .share-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    align-items: center;
-  }
-
-  .share-url {
-    flex: 1;
-    min-inline-size: 16rem;
-    max-inline-size: 34rem;
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
   }
 </style>

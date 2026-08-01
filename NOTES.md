@@ -99,6 +99,51 @@ wrangler** → le chemin principal est Cloudflare Pages + Git.
 
 ---
 
+## Phase 2 (partielle) — Parcours guidé et refonte visuelle (2026-08-01)
+
+Demandé par Cindy : « un panel par étape, agréable à utiliser », avec des
+captures d'un outil de référence en inspiration (« tu peux adapter »).
+
+### Ce qui est repris de ses références, et comment c'est adapté
+
+- Rail d'étapes à gauche (numéros, coches, étape courante marquée) ✔
+- Panneau central par étape, une question à la fois ✔
+- Colonne droite « Prochaine étape » + contexte vivant ✔
+- Mini-bande de la palette dans l'en-tête ✔
+- Adaptation à notre DA : interface quasi achromatique (l'outil de
+  référence est violet/coloré — chez nous la seule couleur à l'écran est
+  celle de l'utilisatrice), pas de « santé % » gamifiée mais le score de
+  contraintes explicable, pas de conversions CMJN/Pantone « approximatives »
+  (règles de justesse 7 et 9 du prompt : pas de CMJN par formule, pas de
+  bibliothèque Pantone).
+
+### Livré
+
+- Parcours guidé en 6 étapes (prompt §3.1) : usage → départ (couleur /
+  ambiance par correspondances documentées / surprise ; image « bientôt »)
+  → couleur de base → construction (réglages expliqués + rampes en direct)
+  → vérification (garanties mesurées + score déplié) → livraison (aperçus
+  clair/sombre, exports, partage).
+- **Bande d'épreuve** (première version de l'élément signature §3.4) :
+  sticky en pied d'écran, la palette simultanément en trois états — écran,
+  niveaux de gris, deutéranopie — mise à jour en direct. L'état « papier »
+  arrive avec le module print (annoncé honnêtement dans la bande).
+- État partagé guidé ↔ atelier (`front/lib/state.svelte.ts`) : on change
+  de mode sans jamais perdre son travail (règle §3.2). Partage extrait en
+  composant commun ; chargement `?p=` remonté dans App (ouvre l'atelier).
+- Garde-fous d'honnêteté : les usages print/data-viz de l'étape 1
+  annoncent que leurs vérifications spécifiques arrivent plus tard ; la
+  garantie « Responsable » est affichée comme « à venir », aucun chiffre.
+
+### Reste pour finir la Phase 2
+
+- Aperçus en contexte complets (page web entière ; imprimés sur blanc
+  papier en Phase 3), épreuves protan/tritan dans la bande, glossaire
+  vivant dans l'interface, remèdes en un clic dans le parcours guidé,
+  test réel « 3 minutes sans documentation » sur quelqu'un.
+
+---
+
 ## Phase 1 — Rampes, harmonie, palette complète (2026-08-01)
 
 ### Périmètre livré
