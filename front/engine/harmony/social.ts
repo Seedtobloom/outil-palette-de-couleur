@@ -80,7 +80,7 @@ export function socialPalette(base: string | OklchColor, wheel: WheelName = 'ryb
 }
 
 export const SOCIAL_NOTE =
-  'Ces couleurs sont plus vives que votre palette d’interface : c’est volontaire. ' +
+  'Ces couleurs sont plus vives que ta palette d’interface : c’est volontaire. ' +
   'Un post est vu en petit, entre deux contenus criards, sur fond blanc ou noir selon le thème ' +
-  'de la personne. Elles restent dans la famille de votre marque, mais elles tiennent le flux. ' +
-  'Ne les utilisez pas pour du texte courant sur un site.';
+  'de la personne. Elles restent dans la famille de ta marque, mais elles tiennent le flux. ' +
+  'Ne les utilise pas pour du texte courant sur un site.';

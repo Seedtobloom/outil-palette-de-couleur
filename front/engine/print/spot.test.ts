@@ -27,7 +27,7 @@ describe('comparaison avec une encre saisie depuis le nuancier physique', () => 
     const match = matchSpot('#2563eb', { colorId: 'c1', reference: 'Réf. 21', lab })!;
     expect(match.deltaE).toBeGreaterThan(5);
     expect(match.status).toBe('différent');
-    expect(match.verdict).toContain('ne rend pas votre couleur');
+    expect(match.verdict).toContain('ne rend pas ta couleur');
   });
 });
 

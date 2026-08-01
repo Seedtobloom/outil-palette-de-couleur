@@ -148,7 +148,7 @@ export function analyzeUsage(hex: string, dark = BLACK): ColorUsage | null {
 
   const summary =
     band === 'light'
-      ? `Couleur claire : sa place est dans les fonds. Posez-y du texte ${tests.blackOn.body ? 'sombre' : 'sombre en grand corps'}.`
+      ? `Couleur claire : sa place est dans les fonds. Pose-y du texte ${tests.blackOn.body ? 'sombre' : 'sombre en grand corps'}.`
       : band === 'dark'
         ? `Couleur foncée : sa place est dans les textes et les fonds sombres. Le blanc passe dessus (${fmt(tests.whiteOn.ratio)}).`
         : `Couleur moyenne : c’est une couleur d’aplat. ${
@@ -171,10 +171,10 @@ function fmt(r: number): string {
 export const LEVEL_A_CHECK = {
   rule: 'WCAG 2.2 SC 1.4.1 — Utilisation de la couleur (niveau A)',
   question:
-    'Une information de votre maquette est-elle portée par la couleur SEULE (lien repéré uniquement par sa couleur, statut signalé par une pastille sans texte, courbe de graphique sans légende) ?',
+    'Une information de ta maquette est-elle portée par la couleur SEULE (lien repéré uniquement par sa couleur, statut signalé par une pastille sans texte, courbe de graphique sans légende) ?',
   why:
     'C’est le seul critère de niveau A qui concerne la couleur, et il n’impose aucun ratio : ' +
     'il exige qu’un deuxième indice (texte, icône, soulignement, motif) accompagne toujours la couleur. ' +
     'Une palette parfaitement contrastée peut échouer ici.',
-  fix: 'Ajoutez un libellé, une icône, un soulignement ou un motif en plus de la couleur.',
+  fix: 'Ajoute un libellé, une icône, un soulignement ou un motif en plus de la couleur.',
 } as const;

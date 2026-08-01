@@ -1,0 +1,57 @@
+/* ============================================================
+   source = bundle DS Seed to bloom, copié le 2026-08-01,
+   ne pas éditer ici.
+
+   ⚠ EXTRAIT PROVISOIRE — le bundle complet (88 variables) n'a pas
+   encore été fourni au dépôt. Ce fichier ne contient pour l'instant
+   que les tokens explicitement écrits dans le brief (§9.2 et §9.3),
+   plus les deux tokens de verdict demandés. Quand le bundle arrive :
+   remplacer ce fichier entièrement, en gardant l'en-tête et le bloc
+   « verdict » ci-dessous s'il n'y figure pas.
+
+   Le bundle DS contient aussi des composants React (ui_kits/website) :
+   ils ne servent pas ici, le projet est en Svelte. Seules les
+   variables CSS sont reprises.
+   ============================================================ */
+
+:root {
+  /* — Fondations : couleurs — */
+  --terre: #412f21;
+  --paille: #f2e5c2;
+  --paille-dim: rgba(242, 229, 194, 0.65);
+  --glycine: #e4d1fe;
+  --blanc: #ffffff;
+  --off-white: #f8f6f2;
+  --ebene: #1c1205;
+  --ink: #1c1205;
+  --ink-muted: rgba(28, 18, 5, 0.52);
+
+  /* — Fondations : typographie —
+     Familles servies par le kit Typekit (voir index.html).
+     Les noms Adobe Fonts sont en minuscules ; les replis couvrent le
+     cas où le kit n'est pas chargé (hors ligne, domaine non autorisé). */
+  --font-titre: alegreya, 'Alegreya', Georgia, 'Times New Roman', serif;
+  --font-ui: 'inter-tight', 'Inter Tight', 'Inter', system-ui, sans-serif;
+
+  /* — Tokens sémantiques : surfaces — */
+  --surface-chrome: var(--terre);
+  --surface-canvas: var(--blanc);
+  --surface-panel: var(--off-white);
+  --surface-synthese: var(--ebene);
+
+  /* — Tokens sémantiques : texte — */
+  --text-on-chrome: var(--paille);
+  --text-on-chrome-muted: var(--paille-dim);
+  --text-main: var(--ink);
+  --text-muted: var(--ink-muted);
+
+  /* — Tokens sémantiques : état — */
+  --etape-active: var(--glycine);
+
+  /* — Tokens de verdict (absents du DS, ajoutés pour cet outil) —
+     Règle d'usage : le verdict se lit d'abord SANS la couleur.
+     Le signe (✓ / ✕), la position et la graisse portent l'information ;
+     ces couleurs ne font que la renforcer. */
+  --conforme: #4f6b2a;
+  --non-conforme: #9a3b2a;
+}

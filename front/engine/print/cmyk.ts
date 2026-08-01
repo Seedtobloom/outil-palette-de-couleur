@@ -16,7 +16,7 @@ import { parseToOklch, oklchToRgb } from '../color/space';
 
 export const CMYK_DISCLAIMER =
   'Valeurs indicatives, non contractuelles : elles sont estimées, pas converties par un profil ICC. ' +
-  'Faites toujours confirmer les valeurs et le taux d’encrage par votre imprimeur.';
+  'Fais confirmer les valeurs et le taux d’encrage par ton imprimeur.';
 
 export type PrintProcess = {
   id: string;

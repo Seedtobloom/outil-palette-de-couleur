@@ -62,9 +62,9 @@
   .proof {
     position: sticky;
     bottom: 0;
-    background: color-mix(in oklch, var(--paper) 88%, transparent);
+    background: color-mix(in oklch, var(--surface-canvas) 88%, transparent);
     backdrop-filter: blur(8px);
-    border-top: 1px solid var(--hairline);
+    border-top: 1px solid var(--ink-muted);
     padding: 0.35rem 1.25rem 0.6rem;
     z-index: 10;
   }
@@ -76,7 +76,7 @@
     font-size: 0.72rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .proof-rows {
@@ -95,7 +95,7 @@
 
   .proof-label {
     font-size: 0.72rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
     text-align: right;
   }
 
@@ -112,7 +112,7 @@
     grid-column: 1 / -1;
     margin: 0.1rem 0 0;
     font-size: 0.7rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
     padding-left: 9.3rem;
   }
 

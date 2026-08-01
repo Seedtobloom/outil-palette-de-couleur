@@ -36,7 +36,7 @@
     {#if open}
       <div class="panel" role="dialog" aria-label="Détail du score de santé">
         <p class="panel-lead">
-          Somme pondérée des cinq composantes — cliquez pour aller corriger.
+          Somme pondérée des cinq composantes — clique pour aller corriger.
         </p>
         <ul>
           {#each score.components as c (c.id)}
@@ -67,12 +67,13 @@
   }
 
   .badge {
+    color: var(--text-on-chrome);
     display: flex;
     align-items: center;
     gap: 0.45rem;
     border: none;
     padding: 0.2rem 0.4rem;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius);
   }
 
   .badge-num {
@@ -82,7 +83,7 @@
   .badge-bar {
     inline-size: 3.5rem;
     block-size: 4px;
-    background: var(--hairline);
+    background: rgba(242, 229, 194, 0.3);
     border-radius: 2px;
     overflow: hidden;
   }
@@ -90,31 +91,32 @@
   .badge-bar span {
     display: block;
     block-size: 100%;
-    background: var(--ink);
+    background: var(--text-on-chrome);
   }
 
   .badge-cap {
     font-size: 0.72rem;
-    color: var(--ink-2);
+    color: var(--text-on-chrome-muted);
   }
 
   .panel {
+    color: var(--text-main);
     position: absolute;
     top: calc(100% + 0.5rem);
     right: 0;
     z-index: 20;
     inline-size: 24rem;
     max-inline-size: calc(100vw - 2rem);
-    background: var(--paper);
+    background: var(--surface-canvas);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
+    box-shadow: 0 4px 24px rgba(28, 18, 5, 0.18);
     padding: 0.9rem 1rem;
   }
 
   .panel-lead {
     margin: 0 0 0.6rem;
     font-size: 0.78rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .panel ul {
@@ -131,12 +133,12 @@
     gap: 0.2rem;
     border: none;
     padding: 0.4rem 0.5rem;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius);
     text-align: left;
   }
 
   .row:hover {
-    background: var(--paper-sunken);
+    background: var(--surface-panel);
   }
 
   .row-head {
@@ -153,19 +155,19 @@
 
   .row-weight,
   .row-value {
-    color: var(--ink-2);
+    color: var(--text-muted);
     font-size: 0.75rem;
   }
 
   .row-value {
-    color: var(--ink);
+    color: var(--text-main);
     font-size: 0.85rem;
   }
 
   .row-bar {
     display: block;
     block-size: 3px;
-    background: var(--hairline);
+    background: var(--ink-muted);
     border-radius: 2px;
     overflow: hidden;
   }
@@ -173,17 +175,17 @@
   .row-bar span {
     display: block;
     block-size: 100%;
-    background: var(--ink);
+    background: var(--text-main);
   }
 
   .row-detail {
     font-size: 0.74rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
     line-height: 1.4;
   }
 
   .row-go {
     font-size: 0.7rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 </style>

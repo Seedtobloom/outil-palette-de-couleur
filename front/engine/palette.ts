@@ -117,10 +117,10 @@ export function generatePalette(
   const schemeInfo = schemeByName(scheme);
   const wheelLabel = wheel === 'ryb' ? 'roue des peintres (RYB)' : 'roue des écrans (RGB)';
   const explanations = [
-    `Votre couleur est conservée exactement : elle occupe le pas ${ramps.primary.steps[ramps.primary.baseIndex]?.step} de la rampe principale.`,
+    `Ta couleur est conservée exactement : elle occupe le pas ${ramps.primary.steps[ramps.primary.baseIndex]?.step} de la rampe principale.`,
     `Deux teintes de marque ont été ajoutées en « ${schemeInfo.label.toLowerCase()} » sur la ${wheelLabel} : ${schemeInfo.effect}`,
     `Leurs clartés sont volontairement différentes de la vôtre : deux couleurs de même clarté côte à côte vibrent et deviennent identiques en niveaux de gris.`,
-    `Les gris sont légèrement teintés de votre couleur (${Math.round(neutralInfluence * 100)} %) : des gris purs paraîtraient étrangers à la marque.`,
+    `Les gris sont légèrement teintés de ta couleur (${Math.round(neutralInfluence * 100)} %) : des gris purs paraîtraient étrangers à la marque.`,
     `Quatre couleurs fonctionnelles (succès, avertissement, erreur, information) complètent la palette ; succès et erreur ont des clartés écartées pour rester distinguables en cas de daltonisme.`,
     `Chaque rôle (texte, fond, bordure, focus…) pointe vers le pas de rampe qui garantit son seuil de contraste, en clair comme en sombre.`,
   ];

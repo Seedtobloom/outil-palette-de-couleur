@@ -40,7 +40,7 @@ export type SpotMatch = {
 /** Interprétation des seuils ΔE00 (brief §6.2). */
 export function interpretDeltaE(e: number): { status: SpotMatch['status']; verdict: string } {
   if (e < 1) {
-    return { status: 'exact', verdict: 'Écart imperceptible : l’encre rend exactement votre couleur.' };
+    return { status: 'exact', verdict: 'Écart imperceptible : l’encre rend exactement ta couleur.' };
   }
   if (e < 2) {
     return {
@@ -57,8 +57,8 @@ export function interpretDeltaE(e: number): { status: SpotMatch['status']; verdi
   return {
     status: 'différent',
     verdict:
-      'Ce sont deux couleurs différentes : cette encre ne rend pas votre couleur. ' +
-      'Cherchez une autre référence, ou acceptez la couleur de l’encre comme couleur de marque.',
+      'Ce sont deux couleurs différentes : cette encre ne rend pas ta couleur. ' +
+      'Cherche une autre référence, ou accepte la couleur de l’encre comme couleur de marque.',
   };
 }
 
@@ -109,7 +109,7 @@ export function findSpotCollisions(
           message:
             `« ${a.label ?? a.id} » et « ${b.label ?? b.id} » ne seront pas distinguables ` +
             'en ton direct : elles tomberaient sur la même encre. Deux passages machine ' +
-            'pour une seule couleur perçue — soit vous les écartez, soit vous n’en gardez qu’une.',
+            'pour une seule couleur perçue — soit tu les écartes, soit tu n’en gardes qu’une.',
         });
       }
     }
@@ -120,5 +120,5 @@ export function findSpotCollisions(
 export const SPOT_NOTE =
   'Aucun nuancier commercial n’est embarqué dans l’outil : les correspondances qui circulent ' +
   'ne sont ni officielles ni fiables, et un ton direct est une encre sur un papier, jamais une ' +
-  'valeur écran. Lisez la référence sur votre nuancier physique et saisissez sa valeur Lab : ' +
-  'l’outil vous dira l’écart réel avec votre couleur.';
+  'valeur écran. Lis la référence sur ton nuancier physique et saisis sa valeur Lab : ' +
+  'l’outil te dira l’écart réel avec ta couleur.';

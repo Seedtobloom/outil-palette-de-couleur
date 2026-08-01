@@ -35,8 +35,8 @@
   <div class="posts">
     {#each colors.slice(0, 2) as c (c.hex)}
       <div class="post" style="background:{c.hex}">
-        <p class="post-kicker" style="color:{c.onDark > c.onLight ? '#111' : '#fff'}">Votre marque</p>
-        <p class="post-title" style="color:{c.onDark > c.onLight ? '#111' : '#fff'}">
+        <p class="post-kicker" style="color:{c.onDark > c.onLight ? 'var(--ebene)' : 'var(--blanc)'}">Votre marque</p>
+        <p class="post-title" style="color:{c.onDark > c.onLight ? 'var(--ebene)' : 'var(--blanc)'}">
           Un titre de post,<br />lisible en petit.
         </p>
       </div>
@@ -61,7 +61,7 @@
   .card {
     border-radius: var(--radius);
     overflow: hidden;
-    box-shadow: inset 0 0 0 1px var(--hairline);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 
   .fill {
@@ -81,14 +81,14 @@
   }
 
   .body code {
-    color: var(--ink-2);
+    color: var(--text-muted);
     font-size: 0.75rem;
   }
 
   .use {
     margin: 0.15rem 0 0;
     font-size: 0.76rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
     line-height: 1.4;
   }
 
@@ -101,7 +101,7 @@
 
   .feeds span {
     font-size: 0.68rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .feeds > span[data-ok='true']::before {
@@ -137,7 +137,7 @@
 
   .post-title {
     margin: 0;
-    font-family: var(--font-serif);
+    font-family: var(--font-titre);
     font-size: 1.35rem;
     line-height: 1.15;
   }
@@ -145,7 +145,7 @@
   .note {
     margin: 0;
     font-size: 0.82rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
     line-height: 1.5;
   }
 </style>

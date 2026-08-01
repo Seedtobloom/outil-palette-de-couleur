@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Étape « Votre palette » : la liste complète des couleurs, éditable
+   * Étape « Ta palette » : la liste complète des couleurs, éditable
    * (ajouter, retirer, modifier), avec les conseils de couverture —
    * clair / moyen / foncé, doublons, palette trop maigre.
    */
@@ -151,7 +151,7 @@
     block-size: 5rem;
     border-radius: var(--radius);
     cursor: pointer;
-    box-shadow: inset 0 0 0 1px oklch(20% 0.01 260 / 0.08);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 
   .swatch input {
@@ -183,7 +183,7 @@
     align-items: baseline;
     gap: 0.4rem;
     font-size: 0.72rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .band {
@@ -197,13 +197,13 @@
     background: none;
     padding: 0;
     font-size: 0.72rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
     justify-self: start;
     text-decoration: underline;
   }
 
   .remove:hover {
-    color: var(--ink);
+    color: var(--text-main);
     background: none;
   }
 
@@ -212,9 +212,9 @@
     place-items: center;
     gap: 0.3rem;
     block-size: 5rem;
-    border: 1px dashed var(--hairline-strong);
+    border: 1px dashed var(--ink-muted);
     border-radius: var(--radius);
-    color: var(--ink-2);
+    color: var(--text-muted);
     font-size: 0.82rem;
     align-self: start;
   }
@@ -238,7 +238,7 @@
   .advice {
     padding: 0.85rem 1rem;
     border-radius: var(--radius);
-    background: var(--paper-sunken);
+    background: var(--surface-panel);
     display: grid;
     gap: 0.25rem;
     justify-items: start;
@@ -246,7 +246,7 @@
 
   .advice[data-kind='ok'] {
     background: transparent;
-    box-shadow: inset 0 0 0 1px var(--hairline);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 
   .advice-msg {
@@ -257,7 +257,7 @@
   .advice-why {
     margin: 0;
     font-size: 0.85rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .apply {
@@ -273,6 +273,6 @@
     inline-size: 0.9rem;
     block-size: 0.9rem;
     border-radius: 50%;
-    box-shadow: inset 0 0 0 1px oklch(20% 0.01 260 / 0.12);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 </style>

@@ -144,6 +144,54 @@ captures d'un outil de référence en inspiration (« tu peux adapter »).
 
 ---
 
+## Phase 1 — Socle design Seed to bloom (2026-08-01)
+
+Audit rendu (phase 0), puis socle design appliqué. Décisions de Cindy
+intégrées : bande témoin commutable, réseaux sociaux en mise en situation.
+
+### Fait
+
+- `front/styles/colors_and_type.css` : tokens du DS, importé en tête de
+  `app.css`. **Aucune valeur de couleur ou de fonte ailleurs** — les 11
+  composants ont été migrés sur les tokens (vérifié par grep).
+- Polices Typekit (`kww0ycw`) dans `index.html` ; familles déclarées avec
+  replis. **Le kit refuse la lecture hors des domaines autorisés (403)** :
+  les noms exacts des familles Adobe Fonts n'ont pas pu être vérifiés,
+  les replis (Georgia / system-ui) protègent l'affichage. À confirmer en
+  ligne.
+- Monospace supprimée : `font-variant-numeric: tabular-nums` partout.
+- Chrome Terre + Paille, étape active Glycine, canvas d'évaluation blanc
+  sans carte encadrée (règle des deux zones).
+- Rail vertical à gauche, numéros en Alegreya italique, verrouillage réel
+  avec **condition d'accès affichée** (« il faut au moins 3 couleurs »)
+  et non un simple grisé.
+- **Bande témoin dans le header, commutable** (écran / niveaux de gris /
+  deutéranopie) : un seul objet, trois lectures, cases accolées à 2px,
+  cliquables. La bande d'épreuve permanente en pied est supprimée.
+- Tutoiement dans toute l'interface et tous les textes du moteur.
+- Test automatisé des contrastes du chrome (`engine/chrome.test.ts`).
+
+### ⚠ Deux limites du DS relevées par ce test — à remonter
+
+1. **`--ink-muted` (rgba(28,18,5,.52)) = 3,71:1 sur blanc.** Passe le
+   grand texte et le non-textuel (3:1), **pas le texte courant (4,5:1)**.
+   Le token n'a pas été modifié (il vient du DS) ; l'usage est restreint
+   dans l'interface aux libellés secondaires, notes et valeurs doublées
+   d'un signe. Un token `--ink-muted-aa` plus foncé résoudrait le sujet.
+2. **`--conforme` et `--non-conforme` sont proches en niveaux de gris**
+   (ΔE00 ≈ 2,9) et très proches en deutéranopie. Acceptable ici, et
+   seulement ici, parce que la règle d'usage impose que le verdict se
+   lise sans la couleur. Les deux tests verrouillent cette dépendance.
+
+### Reste sur ce socle
+
+- `colors_and_type.css` ne contient que les valeurs écrites dans le
+  brief (§9.2/§9.3) : **le bundle complet des 88 variables n'a pas été
+  fourni**. Le fichier porte l'en-tête demandé et un avertissement.
+- Undo/redo et bascule clair/sombre du header : non faits.
+
+---
+
 ## Étape Harmonie + score de santé (2026-08-01)
 
 Suite du nouveau brief, dans l'ordre que j'ai proposé (les deux manques

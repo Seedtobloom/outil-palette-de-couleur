@@ -75,14 +75,14 @@
     flex: 1;
     min-inline-size: 16rem;
     max-inline-size: 34rem;
-    font-family: var(--font-mono);
+    font-family: var(--font-ui);
     font-size: 0.78rem;
   }
 
   .share-error {
-    color: var(--ink);
-    background: var(--paper-sunken);
-    border-left: 3px solid var(--hairline-strong);
+    color: var(--text-main);
+    background: var(--surface-panel);
+    border-left: 3px solid var(--ink-muted);
     padding: 0.4rem 0.6rem;
     font-size: 0.85rem;
     max-width: 46rem;

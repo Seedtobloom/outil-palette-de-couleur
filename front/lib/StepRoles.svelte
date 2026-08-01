@@ -19,7 +19,7 @@
     {#if usage}
       <article class="role-card">
         <div class="banner" style="background:{entry.hex}">
-          <span class="banner-label" style="color:{usage.tests.whiteOn.ratio >= usage.tests.blackOn.ratio ? '#fff' : '#000'}">
+          <span class="banner-label" style="color:{usage.tests.whiteOn.ratio >= usage.tests.blackOn.ratio ? 'var(--blanc)' : 'var(--ebene)'}">
             {entry.label}
           </span>
         </div>
@@ -51,7 +51,7 @@
   .role-card {
     border-radius: var(--radius);
     overflow: hidden;
-    box-shadow: inset 0 0 0 1px var(--hairline);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 
   .banner {
@@ -89,13 +89,13 @@
   }
 
   .roles li span {
-    color: var(--ink-2);
+    color: var(--text-muted);
     font-size: 0.78rem;
   }
 
   .note {
     margin: 1rem 0 0;
     font-size: 0.82rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 </style>

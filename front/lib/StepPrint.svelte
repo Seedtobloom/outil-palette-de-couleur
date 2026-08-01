@@ -124,7 +124,7 @@
   }
 
   .field span {
-    color: var(--ink-2);
+    color: var(--text-muted);
     font-size: 0.78rem;
   }
 
@@ -133,7 +133,7 @@
     padding: 1.1rem 1.2rem;
     display: grid;
     gap: 0.7rem;
-    box-shadow: inset 0 0 0 1px oklch(20% 0.01 260 / 0.08);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 
   .paper-label {
@@ -141,7 +141,7 @@
     font-size: 0.75rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: oklch(35% 0.01 80);
+    color: var(--text-muted);
   }
 
   .paper-swatches {
@@ -153,7 +153,7 @@
   .paper-swatches span {
     inline-size: 3.4rem;
     block-size: 3.4rem;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius);
   }
 
   table {
@@ -166,13 +166,13 @@
   td {
     text-align: right;
     padding: 0.35rem 0.5rem;
-    border-bottom: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--ink-muted);
   }
 
   thead th {
     font-weight: 400;
     font-size: 0.72rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
@@ -189,7 +189,7 @@
     inline-size: 1rem;
     block-size: 1rem;
     border-radius: 3px;
-    box-shadow: inset 0 0 0 1px oklch(20% 0.01 260 / 0.12);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 
   .tac {
@@ -206,7 +206,7 @@
   }
 
   .advices {
-    background: var(--paper-sunken);
+    background: var(--surface-panel);
     border-radius: var(--radius);
     padding: 0.8rem 1rem;
   }
@@ -223,13 +223,13 @@
     display: grid;
     gap: 0.3rem;
     font-size: 0.82rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .disclaimer {
     margin: 0;
     font-size: 0.75rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
     line-height: 1.45;
   }
 </style>

@@ -1,7 +1,7 @@
 /**
  * Analyse de couverture d'une palette : est-elle assez fournie, bien
  * répartie en clarté, assez variée en teinte ? Produit des conseils
- * exécutables en français courant (« il vous manque une couleur claire »).
+ * exécutables en français courant (« il tu manque une couleur claire »).
  *
  * Les seuils sont des cibles de métier, pas des normes — ils sont
  * présentés comme des conseils, jamais comme des obligations.
@@ -82,8 +82,8 @@ export function analyzeCoverage(colors: NamedHex[], suggest: (band: Band) => str
       advices.push({
         id: `gap:${band}`,
         kind: 'gap',
-        message: `Il vous manque une couleur ${BAND_LABELS[band].replace(/s$/, '')}.`,
-        why: `Sans elle, vous n’avez rien pour : ${BAND_USES[band]}.`,
+        message: `Il tu manque une couleur ${BAND_LABELS[band].replace(/s$/, '')}.`,
+        why: `Sans elle, tu n’as rien pour : ${BAND_USES[band]}.`,
         suggestion: {
           hex: suggest(band),
           label: `couleur ${BAND_LABELS[band].replace(/s$/, '')}`,
@@ -149,7 +149,7 @@ export function analyzeCoverage(colors: NamedHex[], suggest: (band: Band) => str
       kind: 'ok',
       message: 'La répartition est bonne : clair, moyen et foncé sont couverts.',
       why:
-        'Vous avez de quoi construire des fonds, des aplats et des textes sans être obligée ' +
+        'Tu as de quoi construire des fonds, des aplats et des textes sans être obligée ' +
         'd’inventer une couleur en cours de route.',
     });
   }

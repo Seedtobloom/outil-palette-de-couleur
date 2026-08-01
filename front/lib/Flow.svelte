@@ -34,12 +34,19 @@
     goToStepId?: ((id: string) => void) | undefined;
   } = $props();
 
-  type StepDef = { id: string; short: string; title: string; lead?: string };
+  type StepDef = {
+    id: string;
+    short: string;
+    title: string;
+    lead?: string;
+    /** Ce qu'il faut avoir fait pour déverrouiller cette étape. */
+    condition?: { met: () => boolean; texte: string };
+  };
 
   const ALL_STEPS: StepDef[] = [
     { id: 'usage', short: 'Projet', title: 'C’est pour quoi ?' },
     { id: 'start', short: 'Départ', title: 'D’où on part ?' },
-    { id: 'color', short: 'Couleur', title: 'Votre couleur' },
+    { id: 'color', short: 'Couleur', title: 'Ta couleur' },
     {
       id: 'build',
       short: 'Génération',
@@ -49,40 +56,46 @@
     {
       id: 'palette',
       short: 'Nuancier',
-      title: 'Votre nuancier',
-      lead: 'Ajoutez, retirez, renommez. L’outil vous dit ce qui manque.',
+      condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
+      title: 'Ton nuancier',
+      lead: 'Ajoute, retirez, renommez. L’outil te dit ce qui manque.',
     },
     {
       id: 'harmony',
+      condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
       short: 'Harmonie',
       title: 'Le groupe tient-il ensemble ?',
       lead: 'Le schéma réellement suivi, et les couleurs qui en sortent.',
     },
     {
       id: 'roles',
+      condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
       short: 'Rôles',
       title: 'À quoi sert chaque couleur',
       lead: 'Déduit des contrastes réels, pas de l’intention.',
     },
     {
       id: 'contrast',
+      condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
       short: 'Contraste',
       title: 'Lisibilité, couleur par couleur',
       lead: 'Les quatre tests qui décident de tous les usages, et les niveaux atteints.',
     },
     {
       id: 'print',
+      condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
       short: 'Impression',
       title: 'À l’impression',
       lead: 'Estimation des encres, taux d’encrage, rendu sur le papier choisi.',
     },
     {
       id: 'social',
+      condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
       short: 'Réseaux',
       title: 'Pour les réseaux sociaux',
       lead: 'Des couleurs de la même famille, mais qui tiennent dans un flux.',
     },
-    { id: 'deliver', short: 'Livraison', title: 'C’est à vous' },
+    { id: 'deliver', short: 'Livraison', title: 'C’est à toi' },
   ];
 
   const steps = $derived(
@@ -99,7 +112,10 @@
   const current = $derived(steps[Math.min(index, steps.length - 1)] as StepDef);
 
   function go(i: number): void {
-    if (i >= 0 && i <= maxReached && i < steps.length) index = i;
+    if (i < 0 || i > maxReached || i >= steps.length) return;
+    const cible = steps[i];
+    if (cible?.condition && !cible.condition.met()) return;
+    index = i;
   }
 
   // Permet au score de santé d'ouvrir l'étape qui fait perdre des points.
@@ -217,20 +233,31 @@
 </script>
 
 <div class="flow">
-  <nav class="progress" aria-label="Étapes">
-    {#each steps as s, i (s.id)}
-      <button
-        class="dot"
-        class:current={index === i}
-        class:done={maxReached > i}
-        disabled={i > maxReached}
-        aria-current={index === i ? 'step' : undefined}
-        onclick={() => go(i)}
-      >
-        <span class="dot-mark" aria-hidden="true"></span>
-        <span class="dot-label">{s.short}</span>
-      </button>
-    {/each}
+  <nav class="rail" aria-label="Étapes">
+    <ol>
+      {#each steps as s, i (s.id)}
+        {@const conditionKo = s.condition ? !s.condition.met() : false}
+        {@const verrouille = i > maxReached || conditionKo}
+        <li>
+          <button
+            class="etape"
+            class:courante={index === i}
+            class:faite={maxReached > i && !verrouille}
+            disabled={verrouille}
+            aria-current={index === i ? 'step' : undefined}
+            onclick={() => go(i)}
+          >
+            <span class="numero" aria-hidden="true">{i + 1}</span>
+            <span class="libelle">
+              {s.short}
+              {#if conditionKo && s.condition}
+                <small class="condition">{s.condition.texte}</small>
+              {/if}
+            </span>
+          </button>
+        </li>
+      {/each}
+    </ol>
   </nav>
 
   {#key current.id}
@@ -285,7 +312,7 @@
         {#if startMode === 'palette'}
           <div class="paste">
             <label class="paste-label" for="paste-hex">
-              Collez vos couleurs (hex, une par ligne ou séparées par des espaces)
+              Colle tes couleurs (hex, une par ligne ou séparées par des espaces)
             </label>
             <textarea
               id="paste-hex"
@@ -493,71 +520,89 @@
 <style>
   .flow {
     display: grid;
-    gap: 1.5rem;
-    justify-items: center;
+    grid-template-columns: 12rem minmax(0, 1fr);
+    gap: var(--gap-bloc);
+    align-items: start;
+    max-inline-size: 78rem;
+    margin: 0 auto;
   }
 
-  .progress {
-    display: flex;
-    align-items: center;
+  /* — Rail d'étapes : colonne de gauche, chrome Terre — */
+  .rail {
+    background: var(--surface-chrome);
+    border-radius: var(--radius);
+    padding: 1rem 0.6rem;
+    position: sticky;
+    top: 1rem;
+  }
+
+  .rail ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
     gap: 0.1rem;
-    flex-wrap: wrap;
-    justify-content: center;
   }
 
-  .dot {
+  .etape {
+    inline-size: 100%;
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
     border: none;
     background: none;
-    padding: 0.3rem 0.5rem;
-    display: grid;
-    justify-items: center;
-    gap: 0.35rem;
+    color: var(--text-on-chrome-muted);
+    padding: 0.5rem 0.7rem;
+    border-radius: var(--radius);
+    text-align: left;
+    min-block-size: 44px;
   }
 
-  .dot:hover {
-    background: none;
+  .etape:hover:not(:disabled) {
+    background: rgba(242, 229, 194, 0.1);
+    color: var(--text-on-chrome);
   }
 
-  .dot:disabled {
+  .etape:disabled {
+    opacity: 0.45;
     cursor: default;
   }
 
-  .dot-mark {
-    inline-size: 7px;
-    block-size: 7px;
-    border-radius: 50%;
-    background: var(--hairline-strong);
+  /* Numéros en Alegreya italique — motif de la section process. */
+  .numero {
+    font-family: var(--font-titre);
+    font-style: italic;
+    font-size: 1.05rem;
+    inline-size: 1.1rem;
+    flex-shrink: 0;
   }
 
-  .dot.done .dot-mark {
-    background: var(--ink-2);
+  .libelle {
+    display: grid;
+    font-size: 0.88rem;
+    line-height: 1.25;
   }
 
-  .dot.current .dot-mark {
-    background: var(--ink);
-    transform: scale(1.6);
-  }
-
-  .dot-label {
+  .condition {
     font-size: 0.68rem;
-    color: var(--hairline-strong);
+    font-style: italic;
+    opacity: 0.8;
   }
 
-  .dot.done .dot-label {
-    color: var(--ink-2);
+  .etape.faite {
+    color: var(--text-on-chrome);
   }
 
-  .dot.current .dot-label {
-    color: var(--ink);
+  .etape.courante {
+    background: var(--etape-active);
+    color: var(--ebene);
   }
 
   .stage {
     inline-size: 100%;
     max-inline-size: 44rem;
-    background: var(--paper);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 2rem 2.2rem 1.3rem;
+    background: var(--surface-canvas);
+    padding: 0 0 1.3rem;
     display: grid;
     gap: 1.4rem;
     align-content: start;
@@ -597,12 +642,12 @@
 
   .lead {
     margin: 0.25rem 0 0;
-    color: var(--ink-2);
+    color: var(--text-muted);
     font-size: 0.88rem;
   }
 
   .count {
-    color: var(--hairline-strong);
+    color: var(--ink-muted);
     font-size: 0.82rem;
     white-space: nowrap;
   }
@@ -626,9 +671,9 @@
     justify-items: start;
     text-align: left;
     padding: 1.1rem 1.2rem;
-    border: 1px solid var(--hairline);
+    border: 1px solid var(--ink-muted);
     border-radius: var(--radius);
-    background: var(--paper-sunken);
+    background: var(--surface-panel);
   }
 
   .choice strong {
@@ -637,18 +682,18 @@
   }
 
   .choice small {
-    color: var(--ink-2);
+    color: var(--text-muted);
     font-size: 0.8rem;
   }
 
   .choice:hover {
-    border-color: var(--ink-2);
-    background: var(--paper);
+    border-color: var(--text-muted);
+    background: var(--surface-canvas);
   }
 
   .choice[aria-checked='true'] {
-    border-color: var(--ink);
-    background: var(--paper);
+    border-color: var(--text-main);
+    background: var(--surface-canvas);
   }
 
   .paste {
@@ -659,12 +704,12 @@
 
   .paste-label {
     font-size: 0.85rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .paste textarea {
     inline-size: 100%;
-    font-family: var(--font-mono);
+    font-family: var(--font-ui);
     font-size: 0.85rem;
   }
 
@@ -701,7 +746,7 @@
 
   .mood-name {
     font-size: 0.8rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
     text-align: center;
   }
 
@@ -718,7 +763,7 @@
     border-radius: var(--radius);
     overflow: hidden;
     cursor: pointer;
-    box-shadow: inset 0 0 0 1px oklch(20% 0.01 260 / 0.08);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 
   .pick-swatch input {
@@ -738,14 +783,14 @@
   }
 
   .pick-hex {
-    font-family: var(--font-mono);
+    font-family: var(--font-ui);
     font-size: 1.4rem;
     inline-size: 8.5ch;
   }
 
   .muted {
     margin: 0;
-    color: var(--ink-2);
+    color: var(--text-muted);
     font-size: 0.86rem;
   }
 
@@ -754,13 +799,13 @@
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
     block-size: 3.2rem;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius);
     overflow: hidden;
   }
 
   .big-ramp .base,
   .ramp-strip .base {
-    outline: 2px solid var(--paper);
+    outline: 2px solid var(--surface-canvas);
     outline-offset: -5px;
   }
 
@@ -778,7 +823,7 @@
 
   .ramp-name {
     font-size: 0.8rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
     text-align: right;
   }
 
@@ -787,7 +832,7 @@
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
     block-size: 2rem;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius);
     overflow: hidden;
   }
 
@@ -819,7 +864,7 @@
 
   .knob-label {
     font-size: 0.8rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
     display: flex;
     justify-content: space-between;
   }
@@ -842,12 +887,12 @@
 
   .why {
     font-size: 0.85rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .why summary {
     cursor: pointer;
-    color: var(--ink);
+    color: var(--text-main);
   }
 
   .why ul {
@@ -860,7 +905,7 @@
   .why textarea {
     inline-size: 100%;
     margin-top: 0.6rem;
-    font-family: var(--font-mono);
+    font-family: var(--font-ui);
     font-size: 0.72rem;
   }
 
@@ -877,7 +922,7 @@
 
   .preview-card {
     border: 1px solid;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius);
     padding: 0.85rem 0.95rem;
   }
 
@@ -916,19 +961,19 @@
     gap: 0.6rem;
     margin-top: 0.3rem;
     padding-top: 1.1rem;
-    border-top: 1px solid var(--hairline);
+    border-top: 1px solid var(--ink-muted);
   }
 
   button.solid {
-    background: var(--ink);
-    border-color: var(--ink);
-    color: var(--paper);
+    background: var(--text-main);
+    border-color: var(--text-main);
+    color: var(--surface-canvas);
     padding: 0.45rem 1.3rem;
   }
 
   button.solid:hover {
-    background: var(--ink-2);
-    border-color: var(--ink-2);
+    background: var(--text-muted);
+    border-color: var(--text-muted);
   }
 
   button.solid:disabled {
@@ -938,18 +983,18 @@
 
   button.ghost {
     border-color: transparent;
-    color: var(--ink-2);
+    color: var(--text-muted);
     padding-inline: 0.6rem;
   }
 
   button.ghost:hover {
-    color: var(--ink);
-    border-color: var(--hairline-strong);
+    color: var(--text-main);
+    border-color: var(--ink-muted);
   }
 
   @media (max-width: 46rem) {
     .stage {
-      padding: 1.4rem 1.2rem 1rem;
+      padding: 0 0 1rem;
     }
 
     .choices.two,
@@ -961,8 +1006,5 @@
       grid-template-columns: 1fr;
     }
 
-    .dot-label {
-      display: none;
-    }
   }
 </style>

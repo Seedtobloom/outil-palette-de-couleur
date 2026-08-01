@@ -172,7 +172,7 @@
     inline-size: 1.5rem;
     block-size: 1.5rem;
     border-radius: 50%;
-    box-shadow: inset 0 0 0 1px oklch(20% 0.01 260 / 0.12);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
     flex-shrink: 0;
   }
 
@@ -183,14 +183,14 @@
   }
 
   .color-head code {
-    color: var(--ink-2);
+    color: var(--text-muted);
     font-size: 0.78rem;
   }
 
   .summary {
     margin: 0;
     font-size: 0.85rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .tests {
@@ -204,8 +204,8 @@
     align-items: center;
     gap: 0.7rem;
     padding: 0.35rem 0.5rem;
-    border-radius: var(--radius-sm);
-    background: var(--paper-sunken);
+    border-radius: var(--radius);
+    background: var(--surface-panel);
     font-size: 0.82rem;
   }
 
@@ -215,11 +215,11 @@
     block-size: 2rem;
     border-radius: 4px;
     font-size: 0.95rem;
-    box-shadow: inset 0 0 0 1px oklch(20% 0.01 260 / 0.08);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 
   .test-label {
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .ratio {
@@ -236,14 +236,14 @@
     font-size: 0.7rem;
     padding: 0.1rem 0.45rem;
     border-radius: 100px;
-    color: var(--ink-2);
-    background: var(--paper);
-    box-shadow: inset 0 0 0 1px var(--hairline);
+    color: var(--text-muted);
+    background: var(--surface-canvas);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 
   .lv[data-on='true'] {
-    color: var(--paper);
-    background: var(--ink);
+    color: var(--surface-canvas);
+    background: var(--text-main);
     box-shadow: none;
   }
 
@@ -252,7 +252,7 @@
   }
 
   .tech {
-    color: var(--ink-2);
+    color: var(--text-muted);
     font-size: 0.7rem;
   }
 
@@ -263,14 +263,14 @@
 
   .matrix-section h3,
   .spot-warn h3 {
-    font-family: var(--font-serif);
+    font-family: var(--font-titre);
     font-size: 1.05rem;
   }
 
   .matrix-lead {
     margin: 0;
     font-size: 0.82rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .matrix-scroll {
@@ -298,17 +298,17 @@
     border-radius: 3px;
     vertical-align: -0.1em;
     margin-right: 0.3rem;
-    box-shadow: inset 0 0 0 1px oklch(20% 0.01 260 / 0.15);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 
   .head-name {
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   td {
     padding: 0.3rem;
-    border-radius: var(--radius-sm);
-    background: var(--paper-sunken);
+    border-radius: var(--radius);
+    background: var(--surface-panel);
     vertical-align: middle;
   }
 
@@ -340,16 +340,16 @@
     font-size: 0.62rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   td[data-rank='0'] .cell-level {
-    color: var(--ink);
+    color: var(--text-main);
     font-weight: 700;
   }
 
   td[data-rank='0'] {
-    box-shadow: inset 0 0 0 1.5px var(--ink);
+    box-shadow: inset 0 0 0 1.5px var(--text-main);
   }
 
   .spot-warn {
@@ -357,13 +357,13 @@
     gap: 0.4rem;
     padding: 0.9rem 1.1rem;
     border-radius: var(--radius);
-    background: var(--paper-sunken);
+    background: var(--surface-panel);
   }
 
   .spot-warn p {
     margin: 0;
     font-size: 0.85rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .vh {
@@ -379,11 +379,11 @@
     gap: 0.45rem;
     padding: 1rem 1.1rem;
     border-radius: var(--radius);
-    box-shadow: inset 0 0 0 1px var(--hairline-strong);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 
   .level-a h3 {
-    font-family: var(--font-serif);
+    font-family: var(--font-titre);
   }
 
   .a-question {
@@ -402,11 +402,11 @@
   .a-rule {
     margin: 0;
     font-size: 0.78rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .a-rule {
-    font-family: var(--font-mono);
+    font-family: var(--font-ui);
     font-size: 0.7rem;
   }
 

@@ -7,8 +7,8 @@
   } from './engine';
   import { settings } from './lib/state.svelte';
   import Flow from './lib/Flow.svelte';
-  import ProofBar from './lib/ProofBar.svelte';
   import HealthBadge from './lib/HealthBadge.svelte';
+  import WitnessStrip from './lib/WitnessStrip.svelte';
 
   let showTechnical = $state(false);
   let loadNotice = $state('');
@@ -68,22 +68,16 @@
 </script>
 
 <div class="shell">
-  <header>
-    <div class="brand">
-      <h1>Nuancier</h1>
+  <header class="chrome">
+    <p class="marque">Nuancier</p>
+    <WitnessStrip />
+    <div class="chrome-outils">
+      <HealthBadge onGoToStep={(id) => goToStepId?.(id)} />
+      <label class="tech-toggle">
+        <input type="checkbox" bind:checked={showTechnical} />
+        Détails techniques
+      </label>
     </div>
-    {#if palette}
-      <div class="mini-palette" aria-hidden="true">
-        {#each palette.ramps.primary.steps as s (s.step)}
-          <span style="background:{s.hex}"></span>
-        {/each}
-      </div>
-    {/if}
-    <HealthBadge onGoToStep={(id) => goToStepId?.(id)} />
-    <label class="tech-toggle">
-      <input type="checkbox" bind:checked={showTechnical} />
-      Détails
-    </label>
   </header>
 
   <main>
@@ -101,86 +95,70 @@
   </footer>
 </div>
 
-<ProofBar {palette} />
 
 <style>
   .shell {
-    max-width: 76rem;
-    margin: 0 auto;
-    padding: 1.1rem 1.25rem 2.6rem;
     display: grid;
-    gap: 1.8rem;
-    min-height: calc(100vh - 8rem);
-    align-content: start;
+    grid-template-rows: auto 1fr auto;
+    min-block-size: 100vh;
   }
 
-  header {
+  /* — Chrome : identité pleine, Terre — */
+  .chrome {
+    background: var(--surface-chrome);
+    color: var(--text-on-chrome);
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding-bottom: 0.2rem;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    padding: 0.7rem var(--pad-lat);
   }
 
-  .brand {
-    margin-right: auto;
+  .marque {
+    margin: 0;
+    font-family: var(--font-titre);
+    font-size: 1.25rem;
+    color: var(--text-on-chrome);
   }
 
-  h1 {
-    font-size: 1.3rem;
-    line-height: 1.1;
-  }
-
-  .mini-palette {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    block-size: 0.7rem;
-    inline-size: 11rem;
-    border-radius: 100px;
-    overflow: hidden;
+  .chrome-outils {
+    margin-inline-start: auto;
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
   }
 
   .tech-toggle {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.4rem;
     font-size: 0.78rem;
-    color: var(--ink-2);
+    color: var(--text-on-chrome-muted);
   }
 
+  /* — Zone d'évaluation : blanc, rien d'autre — */
   main {
-    display: grid;
-    gap: 2rem;
+    background: var(--surface-canvas);
+    padding: var(--gap-bloc) var(--pad-lat);
   }
 
   .notice {
-    color: var(--ink);
-    background: var(--paper-sunken);
-    border-left: 3px solid var(--hairline-strong);
-    padding: 0.4rem 0.6rem;
+    margin: 0 0 var(--gap-bloc);
+    font-style: italic;
+    color: var(--text-muted);
     font-size: 0.85rem;
-    max-width: 46rem;
+    max-inline-size: var(--mesure);
   }
 
   footer {
-    padding-top: 0.4rem;
-    font-size: 0.74rem;
-    text-align: center;
-    color: var(--ink-2);
+    background: var(--surface-chrome);
+    color: var(--text-on-chrome-muted);
+    padding: 0.8rem var(--pad-lat);
+    font-size: 0.75rem;
   }
 
   footer p {
     margin: 0;
-  }
-
-  @media (max-width: 48rem) {
-    header {
-      flex-wrap: wrap;
-    }
-
-    .mini-palette {
-      order: 3;
-      inline-size: 100%;
-    }
+    max-inline-size: 60rem;
   }
 </style>

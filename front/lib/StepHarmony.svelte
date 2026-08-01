@@ -84,24 +84,24 @@
     gap: 1.5rem;
     padding: 1.1rem 1.3rem;
     border-radius: var(--radius);
-    background: var(--paper-sunken);
+    background: var(--surface-panel);
   }
 
   .verdict[data-ok='true'] {
     background: transparent;
-    box-shadow: inset 0 0 0 1px var(--hairline-strong);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 
   .scheme {
     margin: 0 0 0.15rem;
-    font-family: var(--font-serif);
+    font-family: var(--font-titre);
     font-size: 1.2rem;
   }
 
   .verdict-text {
     margin: 0;
     font-size: 0.88rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
     max-inline-size: 34rem;
   }
 
@@ -120,7 +120,7 @@
     font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .regularity {
@@ -137,12 +137,12 @@
   }
 
   .reg-label {
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .reg-bar {
     block-size: 4px;
-    background: var(--hairline);
+    background: var(--ink-muted);
     border-radius: 2px;
     overflow: hidden;
   }
@@ -150,12 +150,12 @@
   .reg-bar span {
     display: block;
     block-size: 100%;
-    background: var(--ink);
+    background: var(--text-main);
   }
 
   .reg-value {
     text-align: right;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .notes {
@@ -171,7 +171,7 @@
     gap: 0.5rem 1.1rem;
     padding: 0.9rem 1.1rem;
     border-radius: var(--radius);
-    box-shadow: inset 0 0 0 1px var(--hairline);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 
   .ba {
@@ -197,12 +197,12 @@
   .ba-swatch {
     inline-size: 2.4rem;
     block-size: 2.4rem;
-    border-radius: var(--radius-sm);
-    box-shadow: inset 0 0 0 1px oklch(20% 0.01 260 / 0.12);
+    border-radius: var(--radius);
+    box-shadow: inset 0 0 0 1px var(--ink-muted);
   }
 
   .ba-arrow {
-    color: var(--ink-2);
+    color: var(--text-muted);
     font-size: 0.9rem;
   }
 
@@ -221,7 +221,7 @@
   .note-conseq {
     margin: 0;
     font-size: 0.8rem;
-    color: var(--ink-2);
+    color: var(--text-muted);
   }
 
   .fix {
