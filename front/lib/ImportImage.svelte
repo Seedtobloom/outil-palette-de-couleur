@@ -114,7 +114,7 @@
           {#each couleurs as c (c.hex)}
             <li>
               <span class="pastille" style="background:{c.hex}"></span>
-              <code>{c.hex}</code>
+              <span class="hex value">{c.hex}</span>
               <span class="value part-txt">{Math.round(c.part * 100)} %</span>
             </li>
           {/each}
@@ -150,7 +150,7 @@
     align-items: center;
     min-block-size: 44px;
     padding: 0.4rem 1.1rem;
-    border: 1px solid var(--ink-muted);
+    border: 1px solid rgba(28, 18, 5, 0.16);
     border-radius: var(--radius-pill);
     cursor: pointer;
     font-size: 0.9rem;
@@ -234,10 +234,8 @@
     color: var(--text-muted);
   }
 
+  /* Le remplissage Terre vient de la feuille globale. */
   button.principal {
-    background: var(--text-main);
-    border-color: var(--text-main);
-    color: var(--blanc);
     justify-self: start;
   }
 

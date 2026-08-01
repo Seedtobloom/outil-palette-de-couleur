@@ -66,37 +66,47 @@
     position: relative;
   }
 
+  /* Pastille de score : carte claire posée sur la barre, comme les
+     indicateurs de la référence. */
   .badge {
-    color: var(--text-on-chrome);
+    color: var(--text-main);
     display: flex;
     align-items: center;
-    gap: 0.45rem;
-    border: none;
-    padding: 0.2rem 0.4rem;
-    border-radius: var(--radius);
+    gap: 0.5rem;
+    background: var(--surface-panel);
+    border: 1px solid rgba(28, 18, 5, 0.1);
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-pill);
+    min-block-size: 38px;
+  }
+
+  .badge:hover {
+    border-color: var(--text-muted);
+    background: var(--surface-panel);
   }
 
   .badge-num {
-    font-size: 0.95rem;
+    font-size: 1rem;
+    font-weight: 600;
   }
 
   .badge-bar {
     inline-size: 3.5rem;
-    block-size: 4px;
-    background: rgba(242, 229, 194, 0.3);
-    border-radius: 2px;
+    block-size: 5px;
+    background: rgba(28, 18, 5, 0.14);
+    border-radius: 3px;
     overflow: hidden;
   }
 
   .badge-bar span {
     display: block;
     block-size: 100%;
-    background: var(--text-on-chrome);
+    background: var(--surface-chrome);
   }
 
   .badge-cap {
     font-size: 0.72rem;
-    color: var(--text-on-chrome-muted);
+    color: var(--text-muted);
   }
 
   .panel {
@@ -109,7 +119,7 @@
     max-inline-size: calc(100vw - 2rem);
     background: var(--surface-canvas);
     border-radius: var(--radius);
-    box-shadow: 0 4px 24px rgba(28, 18, 5, 0.18);
+    box-shadow: var(--ombre-flottante);
     padding: 0.9rem 1rem;
   }
 

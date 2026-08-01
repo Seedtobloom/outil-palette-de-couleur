@@ -20,7 +20,7 @@
         <div class="fill" style="background:{c.hex}"></div>
         <div class="body">
           <p class="label">{c.label}</p>
-          <code>{c.hex}</code>
+          <span class="hex value">{c.hex}</span>
           <p class="use">{c.use}</p>
           <p class="feeds">
             <span data-ok={c.onLight >= 3}>flux clair <span class="num">{fmt(c.onLight)}</span></span>
@@ -80,7 +80,7 @@
     font-size: 0.88rem;
   }
 
-  .body code {
+  .body .hex {
     color: var(--text-muted);
     font-size: 0.75rem;
   }

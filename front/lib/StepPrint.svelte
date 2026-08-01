@@ -166,7 +166,7 @@
   td {
     text-align: right;
     padding: 0.35rem 0.5rem;
-    border-bottom: 1px solid var(--ink-muted);
+    border-bottom: 1px solid rgba(28, 18, 5, 0.12);
   }
 
   thead th {

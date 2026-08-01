@@ -57,8 +57,42 @@ describe('contrastes du chrome de l’application', () => {
     expect(contrastRatio(ebene, glycine)).toBeGreaterThanOrEqual(7);
   });
 
-  it('l’étape active se détache du rail (composant, SC 1.4.11)', () => {
-    expect(contrastRatio(glycine, terre)).toBeGreaterThanOrEqual(3);
+  /**
+   * ⚠ MESURE QUI A CHANGÉ LE DESSIN DU RAIL.
+   * Le rail est passé sur fond clair : la Glycine de l'étape courante ne
+   * donne plus que 1,31:1 sur l'Off-white. Une teinte à ce niveau ne peut
+   * PAS porter seule l'indication d'état (SC 1.4.11 : 3:1 sur les
+   * éléments non textuels qui identifient un état). Ce test acte le
+   * constat pour qu'on ne « corrige » pas le symptôme en remontant la
+   * Glycine — le token vient du DS et ne bouge pas.
+   */
+  it('la Glycine seule ne suffit pas à marquer l’étape courante sur fond clair', () => {
+    expect(contrastRatio(glycine, token('off-white'))).toBeLessThan(3);
+  });
+
+  /**
+   * La conséquence : c'est le tranchant Terre en tête de carte qui porte
+   * l'état. Il doit se détacher DES DEUX fonds qu'il côtoie — celui de la
+   * page et celui de la carte active elle-même.
+   */
+  it('le marqueur Terre de l’étape courante se détache du fond et de la carte (SC 1.4.11)', () => {
+    expect(contrastRatio(terre, token('off-white'))).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(terre, glycine)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('la pastille numérotée reste lisible sur l’étape courante', () => {
+    // Chiffre Paille sur pastille Terre, posée sur la carte Glycine.
+    expect(contrastRatio(paille, terre)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('le sigle de la barre de tête : Paille sur Terre, AAA', () => {
+    expect(contrastRatio(paille, terre)).toBeGreaterThanOrEqual(7);
+  });
+
+  it('la carte blanche se détache du plan de travail Off-white', () => {
+    // Écart faible et assumé : ce n'est pas un indicateur d'état, la
+    // séparation est portée par l'ombre et le rythme, pas par la couleur.
+    expect(contrastRatio(blanc, token('off-white'))).toBeLessThan(1.2);
   });
 
   it('texte principal sur le canvas d’évaluation : AAA', () => {

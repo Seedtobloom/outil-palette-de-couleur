@@ -64,7 +64,7 @@
     bottom: 0;
     background: color-mix(in oklch, var(--surface-canvas) 88%, transparent);
     backdrop-filter: blur(8px);
-    border-top: 1px solid var(--ink-muted);
+    border-top: 1px solid rgba(28, 18, 5, 0.12);
     padding: 0.35rem 1.25rem 0.6rem;
     z-index: 10;
   }

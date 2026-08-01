@@ -530,11 +530,19 @@
     font-size: 0.9rem;
   }
 
+  /* La cible tactile est portée par le libellé entier, pas par la case. */
   .a-check {
     display: flex;
     align-items: flex-start;
     gap: 0.5rem;
     font-size: 0.88rem;
+    min-block-size: 44px;
+    padding-block: 0.25rem;
+    cursor: pointer;
+  }
+
+  .a-check input {
+    margin-block-start: 0.2rem;
   }
 
   @media (max-width: 52rem) {

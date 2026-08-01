@@ -87,7 +87,7 @@
           aria-label="Nom de la couleur"
         />
         <div class="meta">
-          <code>{color.hex}</code>
+          <span class="hex value">{color.hex}</span>
           <span class="band">{BAND_LABELS[bandOfHex(color.hex)].replace(/s$/, '')}</span>
         </div>
         <button class="remove" onclick={() => remove(color.id)} aria-label={`Retirer ${color.label}`}

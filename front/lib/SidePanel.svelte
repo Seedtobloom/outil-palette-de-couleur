@@ -156,16 +156,17 @@
 <style>
   .panneau {
     display: grid;
-    gap: 0.8rem;
+    gap: 0.6rem;
     align-content: start;
     position: sticky;
-    top: 1rem;
+    top: 4.5rem;
   }
 
   .carte {
-    background: var(--surface-panel);
+    background: var(--surface-canvas);
     border-radius: var(--radius);
-    padding: 0.9rem 1rem;
+    box-shadow: var(--ombre-carte);
+    padding: 1rem 1.1rem;
     display: grid;
     gap: 0.5rem;
   }
@@ -210,12 +211,7 @@
     min-block-size: 36px;
   }
 
-  button.principal {
-    background: var(--text-main);
-    border-color: var(--text-main);
-    color: var(--blanc);
-  }
-
+  /* Le remplissage Terre vient de la feuille globale. */
   button.large {
     inline-size: 100%;
     justify-content: center;

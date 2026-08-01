@@ -39,65 +39,87 @@
   type StepDef = {
     id: string;
     short: string;
+    /** Sous-libellé de la carte d'étape, dans le rail. */
+    sub: string;
     title: string;
     lead?: string;
     /** Ce qu'il faut avoir fait pour déverrouiller cette étape. */
     condition?: { met: () => boolean; texte: string };
   };
 
+  /**
+   * Condition d'accès aux étapes d'analyse : il faut de la matière à
+   * analyser. Une palette générée compte — elle sera versée dans le
+   * nuancier au moment d'y entrer (voir `assureCouleurs`). Sans cette
+   * seconde branche, l'étape Génération se retrouvait sans issue : le
+   * nuancier était encore vide, donc « Continuer » restait désactivé
+   * alors même que le clic l'aurait rempli.
+   */
+  const AU_MOINS_3 = {
+    met: () => settings.colors.length >= 3 || palette !== null,
+    texte: 'Il faut au moins 3 couleurs',
+  };
+
   const ALL_STEPS: StepDef[] = [
-    { id: 'usage', short: 'Projet', title: 'C’est pour quoi ?' },
-    { id: 'start', short: 'Départ', title: 'D’où on part ?' },
-    { id: 'color', short: 'Couleur', title: 'Ta couleur' },
+    { id: 'usage', short: 'Projet', sub: 'Écran ou papier', title: 'C’est pour quoi ?' },
+    { id: 'start', short: 'Départ', sub: 'Couleur ou image', title: 'D’où on part ?' },
+    { id: 'color', short: 'Couleur', sub: 'La teinte gardée', title: 'Ta couleur' },
     {
       id: 'build',
       short: 'Génération',
+      sub: 'Gammes générées',
       title: 'Le système se construit.',
       lead: 'Trois teintes de marque, des gris teintés, quatre couleurs fonctionnelles.',
     },
     {
       id: 'palette',
       short: 'Nuancier',
-      condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
+      sub: 'Ajouter, nommer',
+      condition: AU_MOINS_3,
       title: 'Ton nuancier, complet.',
-      lead: 'Ajoute, retirez, renommez. L’outil te dit ce qui manque.',
+      lead: 'Ajoute, retire, renomme. L’outil te dit ce qui manque.',
     },
     {
       id: 'harmony',
-      condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
+      condition: AU_MOINS_3,
       short: 'Harmonie',
+      sub: 'Le schéma suivi',
       title: 'Le groupe, accordé.',
       lead: 'Le schéma réellement suivi, et les couleurs qui en sortent.',
     },
     {
       id: 'roles',
-      condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
+      condition: AU_MOINS_3,
       short: 'Rôles',
+      sub: 'Qui fait quoi',
       title: 'Chaque couleur, à sa place.',
       lead: 'Déduit des contrastes réels, pas de l’intention.',
     },
     {
       id: 'contrast',
-      condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
+      condition: AU_MOINS_3,
       short: 'Contraste',
+      sub: 'AA, AAA, par paire',
       title: 'Chaque paire, vérifiée.',
       lead: 'Le spécimen d’abord, le chiffre en preuve. Une correction à la fois.',
     },
     {
       id: 'print',
-      condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
+      condition: AU_MOINS_3,
       short: 'Impression',
+      sub: 'Encres et papier',
       title: 'Sur le papier, vraiment.',
       lead: 'Estimation des encres, taux d’encrage, rendu sur le papier choisi.',
     },
     {
       id: 'social',
-      condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
+      condition: AU_MOINS_3,
       short: 'Réseaux',
+      sub: 'Dans un flux',
       title: 'En situation.',
       lead: 'Des couleurs de la même famille, mais qui tiennent dans un flux.',
     },
-    { id: 'deliver', short: 'Livraison', title: 'À toi de jouer.' },
+    { id: 'deliver', short: 'Livraison', sub: 'Exporter, partager', title: 'À toi de jouer.' },
   ];
 
   const steps = $derived(
@@ -113,10 +135,30 @@
 
   const current = $derived(steps[Math.min(index, steps.length - 1)] as StepDef);
 
+  // La condition d'accès n'est écrite qu'une fois, sur la première étape
+  // qu'elle bloque : répétée sur sept cartes, elle devient du bruit.
+  const premierBloque = $derived(
+    steps.findIndex((s) => s.condition && !s.condition.met()),
+  );
+
+  /**
+   * Verse la palette générée dans le nuancier si la graphiste n'y a pas
+   * encore touché. Appelé sur TOUS les chemins d'entrée (« Continuer »,
+   * clic dans le rail, saut depuis le score) : sinon, arriver par le rail
+   * ouvrait un nuancier vide.
+   */
+  function assureCouleurs(cibleId: string): void {
+    const analyse = ['palette', 'harmony', 'roles', 'contrast', 'print', 'social'];
+    if (analyse.includes(cibleId) && settings.colors.length === 0 && palette) {
+      seedColors(palette);
+    }
+  }
+
   function go(i: number): void {
     if (i < 0 || i > maxReached || i >= steps.length) return;
     const cible = steps[i];
     if (cible?.condition && !cible.condition.met()) return;
+    if (cible) assureCouleurs(cible.id);
     index = i;
   }
 
@@ -124,18 +166,15 @@
   goToStepId = (id: string) => {
     const i = steps.findIndex((s) => s.id === id);
     if (i >= 0) {
+      assureCouleurs(id);
       maxReached = Math.max(maxReached, i);
       index = i;
     }
   };
 
   function next(): void {
-    // En entrant dans le nuancier, on le pré-remplit depuis la palette
-    // générée si la graphiste n'y a pas encore touché.
     const upcoming = steps[index + 1];
-    if (upcoming?.id === 'palette' && settings.colors.length === 0 && palette) {
-      seedColors(palette);
-    }
+    if (upcoming) assureCouleurs(upcoming.id);
     if (index < steps.length - 1) {
       index += 1;
       maxReached = Math.max(maxReached, index);
@@ -263,24 +302,30 @@
 
 <div class="flow">
   <nav class="rail" aria-label="Étapes">
+    <p class="rail-titre micro">Parcours</p>
     <ol>
       {#each steps as s, i (s.id)}
         {@const conditionKo = s.condition ? !s.condition.met() : false}
         {@const verrouille = i > maxReached || conditionKo}
+        {@const faite = maxReached > i && !verrouille}
         <li>
           <button
             class="etape"
             class:courante={index === i}
-            class:faite={maxReached > i && !verrouille}
+            class:faite={faite}
             disabled={verrouille}
             aria-current={index === i ? 'step' : undefined}
             onclick={() => go(i)}
           >
-            <span class="numero" aria-hidden="true">{i + 1}</span>
+            <span class="numero" aria-hidden="true">
+              {#if faite && index !== i}✓{:else}{i + 1}{/if}
+            </span>
             <span class="libelle">
-              {s.short}
-              {#if conditionKo && s.condition}
+              <span class="titre">{s.short}</span>
+              {#if conditionKo && s.condition && i === premierBloque}
                 <small class="condition">{s.condition.texte}</small>
+              {:else}
+                <small class="sub">Étape {i + 1} · {s.sub}</small>
               {/if}
             </span>
           </button>
@@ -290,7 +335,7 @@
   </nav>
 
   {#key current.id}
-    <section class="stage" class:wide={['palette', 'contrast', 'roles', 'print', 'social'].includes(current.id)}>
+    <section class="stage">
       <header class="stage-head">
         <div>
           <h2>{@html current.title.replace(/(\w+)\.$/, '<i>$1</i>.')}</h2>
@@ -572,20 +617,25 @@
 <style>
   .flow {
     display: grid;
-    grid-template-columns: 12rem minmax(0, 1fr) 17rem;
-    gap: var(--gap-bloc);
+    grid-template-columns: 15rem minmax(0, 1fr) 17rem;
+    gap: 1.25rem;
     align-items: start;
-    max-inline-size: 78rem;
+    max-inline-size: 82rem;
     margin: 0 auto;
   }
 
-  /* — Rail d'étapes : colonne de gauche, chrome Terre — */
+  /* — Rail d'étapes : une pile de cartes cliquables, pas une liste.
+       Chaque carte porte sa pastille numérotée, son titre et son
+       sous-libellé ; l'étape en cours passe en Glycine. — */
   .rail {
-    background: var(--surface-chrome);
-    border-radius: var(--radius);
-    padding: 1rem 0.6rem;
     position: sticky;
-    top: 1rem;
+    top: 4.5rem;
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .rail-titre {
+    margin: 0 0 0.1rem 0.2rem;
   }
 
   .rail ol {
@@ -593,75 +643,128 @@
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 0.1rem;
+    gap: 0.4rem;
   }
 
   .etape {
     inline-size: 100%;
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.7rem;
-    border: none;
-    background: none;
-    color: var(--text-on-chrome-muted);
-    padding: 0.5rem 0.7rem;
+    background: var(--surface-canvas);
+    border: 1px solid transparent;
+    /* Réservé en permanence pour que le marqueur d'étape courante
+       n'entraîne aucun décalage de gabarit. */
+    border-inline-start: 3px solid transparent;
+    box-shadow: var(--ombre-carte);
+    color: var(--text-main);
+    padding: 0.6rem 0.75rem;
     border-radius: var(--radius);
     text-align: left;
-    min-block-size: 44px;
+    min-block-size: 56px;
   }
 
   .etape:hover:not(:disabled) {
-    background: rgba(242, 229, 194, 0.1);
-    color: var(--text-on-chrome);
+    border-color: rgba(28, 18, 5, 0.18);
+    background: var(--surface-canvas);
   }
 
   .etape:disabled {
-    opacity: 0.45;
+    background: transparent;
+    box-shadow: none;
+    opacity: 0.5;
     cursor: default;
   }
 
-  /* Numéros en Alegreya italique — motif de la section process. */
+  /* Pastille numérotée, chiffre en Alegreya italique — motif process. */
   .numero {
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--surface-panel);
+    color: var(--text-muted);
     font-family: var(--font-titre);
     font-style: italic;
-    font-size: 1.05rem;
-    inline-size: 1.1rem;
-    flex-shrink: 0;
+    font-size: 0.95rem;
+    line-height: 1;
   }
 
   .libelle {
     display: grid;
-    font-size: 0.88rem;
-    line-height: 1.25;
+    gap: 0.05rem;
+    min-inline-size: 0;
+  }
+
+  .titre {
+    font-size: 0.92rem;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+
+  .sub,
+  .condition {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    line-height: 1.3;
+    /* Deux lignes au maximum : les cartes gardent la même hauteur, le
+       rail reste une colonne régulière. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
   }
 
   .condition {
-    font-size: 0.68rem;
     font-style: italic;
-    opacity: 0.8;
   }
 
-  .etape.faite {
+  /* Étape franchie : la pastille passe en Terre plein, coche à la place
+     du chiffre — l'avancement se lit sans compter. */
+  .etape.faite .numero {
+    background: var(--surface-chrome);
     color: var(--text-on-chrome);
+    font-style: normal;
   }
 
+  /**
+   * Étape courante. Mesuré : la Glycine ne donne que 1,31:1 sur le fond
+   * Off-white — bien trop peu pour porter seule l'état (SC 1.4.11 demande
+   * 3:1 sur un indicateur d'état). Le tranchant Terre en tête de carte
+   * fait le travail : 11,77:1 sur le fond, 8,98:1 sur la Glycine. La
+   * Glycine ne fait que confirmer. Verrouillé par chrome.test.ts.
+   */
   .etape.courante {
     background: var(--etape-active);
+    border-color: var(--etape-active);
+    border-inline-start-color: var(--surface-chrome);
+    box-shadow: none;
     color: var(--ebene);
   }
 
+  .etape.courante .numero {
+    background: var(--surface-chrome);
+    color: var(--text-on-chrome);
+  }
+
+  .etape.courante .sub {
+    color: rgba(28, 18, 5, 0.62);
+  }
+
+  /* — Scène : carte blanche posée sur le fond doux — */
   .stage {
     inline-size: 100%;
     background: var(--surface-canvas);
-    padding: 0 0 1.3rem;
+    border-radius: var(--radius);
+    box-shadow: var(--ombre-carte);
+    padding: 1.6rem 1.75rem 1.4rem;
     display: grid;
     gap: 1.4rem;
     align-content: start;
     min-block-size: 22rem;
-  }
-
-  .stage.wide {
-    max-inline-size: 60rem;
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -685,6 +788,8 @@
     align-items: baseline;
     justify-content: space-between;
     gap: 1rem;
+    padding-block-end: 1.1rem;
+    border-block-end: 1px solid rgba(28, 18, 5, 0.09);
   }
 
   .stage-head h2 {
@@ -722,7 +827,7 @@
     justify-items: start;
     text-align: left;
     padding: 1.1rem 1.2rem;
-    border: 1px solid var(--ink-muted);
+    border: 1px solid rgba(28, 18, 5, 0.12);
     border-radius: var(--radius);
     background: var(--surface-panel);
   }
@@ -927,6 +1032,9 @@
 
   .seg button {
     flex: 1;
+    /* Sans plancher, un libellé court (« CSS ») se referme en pastille
+       ronde et ne se lit plus comme un segment. */
+    min-inline-size: 5.5rem;
     padding: 0.3rem 0.6rem;
     font-size: 0.86rem;
   }
@@ -1012,19 +1120,13 @@
     gap: 0.6rem;
     margin-top: 0.3rem;
     padding-top: 1.1rem;
-    border-top: 1px solid var(--ink-muted);
+    border-top: 1px solid rgba(28, 18, 5, 0.09);
   }
 
+  /* Le remplissage vient de la feuille globale (Terre) ; ici, seulement
+     la générosité du gabarit. */
   button.solid {
-    background: var(--text-main);
-    border-color: var(--text-main);
-    color: var(--surface-canvas);
     padding: 0.45rem 1.3rem;
-  }
-
-  button.solid:hover {
-    background: var(--text-muted);
-    border-color: var(--text-muted);
   }
 
   button.solid:disabled {
@@ -1047,11 +1149,24 @@
     .flow {
       grid-template-columns: 1fr;
     }
+
+    /* Le rail se couche : les cartes défilent horizontalement plutôt que
+       d'empiler onze blocs avant d'atteindre le contenu. */
+    .rail {
+      position: static;
+    }
+
+    .rail ol {
+      grid-auto-flow: column;
+      grid-auto-columns: 13rem;
+      overflow-x: auto;
+      padding-block-end: 0.4rem;
+    }
   }
 
   @media (max-width: 46rem) {
     .stage {
-      padding: 0 0 1rem;
+      padding: 1.1rem 1.1rem 1rem;
     }
 
     .choices.two,

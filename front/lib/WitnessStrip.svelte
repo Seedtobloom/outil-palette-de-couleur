@@ -74,13 +74,14 @@
   }
 
   /* Cases accolées, gap 2px, sans arrondi — gamme de contrôle imprimeur. */
-  /* Fond clair sous la bande : sans lui, une couleur identique au chrome
-     disparaîtrait purement et simplement. */
+  /* Filet neutre autour de la bande : sans lui, une couleur identique au
+     fond de la barre disparaîtrait purement et simplement. */
   .strip {
     display: flex;
     gap: 2px;
     padding: 2px;
-    background: var(--text-on-chrome-muted);
+    background: rgba(28, 18, 5, 0.16);
+    border-radius: 3px;
   }
 
   .case {
@@ -94,7 +95,7 @@
   }
 
   .case:hover {
-    outline: 2px solid var(--text-on-chrome);
+    outline: 2px solid var(--text-main);
     outline-offset: 1px;
   }
 
@@ -106,27 +107,28 @@
   .lens {
     border: none;
     background: none;
-    color: var(--text-on-chrome-muted);
+    color: var(--text-muted);
     font-size: 0.75rem;
-    padding: 0.2rem 0.5rem;
+    padding: 0.2rem 0.55rem;
     min-block-size: 0;
-    border-radius: var(--radius);
+    border-radius: var(--radius-pill);
   }
 
   .lens:hover {
-    background: rgba(242, 229, 194, 0.12);
-    color: var(--text-on-chrome);
+    background: var(--surface-panel);
+    color: var(--text-main);
   }
 
   .lens[aria-pressed='true'] {
     background: var(--etape-active);
+    border-color: var(--etape-active);
     color: var(--text-main);
   }
 
   .hint {
     margin: 0;
     font-size: 0.72rem;
-    color: var(--text-on-chrome-muted);
+    color: var(--text-muted);
     font-style: italic;
   }
 
