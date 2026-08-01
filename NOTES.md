@@ -144,6 +144,31 @@ captures d'un outil de référence en inspiration (« tu peux adapter »).
 
 ---
 
+## Refonte visuelle — épuré et visuel (2026-08-01)
+
+Retour de Cindy : « encore plus joli, pas trop chiant à utiliser, épuré,
+visuel surtout ». Refonte de l'interface guidée :
+
+- **Structure allégée** : suppression du rail latéral et de la colonne
+  droite (trop de texte simultané). À la place, une progression
+  horizontale en points + une seule scène centrée (max 44 rem), posée sur
+  un fond légèrement enfoncé avec ombre douce.
+- **Moins de mots, plus de couleur** : les cartes de choix passent de
+  paragraphes à titre + 3 mots ; les ambiances deviennent de grands
+  aplats cliquables ; l'étape couleur affiche un pavé de 11 rem et la
+  rampe en grand ; l'étape réglages montre les 8 rampes avant les
+  curseurs ; l'étape contrôle passe en 4 pastilles de verdict + une
+  barre de score. Les explications restent accessibles, repliées.
+- **Avance au clic** : choisir un usage ou une ambiance passe
+  directement à l'étape suivante (moins de « Continuer »).
+- **Détail CSS** : boutons en pilule, curseurs redessinés (piste 3 px,
+  pouce noir), rayons 10 px, bande d'épreuve en verre dépoli.
+- Le fond de l'interface reste achromatique : la seule couleur affichée
+  est celle de l'utilisatrice (règle de DA du brief).
+- Vérifié en navigateur : parcours complet, zéro erreur JS, AAA conservé.
+
+---
+
 ## Phase 1 — Rampes, harmonie, palette complète (2026-08-01)
 
 ### Périmètre livré

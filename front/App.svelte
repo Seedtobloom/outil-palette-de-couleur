@@ -73,7 +73,6 @@
   <header>
     <div class="brand">
       <h1>Nuancier</h1>
-      <p class="tagline">Atelier de couleur — complet, lisible, vérifié.</p>
     </div>
     {#if palette}
       <div class="mini-palette" aria-hidden="true">
@@ -90,12 +89,12 @@
         Atelier
       </button>
       <button aria-pressed={view === 'check'} onclick={() => (view = 'check')}>
-        Vérifier des couleurs
+        Vérifier
       </button>
     </nav>
     <label class="tech-toggle">
       <input type="checkbox" bind:checked={showTechnical} />
-      Valeurs techniques
+      Détails
     </label>
   </header>
 
@@ -128,67 +127,55 @@
   .shell {
     max-width: 76rem;
     margin: 0 auto;
-    padding: 1.1rem 1.25rem 2.2rem;
+    padding: 1.1rem 1.25rem 2.6rem;
     display: grid;
-    gap: 1.4rem;
+    gap: 1.8rem;
     min-height: calc(100vh - 8rem);
     align-content: start;
   }
 
   header {
-    border-bottom: 1px solid var(--hairline-strong);
-    padding-bottom: 0.8rem;
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas:
-      'brand palette tech'
-      'brand nav nav';
+    display: flex;
     align-items: center;
-    gap: 0.5rem 1.6rem;
+    gap: 1rem;
+    padding-bottom: 0.2rem;
   }
 
   .brand {
-    grid-area: brand;
+    margin-right: auto;
   }
 
   h1 {
-    font-size: 1.55rem;
+    font-size: 1.3rem;
     line-height: 1.1;
   }
 
-  .tagline {
-    margin: 0.1rem 0 0;
-    color: var(--ink-2);
-    font-size: 0.82rem;
-  }
-
   .mini-palette {
-    grid-area: palette;
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
-    block-size: 0.9rem;
-    max-inline-size: 18rem;
-    border: 1px solid var(--hairline);
-    border-radius: 2px;
+    block-size: 0.7rem;
+    inline-size: 11rem;
+    border-radius: 100px;
     overflow: hidden;
-    align-self: center;
   }
 
   nav {
-    grid-area: nav;
     display: flex;
-    gap: 0.35rem;
+    gap: 0.3rem;
+  }
+
+  nav button {
+    padding: 0.25rem 0.85rem;
+    font-size: 0.88rem;
   }
 
   .tech-toggle {
-    grid-area: tech;
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    font-size: 0.82rem;
+    gap: 0.35rem;
+    font-size: 0.78rem;
     color: var(--ink-2);
-    justify-self: end;
   }
 
   main {
@@ -206,9 +193,9 @@
   }
 
   footer {
-    border-top: 1px solid var(--hairline);
-    padding-top: 0.7rem;
-    font-size: 0.78rem;
+    padding-top: 0.4rem;
+    font-size: 0.74rem;
+    text-align: center;
     color: var(--ink-2);
   }
 
@@ -218,12 +205,12 @@
 
   @media (max-width: 48rem) {
     header {
-      grid-template-columns: 1fr;
-      grid-template-areas: 'brand' 'palette' 'nav' 'tech';
+      flex-wrap: wrap;
     }
 
-    .tech-toggle {
-      justify-self: start;
+    .mini-palette {
+      order: 3;
+      inline-size: 100%;
     }
   }
 </style>

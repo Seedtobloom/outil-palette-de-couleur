@@ -62,9 +62,10 @@
   .proof {
     position: sticky;
     bottom: 0;
-    background: var(--paper);
-    border-top: 1px solid var(--hairline-strong);
-    padding: 0.3rem 1.25rem 0.55rem;
+    background: color-mix(in oklch, var(--paper) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--hairline);
+    padding: 0.35rem 1.25rem 0.6rem;
     z-index: 10;
   }
 
@@ -80,8 +81,9 @@
 
   .proof-rows {
     display: grid;
-    gap: 3px;
-    max-width: 46rem;
+    gap: 4px;
+    max-width: 44rem;
+    margin: 0 auto;
   }
 
   .proof-row {
@@ -101,9 +103,8 @@
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
-    block-size: 16px;
-    border: 1px solid var(--hairline);
-    border-radius: 2px;
+    block-size: 13px;
+    border-radius: 100px;
     overflow: hidden;
   }
 
