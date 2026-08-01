@@ -23,3 +23,9 @@ declare module 'apca-w3' {
     isInt?: boolean,
   ): number | string;
 }
+
+/** Import de fichiers en texte brut (Vite). */
+declare module '*.css?raw' {
+  const content: string;
+  export default content;
+}

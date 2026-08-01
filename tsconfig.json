@@ -17,5 +17,7 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["front/**/*.ts", "front/**/*.svelte", "vite.config.ts"]
+  "include": ["front/**/*.ts", "front/**/*.svelte", "vite.config.ts"],
+  // Les tests tournent sous Vitest (types Node) : hors périmètre de svelte-check.
+  "exclude": ["front/**/*.test.ts"]
 }

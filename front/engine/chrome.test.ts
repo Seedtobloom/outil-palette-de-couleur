@@ -9,9 +9,12 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { contrastRatio } from './contrast/wcag';
 
+// Les tokens sont lus depuis le fichier du DS lui-même : si le bundle
+// change une valeur, ces tests le signalent immédiatement.
+const css = readFileSync(new URL('../styles/colors_and_type.css', import.meta.url), 'utf8');
+
 /** Lit une variable CSS du fichier de tokens (valeurs littérales seulement). */
 function token(name: string): string {
-  const css = readFileSync(new URL('../styles/colors_and_type.css', import.meta.url), 'utf8');
   const match = css.match(new RegExp(`--${name}\\s*:\\s*([^;]+);`));
   if (!match) throw new Error(`Token --${name} absent du fichier de tokens`);
   return (match[1] as string).trim();
