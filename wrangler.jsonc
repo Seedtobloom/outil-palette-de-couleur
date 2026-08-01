@@ -4,7 +4,7 @@
   // le Worker ne fait que sauvegarder et servir les palettes partagées.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nuancier",
-  "main": "worker/index.ts",
+  "main": "back/index.ts",
   "compatibility_date": "2026-07-01",
   "assets": {
     "directory": "./dist",

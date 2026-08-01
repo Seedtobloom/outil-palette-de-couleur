@@ -2,9 +2,9 @@
  * Entrée « Worker autonome » : la version du back destinée à être créée
  * À LA MAIN dans le dashboard Cloudflare à partir du template Hello World.
  *
- * `npm run build:worker` bundle ce fichier (avec shared/api.ts) en un seul
- * fichier `worker-dashboard.js` à coller tel quel dans l'éditeur en ligne.
- * Ne pas éditer worker-dashboard.js directement : modifier shared/api.ts
+ * `npm run build:worker` bundle ce fichier (avec back/api.ts) en un seul
+ * fichier `back-a-coller.js` à coller tel quel dans l'éditeur en ligne.
+ * Ne pas éditer back-a-coller.js directement : modifier back/api.ts
  * ou ce fichier, puis regénérer.
  *
  * Différences avec worker/index.ts (variante wrangler) :
@@ -13,7 +13,7 @@
  *   (*.pages.dev → *.workers.dev). Les données ne sont pas sensibles et
  *   aucune session n'existe, donc « * » est approprié.
  */
-import { apiError, healthResponse, readPalette, savePalette } from '../shared/api';
+import { apiError, healthResponse, readPalette, savePalette } from './api';
 
 export interface Env {
   NUANCIER_KV: KVNamespace;

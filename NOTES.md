@@ -40,8 +40,16 @@ wrangler** → le chemin principal est Cloudflare Pages + Git.
   le fichier collé ne se met pas à jour tout seul, il faut recoller après
   chaque évolution de l'API (README, section « Mise à jour du back »).
 - **Lisibilité du dépôt demandée par Cindy** : arborescence FRONT/BACK
-  annotée en tête de README + un mini README par dossier (src, worker,
-  functions, shared) — GitHub les affiche en naviguant dans les dossiers.
+  annotée en tête de README + un mini README par dossier — GitHub les
+  affiche en naviguant dans les dossiers.
+- **Renommage littéral demandé par Cindy** : `src/` → `front/`,
+  `worker/` + `shared/` → `back/` (la logique d'API et ses deux enrobages
+  vivent ensemble), `worker-dashboard.js` → `back-a-coller.js`. Seule
+  exception : `functions/` garde son nom, imposé par la convention
+  Cloudflare Pages (documenté dans son README et dans l'arborescence).
+  Chemins mis à jour partout (index.html, tsconfig, vite/vitest,
+  wrangler.jsonc, imports des functions) ; tests, check et builds verts,
+  fichier à coller régénéré et re-testé.
 
 - **Un seul Worker** : le front (SPA Vite buildée dans `dist/`) est servi
   par les assets statiques de la plateforme (`not_found_handling:

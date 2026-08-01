@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json && tsc -p tsconfig.server.json",
-    "build:worker": "esbuild worker/standalone.ts --bundle --format=esm --outfile=worker-dashboard.js --banner:js=\"// Généré par 'npm run build:worker' — ne pas éditer à la main (source : worker/standalone.ts + shared/api.ts).\"",
+    "build:worker": "esbuild back/standalone.ts --bundle --format=esm --outfile=back-a-coller.js --banner:js=\"// Généré par 'npm run build:worker' — ne pas éditer à la main (source : back/standalone.ts + back/api.ts).\"",
     "dev:full": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "test": "vitest run",

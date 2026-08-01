@@ -3,7 +3,7 @@
  * Nécessite le binding KV « NUANCIER_KV » (dashboard → projet Pages →
  * Settings → Bindings → KV namespace).
  */
-import { apiError, savePalette } from '../../../shared/api';
+import { apiError, savePalette } from '../../../back/api';
 
 type Env = { NUANCIER_KV: KVNamespace };
 

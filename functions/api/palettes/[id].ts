@@ -1,7 +1,7 @@
 /**
  * Pages Function : GET /api/palettes/:id (liens de partage /?p=id).
  */
-import { apiError, readPalette } from '../../../shared/api';
+import { apiError, readPalette } from '../../../back/api';
 
 type Env = { NUANCIER_KV: KVNamespace };
 

@@ -1,6 +1,6 @@
-// Généré par 'npm run build:worker' — ne pas éditer à la main (source : worker/standalone.ts + shared/api.ts).
+// Généré par 'npm run build:worker' — ne pas éditer à la main (source : back/standalone.ts + back/api.ts).
 
-// shared/validate.ts
+// back/validate.ts
 var SCHEMES = [
   "monochrome",
   "analogous",
@@ -45,7 +45,7 @@ function generateId(randomBytes) {
   return id;
 }
 
-// shared/api.ts
+// back/api.ts
 var JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
@@ -89,7 +89,7 @@ async function readPalette(id, store) {
   return new Response(stored, { headers: JSON_HEADERS });
 }
 
-// worker/standalone.ts
+// back/standalone.ts
 var CORS_HEADERS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, OPTIONS",

@@ -7,15 +7,15 @@ responsables, harmonieuses, suffisamment contrastées et suffisamment fournies.
 
 ```
 FRONT  (l'application dans le navigateur — déployée sur Cloudflare Pages)
-  src/                interface Svelte + moteur colorimétrique (100 % client)
-  index.html          page d'entrée
-  dist/               résultat du build (npm run build) — c'est lui que Pages publie
+  front/            interface Svelte + moteur colorimétrique (100 % client)
+  index.html        page d'entrée
+  dist/             résultat du build (npm run build) — c'est lui que Pages publie
 
 BACK   (l'API de sauvegarde/partage — un Worker Cloudflare + stockage KV)
-  worker-dashboard.js LE FICHIER À COLLER dans le Worker « Hello World » du dashboard
-  worker/             sa source (standalone.ts) + variante wrangler (index.ts)
-  shared/             la logique réelle de l'API (validation, sauvegarde, lecture)
-  functions/          variante optionnelle : même API intégrée à Pages
+  back-a-coller.js  LE FICHIER À COLLER dans le Worker « Hello World » du dashboard
+  back/             son code source : logique d'API + enrobages Worker
+  functions/        variante optionnelle : même API intégrée à Pages
+                    (ce nom exact est imposé par Cloudflare, sinon il s'appellerait back aussi)
 
 AUTRES
   brief-outil-palette-couleurs.md   le brief technique, source de vérité
@@ -31,7 +31,7 @@ npm install
 npm run dev      # développement front seul (Vite)
 npm run dev:full # front + back ensemble (wrangler dev, KV simulé en local)
 npm test         # recette du moteur + validation du back (Vitest)
-npm run check    # svelte-check + TypeScript strict (front et worker)
+npm run check    # svelte-check + TypeScript strict (front et back)
 npm run build    # build de production du front
 npm run deploy   # build + déploiement Cloudflare (front + back)
 ```
@@ -60,7 +60,7 @@ entièrement côté client ; le back ne fait que la sauvegarde/partage.
 2. Sur la page du Worker : **Edit code** (l'éditeur en ligne s'ouvre sur
    le hello world).
 3. **Supprimer tout le contenu** du fichier et coller à la place
-   l'intégralité de [`worker-dashboard.js`](./worker-dashboard.js)
+   l'intégralité de [`back-a-coller.js`](./back-a-coller.js)
    (ouvrir le fichier sur GitHub → bouton « Copy raw file »).
 4. **Deploy** (en haut à droite de l'éditeur).
 5. Vérifier : `https://nuancier-api.<ton-compte>.workers.dev/api/health`
@@ -101,7 +101,7 @@ Le front doit connaître l'adresse du Worker :
 ### Mise à jour du back
 
 Le Worker collé à la main ne se met pas à jour tout seul : quand
-`worker-dashboard.js` change dans le dépôt (le commit le régénère via
+`back-a-coller.js` change dans le dépôt (le commit le régénère via
 `npm run build:worker`), recoller son contenu dans l'éditeur du Worker et
 **Deploy**. Le front, lui, se redéploie automatiquement à chaque poussée.
 
@@ -119,17 +119,17 @@ le front régénère la palette à l'identique à l'ouverture du lien.
 
 ### Variante en ligne de commande (optionnelle)
 
-Pour qui préfère wrangler, `worker/index.ts` + `wrangler.jsonc` déploient
+Pour qui préfère wrangler, `back/index.ts` + `wrangler.jsonc` déploient
 front et API en un seul Worker : `npx wrangler kv namespace create
 NUANCIER_KV`, coller l'id dans `wrangler.jsonc`, puis `npm run deploy`.
-La logique d'API est partagée (`shared/api.ts`) : tous les modes restent
+La logique d'API est partagée (`back/api.ts`) : tous les modes restent
 identiques.
 
 ## Architecture
 
-`src/engine/` est du TypeScript pur, sans le moindre import d'interface,
+`front/engine/` est du TypeScript pur, sans le moindre import d'interface,
 entièrement testé : conversions OKLCH (pivot), gamut mapping CSS Color 4,
 ΔE2000/ΔEOK, contraste WCAG 2.2 (bloquant) + APCA (signal), simulations de
 daltonisme Machado 2009 avec sévérité, et la couche `explain/` qui fait
 produire au moteur des diagnostics rédigés et des remèdes applicables.
-L'interface Svelte (`src/App.svelte`, `src/lib/`) ne fait qu'afficher.
+L'interface Svelte (`front/App.svelte`, `front/lib/`) ne fait qu'afficher.

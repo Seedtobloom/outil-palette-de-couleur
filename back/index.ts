@@ -3,9 +3,9 @@
  * Le chemin de déploiement principal du projet est SANS wrangler :
  * Cloudflare Pages + dossier functions/ via le dashboard — voir README.
  * Ce Worker reste disponible pour qui préfère `npm run deploy`.
- * La logique vit dans shared/api.ts, identique dans les deux modes.
+ * La logique vit dans back/api.ts, identique dans les deux modes.
  */
-import { apiError, healthResponse, readPalette, savePalette } from '../shared/api';
+import { apiError, healthResponse, readPalette, savePalette } from './api';
 
 export interface Env {
   NUANCIER_KV: KVNamespace;
