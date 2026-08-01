@@ -389,8 +389,8 @@
     </div>
     {#if shareState === 'error'}
       <p class="parse-error" role="alert">
-        Le partage nécessite le back déployé (Worker + KV). En développement local,
-        lancez <code>npm run dev:full</code>.
+        Le partage nécessite le back déployé avec son stockage (binding KV
+        «&nbsp;NUANCIER_KV&nbsp;» — voir le README, section déploiement).
       </p>
     {/if}
   {/if}

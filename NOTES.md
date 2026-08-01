@@ -9,8 +9,25 @@ trois mois sans redécouvrir les arbitrages.
 
 Demandé par Cindy en avance de phase (la persistance était prévue en
 Phase 4) : l'outil est désormais déployable sur sa stack Cloudflare.
+**Précision de Cindy : tout se fait à la main via le dashboard, sans
+wrangler** → le chemin principal est Cloudflare Pages + Git.
 
 ### Décisions
+
+- **Chemin principal : Pages + dossier `functions/`** (déploiement 100 %
+  dashboard : connexion du dépôt GitHub, build `npm run build` → `dist`,
+  binding KV `NUANCIER_KV` ajouté dans Settings → Bindings). Le fallback
+  SPA de Pages est natif (pas de 404.html) et les Functions ne captent
+  que `/api/*` (routage par fichiers).
+- **La logique d'API vit dans `shared/api.ts`** (validation, sauvegarde,
+  lecture) ; `functions/` (Pages) et `worker/` (variante wrangler,
+  conservée en option) ne sont que des enrobages de la même
+  implémentation — pas de double maintenance de la logique.
+- Les Functions répondent 503 avec un message explicite si le binding KV
+  n'est pas configuré : le site reste utilisable, seul le partage est
+  indisponible.
+- Vérifié en local en simulant Pages (`wrangler pages dev dist --kv`,
+  outil de vérification uniquement) : santé, POST/GET, 422, front, SPA.
 
 - **Un seul Worker** : le front (SPA Vite buildée dans `dist/`) est servi
   par les assets statiques de la plateforme (`not_found_handling:

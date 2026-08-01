@@ -21,23 +21,43 @@ npm run build    # build de production du front
 npm run deploy   # build + déploiement Cloudflare (front + back)
 ```
 
-## Déploiement Cloudflare (front + back)
+## Déploiement à la main via le dashboard Cloudflare (sans wrangler)
 
-L'application est un **seul Worker** : le front (`dist/`) est servi en assets
-statiques, le back (`worker/`) ne reçoit que les routes `/api/*`
-(sauvegarde et partage de palettes en KV). Le moteur colorimétrique reste
-entièrement côté client.
+Le front (SPA dans `dist/`) est servi par **Cloudflare Pages** ; le back est
+le dossier **`functions/`** (Pages Functions), détecté et déployé
+automatiquement — aucune ligne de commande Cloudflare n'est nécessaire.
+Le moteur colorimétrique reste entièrement côté client ; le back ne fait
+que la sauvegarde/partage de palettes en KV.
 
-Première mise en place :
+### 1. Créer le projet Pages (une seule fois)
 
-```bash
-npx wrangler login
-npx wrangler kv namespace create NUANCIER_KV
-# → coller l'id retourné dans wrangler.jsonc (kv_namespaces[0].id)
-npm run deploy
-```
+1. Dashboard Cloudflare → **Workers & Pages** → **Create** → onglet
+   **Pages** → **Connect to Git**.
+2. Choisir ce dépôt GitHub et la branche à déployer.
+3. Réglages de build :
+   - **Build command** : `npm run build`
+   - **Build output directory** : `dist`
+4. **Save and Deploy** — le site est en ligne, le dossier `functions/` est
+   pris en compte automatiquement.
 
-API du back :
+### 2. Brancher le stockage KV (pour le partage de palettes)
+
+1. Dashboard → **Storage & Databases** → **KV** → **Create a namespace**
+   (nom libre, ex. `nuancier`).
+2. Projet Pages → **Settings** → **Bindings** (ou *Functions*) →
+   **Add binding** → type **KV namespace** :
+   - **Variable name** : `NUANCIER_KV` (exactement)
+   - **KV namespace** : celui créé à l'étape 1.
+3. Relancer un déploiement (**Deployments** → **Retry deployment**, ou
+   pousser un commit).
+
+Sans ce binding, le site fonctionne entièrement — seul le bouton « Créer un
+lien de partage » répond que le stockage n'est pas configuré.
+
+Ensuite, **chaque poussée sur la branche redéploie tout automatiquement**
+(front + API), et chaque pull request reçoit une URL d'aperçu.
+
+### API du back
 
 | Route | Méthode | Rôle |
 |---|---|---|
@@ -46,8 +66,15 @@ API du back :
 | `/api/palettes/:id` | GET | relit une recette (liens de partage `/?p=id`) |
 
 On ne stocke jamais la palette générée : seulement la **recette** (couleur
-de base + réglages), validée et bornée côté serveur — le front régénère la
-palette à l'identique à l'ouverture du lien.
+de base + réglages, < 1 Ko, versionnée), validée et bornée côté serveur —
+le front régénère la palette à l'identique à l'ouverture du lien.
+
+### Variante en ligne de commande (optionnelle)
+
+Pour qui préfère wrangler, `worker/` + `wrangler.jsonc` déploient la même
+API en Worker unique : `npx wrangler kv namespace create NUANCIER_KV`,
+coller l'id dans `wrangler.jsonc`, puis `npm run deploy`. La logique d'API
+est partagée (`shared/api.ts`) : les deux modes restent identiques.
 
 ## Architecture
 
