@@ -1,0 +1,104 @@
+/*
+ * Nuancier — direction artistique « instrument de laboratoire ».
+ * L'interface est quasi achromatique : toute la chroma de l'écran
+ * appartient à la palette de l'utilisateur. Une seule couleur d'accent,
+ * réservée à l'état actif et au focus. L'interface elle-même vise AAA.
+ */
+:root {
+  /* Neutres très légèrement teintés (chroma ≤ 0.01) */
+  --paper: oklch(98.6% 0.002 260);
+  --paper-sunken: oklch(96.4% 0.003 260);
+  --hairline: oklch(88% 0.004 260);
+  --hairline-strong: oklch(74% 0.005 260);
+  --ink: oklch(21% 0.008 260); /* ≈ 15:1 sur --paper : AAA large */
+  --ink-2: oklch(38% 0.008 260); /* ≈ 8:1 : AAA texte courant */
+  --accent: oklch(45% 0.15 258); /* actif et focus uniquement */
+
+  --font-ui: system-ui, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: Georgia, 'Times New Roman', serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--paper);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  margin: 0;
+}
+
+code,
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+/* Les valeurs numériques bougent en direct : chiffres tabulaires partout. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85em;
+}
+
+button {
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 2px;
+  padding: 0.25rem 0.7rem;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--paper-sunken);
+}
+
+button[aria-pressed='true'],
+button.active {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+input,
+textarea,
+select {
+  accent-color: var(--accent);
+  font: inherit;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 2px;
+  padding: 0.3rem 0.5rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  button,
+  input,
+  textarea {
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+}

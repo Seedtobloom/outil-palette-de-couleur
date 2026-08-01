@@ -39,7 +39,9 @@ function fromCulori(c: Oklch): OklchColor {
 }
 
 function toCulori(c: OklchColor): Oklch {
-  return { mode: 'oklch', l: c.l, c: c.c, h: c.h, alpha: c.alpha };
+  const out: Oklch = { mode: 'oklch', l: c.l, c: c.c, h: c.h };
+  if (c.alpha !== undefined) out.alpha = c.alpha;
+  return out;
 }
 
 /**
