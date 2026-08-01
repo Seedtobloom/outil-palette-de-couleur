@@ -131,7 +131,10 @@
 
   let index = $state(0);
   let maxReached = $state(0);
-  let startMode: StartMode = $state('color');
+  // Par défaut, le panneau ouvert est celui du collage de palette : c'est
+  // la porte d'entrée la plus fréquente, et elle doit être visible sans
+  // avoir à cliquer quoi que ce soit.
+  let startMode: StartMode = $state('palette');
 
   const current = $derived(steps[Math.min(index, steps.length - 1)] as StepDef);
 
@@ -191,6 +194,42 @@
       { id: 'g5', hex: p.ramps.neutral.steps[9]!.hex, label: 'Gris foncé' },
     ];
   }
+
+  /**
+   * Les points de départ, dans l'ordre de fréquence réelle : on arrive
+   * presque toujours avec quelque chose — une charte imposée, un logo,
+   * une photo — et beaucoup plus rarement d'une page blanche.
+   */
+  const DEPARTS: { id: StartMode; label: string; hint: string; consigne: string }[] = [
+    {
+      id: 'palette',
+      label: 'J’ai une palette',
+      hint: 'à valider, à compléter',
+      consigne: 'Colle tes couleurs — une par ligne, ou séparées par des espaces',
+    },
+    {
+      id: 'color',
+      label: 'J’ai une couleur',
+      hint: 'un hex, un logo',
+      consigne: 'Entre ta couleur — elle sera conservée exactement',
+    },
+    {
+      id: 'image',
+      label: 'J’ai une image',
+      hint: 'photo, moodboard',
+      consigne: 'Choisis une image — l’analyse reste dans ton navigateur',
+    },
+    {
+      id: 'mood',
+      label: 'Une ambiance',
+      hint: 'au feeling',
+      consigne: 'Choisis une ambiance de départ — tout reste modifiable ensuite',
+    },
+  ];
+
+  const DEPART_COURANT = $derived(
+    DEPARTS.find((d) => d.id === startMode) ?? (DEPARTS[0] as (typeof DEPARTS)[number]),
+  );
 
   const USAGES: { id: UsageContext; label: string; hint: string }[] = [
     { id: 'web', label: 'Un site', hint: 'écran, clair + sombre' },
@@ -362,74 +401,92 @@
           {/each}
         </div>
       {:else if current.id === 'start'}
-        <div class="choices three">
-          <button class="choice" onclick={() => { startMode = 'color'; next(); }}>
-            <strong>J’ai une couleur</strong><small>un hex, un logo</small>
-          </button>
-          <button
-            class="choice"
-            aria-checked={startMode === 'mood'}
-            role="radio"
-            onclick={() => (startMode = 'mood')}
-          >
-            <strong>Une ambiance</strong><small>au feeling</small>
-          </button>
-          <button
-            class="choice"
-            role="radio"
-            aria-checked={startMode === 'palette'}
-            onclick={() => (startMode = 'palette')}
-          >
-            <strong>J’ai une palette</strong><small>à valider, à compléter</small>
-          </button>
-          <button
-            class="choice"
-            role="radio"
-            aria-checked={startMode === 'image'}
-            onclick={() => (startMode = 'image')}
-          >
-            <strong>J’ai une image</strong><small>photo, moodboard</small>
-          </button>
-        </div>
-        {#if startMode === 'image'}
-          <ImportImage onImporte={next} />
-        {/if}
-        {#if startMode === 'palette'}
-          <div class="paste">
-            <label class="paste-label" for="paste-hex">
-              Colle tes couleurs (hex, une par ligne ou séparées par des espaces)
-            </label>
-            <textarea
-              id="paste-hex"
-              rows="4"
-              bind:value={pastedColors}
-              placeholder="#1a1a2e&#10;#f7f5ef&#10;#c0392b"
-              spellcheck="false"
-            ></textarea>
-            <button class="solid" onclick={importPasted} disabled={parsedPaste.length === 0}>
-              Importer {parsedPaste.length > 0 ? `${parsedPaste.length} couleur${parsedPaste.length > 1 ? 's' : ''}` : ''}
+        <!--
+          Les quatre entrées se comportent à l'identique : on choisit, le
+          panneau s'ouvre juste en dessous, on fait la chose. Avant, « j'ai
+          une couleur » sautait à l'étape suivante pendant que les trois
+          autres ouvraient un panneau : cliquer « j'ai une palette » avait
+          donc l'air de ne rien faire.
+          « J'ai une palette » vient en premier : c'est l'entrée la plus
+          fréquente — on arrive avec une charte à valider, pas de zéro.
+        -->
+        <div class="choices three" role="radiogroup" aria-label="Point de départ">
+          {#each DEPARTS as d (d.id)}
+            <button
+              class="choice"
+              role="radio"
+              aria-checked={startMode === d.id}
+              onclick={() => (startMode = d.id)}
+            >
+              <strong>{d.label}</strong><small>{d.hint}</small>
             </button>
-            {#if parsedPaste.length > 0}
-              <span class="paste-preview" aria-hidden="true">
-                {#each parsedPaste as hex (hex)}<span style="background:{hex}"></span>{/each}
-              </span>
-            {/if}
-          </div>
-        {/if}
-        {#if startMode === 'mood'}
-          <div class="moods">
-            {#each MOODS as mood (mood.id)}
-              <button
-                class="mood"
-                style="--mood:{moodHex(mood)}"
-                onclick={() => { settings.baseColor = moodHex(mood); next(); }}
-              >
-                <span class="mood-fill" aria-hidden="true"></span>
-                <span class="mood-name">{mood.label}</span>
+          {/each}
+        </div>
+
+        <div class="panneau-depart">
+          <p class="micro">{DEPART_COURANT.consigne}</p>
+
+          {#if startMode === 'palette'}
+            <div class="paste">
+              <label class="vh" for="paste-hex">Tes couleurs en hexadécimal</label>
+              <textarea
+                id="paste-hex"
+                rows="4"
+                bind:value={pastedColors}
+                placeholder="#1a1a2e&#10;#f7f5ef&#10;#c0392b"
+                spellcheck="false"
+              ></textarea>
+              {#if parsedPaste.length > 0}
+                <span class="paste-preview" aria-hidden="true">
+                  {#each parsedPaste as hex (hex)}<span style="background:{hex}"></span>{/each}
+                </span>
+              {/if}
+              <button class="solid" onclick={importPasted} disabled={parsedPaste.length === 0}>
+                {parsedPaste.length === 0
+                  ? 'Importer'
+                  : `Importer ${parsedPaste.length} couleur${parsedPaste.length > 1 ? 's' : ''}`}
               </button>
-            {/each}
-          </div>
-        {/if}
+              {#if pastedColors.trim() !== '' && parsedPaste.length === 0}
+                <p class="note-pied">
+                  Aucune couleur reconnue là-dedans. Les formats lus sont le hexadécimal
+                  (#1a1a2e), rgb(), hsl() et oklch().
+                </p>
+              {/if}
+            </div>
+          {:else if startMode === 'color'}
+            <div class="depart-couleur">
+              <label class="pick-swatch petite" style="background:{baseValid ? settings.baseColor : '#ccc'}">
+                <input type="color" bind:value={settings.baseColor} aria-label="Choisir la couleur" />
+              </label>
+              <input
+                class="pick-hex"
+                type="text"
+                bind:value={settings.baseColor}
+                spellcheck="false"
+                aria-label="Couleur en hexadécimal"
+              />
+              {#if pipetteDisponible}
+                <button onclick={pipette}>Pipeter à l’écran</button>
+              {/if}
+              <button class="solid" onclick={next} disabled={!baseValid}>Continuer</button>
+            </div>
+          {:else if startMode === 'image'}
+            <ImportImage onImporte={next} />
+          {:else}
+            <div class="moods">
+              {#each MOODS as mood (mood.id)}
+                <button
+                  class="mood"
+                  style="--mood:{moodHex(mood)}"
+                  onclick={() => { settings.baseColor = moodHex(mood); next(); }}
+                >
+                  <span class="mood-fill" aria-hidden="true"></span>
+                  <span class="mood-name">{mood.label}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
       {:else if current.id === 'color'}
         <div class="pick">
           <label class="pick-swatch" style="background:{baseValid ? settings.baseColor : '#ccc'}">
@@ -852,15 +909,37 @@
     background: var(--surface-canvas);
   }
 
+  /* Le panneau de départ est visuellement rattaché aux cartes de choix :
+     on doit voir que c'est la suite du clic, pas un bloc indépendant. */
+  .panneau-depart {
+    display: grid;
+    gap: 0.7rem;
+    background: var(--surface-panel);
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+  }
+
+  .panneau-depart .micro {
+    margin: 0;
+  }
+
+  .depart-couleur {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .pick-swatch.petite {
+    block-size: 3rem;
+    inline-size: 3rem;
+    flex-shrink: 0;
+  }
+
   .paste {
     display: grid;
     gap: 0.6rem;
     justify-items: start;
-  }
-
-  .paste-label {
-    font-size: 0.85rem;
-    color: var(--text-muted);
   }
 
   .paste textarea {

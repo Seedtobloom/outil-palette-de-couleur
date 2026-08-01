@@ -135,13 +135,41 @@ describe('estimation CMJN', () => {
 });
 
 describe('couleurs pour les réseaux sociaux', () => {
-  const social = socialPalette('#2563eb');
+  const palette = [
+    { id: 'a', hex: '#2563eb', label: 'Principale' },
+    { id: 'b', hex: '#c0392b', label: 'Secondaire' },
+    { id: 'c', hex: '#8a8a8a', label: 'Gris' },
+  ];
+  const social = socialPalette(palette);
 
-  it('produit 5 couleurs étiquetées et expliquées', () => {
-    expect(social).toHaveLength(5);
+  it('décline chaque couleur de la palette en clair, aplat et profond', () => {
+    // Le gris est écarté : il n'a pas de teinte à décliner.
+    expect(social).toHaveLength(6);
+    expect(new Set(social.map((c) => c.sourceId))).toEqual(new Set(['a', 'b']));
+    for (const source of ['a', 'b']) {
+      const tons = social.filter((c) => c.sourceId === source).map((c) => c.ton);
+      expect(tons).toEqual(['claire', 'aplat', 'profonde']);
+    }
+  });
+
+  it('garde exactement la teinte de la couleur d’origine', () => {
+    // C'est la raison d'être de ce module : ne PAS inventer de teintes.
     for (const c of social) {
-      expect(c.hex).toMatch(/^#[0-9a-f]{6}$/);
-      expect(c.use.length).toBeGreaterThan(15);
+      expect(c.ecartTeinte).toBeLessThan(1);
+    }
+  });
+
+  it('l’aplat est la couleur de la palette, inchangée', () => {
+    for (const c of social.filter((x) => x.ton === 'aplat')) {
+      expect(c.hex).toBe(c.sourceHex);
+    }
+  });
+
+  it('la nuance claire est claire, la profonde est profonde', () => {
+    for (const c of social) {
+      const l = parseToOklch(c.hex)!.l;
+      if (c.ton === 'claire') expect(l).toBeGreaterThan(0.8);
+      if (c.ton === 'profonde') expect(l).toBeLessThan(0.4);
     }
   });
 
@@ -151,9 +179,16 @@ describe('couleurs pour les réseaux sociaux', () => {
     }
   });
 
-  it('elles sont plus saturées que la couleur de marque', () => {
-    const base = parseToOklch('#2563eb')!;
-    const saturated = parseToOklch(social[0]!.hex)!;
-    expect(saturated.c).toBeGreaterThan(base.c * 0.85);
+  it('plafonne le nombre de familles déclinées', () => {
+    const large = Array.from({ length: 6 }, (_, i) => ({
+      id: `c${i}`,
+      hex: ['#2563eb', '#c0392b', '#2e7d6f', '#aa7c17', '#7b2fbe', '#d81b60'][i] as string,
+      label: `C${i}`,
+    }));
+    expect(socialPalette(large).length).toBe(9);
+  });
+
+  it('ne rend rien sur une palette sans couleur teintée', () => {
+    expect(socialPalette([{ id: 'g', hex: '#888888' }])).toEqual([]);
   });
 });

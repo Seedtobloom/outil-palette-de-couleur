@@ -1,20 +1,32 @@
 <script lang="ts">
   /**
-   * Étape « Contraste ». Refondue selon la règle d'épure (§9.0) :
-   * le spécimen d'abord, le chiffre en preuve à côté.
+   * Étape « Contraste » — refondue autour d'une règle : à tout moment,
+   * une seule chose à faire, et elle est écrite en toutes lettres.
    *
-   * - une décision par écran : LA paire à corriger, en avant/après ;
-   * - le reste en liste courte ;
-   * - la matrice exhaustive derrière un lien explicite, en second niveau.
+   * L'ancienne version affichait tout en même temps (la paire, la liste,
+   * la matrice, l'épreuve, les tons directs, le niveau A) et laissait
+   * corriger couleur par couleur. On s'y perdait, et le travail était
+   * manuel de bout en bout.
+   *
+   * Maintenant :
+   * - l'outil annonce ce qu'il peut régler seul, et le règle sur un clic ;
+   * - pour ce qui reste, il PROPOSE des couleurs classées par coût, au
+   *   lieu d'imposer une correction unique ;
+   * - quand une association n'est pas rattrapable, il le dit et indique
+   *   ce que la paire sait faire, plutôt que d'inventer un compromis ;
+   * - tous les contrôles de vérification sont repliés dans un seul bloc.
    */
   import {
+    corrigeTout,
     evaluePaires,
     lectureApca,
+    proposeCorrections,
     SEUILS,
     LEVEL_A_CHECK,
     findSpotCollisions,
     simulateCvd,
     toGrayscale,
+    type Candidat,
     type PairUse,
   } from '../engine';
   import { settings } from './state.svelte';
@@ -27,33 +39,101 @@
     { id: 'composant', label: 'Icône, bordure, focus' },
   ];
 
-  let usage: PairUse = $state('texte');
-  let matriceOuverte = $state(false);
-  /** Index de la paire en cours d'examen dans la liste des échecs. */
-  let curseur = $state(0);
+  const NOM_USAGE: Record<PairUse, string> = {
+    texte: 'du texte courant',
+    titre: 'un grand titre',
+    composant: 'une icône ou une bordure',
+  };
 
-  const paires = $derived(evaluePaires(settings.colors, usage));
-  const echecs = $derived(paires.filter((p) => p.niveau === null));
-  const courante = $derived(echecs[Math.min(curseur, Math.max(0, echecs.length - 1))]);
+  let usage: PairUse = $state('texte');
+  let controlesOuverts = $state(false);
+  let curseur = $state(0);
+  /** Piste survolée ou sélectionnée, pour l'aperçu « après ». */
+  let pisteVisee = $state(0);
+  /** Sauvegarde d'un coup, pour pouvoir revenir en arrière. */
+  let avantAjustement: typeof settings.colors | null = $state(null);
+  let resume = $state('');
 
   const seuil = $derived(SEUILS[usage]);
+  const paires = $derived(evaluePaires(settings.colors, usage));
+
+  /**
+   * Les échecs, dédoublonnés : « A sur B » et « B sur A » ont le même
+   * ratio et se corrigent ensemble. En afficher deux revenait à doubler
+   * la liste sans rien ajouter à la décision.
+   */
+  const echecs = $derived.by(() => {
+    const vus = new Set<string>();
+    return paires.filter((p) => {
+      if (p.niveau !== null) return false;
+      const cle = [p.avantId, p.fondId].sort().join('|');
+      if (vus.has(cle)) return false;
+      vus.add(cle);
+      return true;
+    });
+  });
+
+  const courante = $derived(echecs[Math.min(curseur, Math.max(0, echecs.length - 1))]);
+
+  const proposition = $derived(
+    courante ? proposeCorrections(courante.avantHex, courante.fondHex, usage) : null,
+  );
+
+  /** Trois pistes au maximum : au-delà, on choisit moins bien, pas mieux. */
+  const pistes = $derived(proposition ? proposition.candidats.slice(0, 3) : []);
+  const pisteActive = $derived(pistes[Math.min(pisteVisee, Math.max(0, pistes.length - 1))] ?? null);
+
+  /** Ce que l'ajustement automatique réglerait, sans rien appliquer. */
+  const simulation = $derived(corrigeTout(settings.colors, usage));
 
   function nomDe(id: string): string {
     return settings.colors.find((c) => c.id === id)?.label ?? id;
-  }
-
-  function appliquer(id: string, hex: string): void {
-    settings.colors = settings.colors.map((c) => (c.id === id ? { ...c, hex } : c));
-    curseur = 0;
   }
 
   function fmt(r: number): string {
     return (Math.floor(r * 100) / 100).toFixed(2).replace('.', ',');
   }
 
+  function ajusteTout(): void {
+    const bilan = corrigeTout(settings.colors, usage);
+    if (bilan.changements.length === 0) return;
+    avantAjustement = settings.colors.map((c) => ({ ...c }));
+    // Le moteur rend des couleurs au label facultatif ; le nuancier, lui,
+    // en exige un — on repart des entrées d'origine pour le conserver.
+    settings.colors = settings.colors.map((c) => ({
+      ...c,
+      hex: bilan.couleurs.find((n) => n.id === c.id)?.hex ?? c.hex,
+    }));
+    const n = bilan.changements.length;
+    const r = bilan.restants.length;
+    resume =
+      `${n} couleur${n > 1 ? 's' : ''} ajustée${n > 1 ? 's' : ''}` +
+      (r > 0
+        ? ` — ${r} association${r > 1 ? 's' : ''} ne peu${r > 1 ? 'vent' : 't'} pas être réglée${r > 1 ? 's' : ''} automatiquement, elle${r > 1 ? 's sont' : ' est'} détaillée${r > 1 ? 's' : ''} ci-dessous.`
+        : ' — tout passe.');
+    curseur = 0;
+    pisteVisee = 0;
+  }
+
+  function annule(): void {
+    if (!avantAjustement) return;
+    settings.colors = avantAjustement;
+    avantAjustement = null;
+    resume = '';
+  }
+
+  function appliquePiste(candidat: Candidat): void {
+    if (!courante) return;
+    const id = candidat.cible === 'avant' ? courante.avantId : courante.fondId;
+    avantAjustement = settings.colors.map((c) => ({ ...c }));
+    settings.colors = settings.colors.map((c) => (c.id === id ? { ...c, hex: candidat.hex } : c));
+    resume = `« ${nomDe(id)} » remplacée. ${candidat.phrase}`;
+    curseur = 0;
+    pisteVisee = 0;
+  }
+
   const spotCollisions = $derived(findSpotCollisions(settings.colors));
 
-  /** Épreuve en trois rangs — ici seulement, là où elle sert (décision validée). */
   const epreuve = $derived([
     { label: 'Écran', hexes: settings.colors.map((c) => c.hex) },
     { label: 'Niveaux de gris', hexes: settings.colors.map((c) => toGrayscale(c.hex)) },
@@ -62,99 +142,185 @@
 </script>
 
 <div class="wrap">
-  <div class="usages" role="group" aria-label="Usage évalué">
-    {#each USAGES as u (u.id)}
-      <button
-        aria-pressed={usage === u.id}
-        onclick={() => {
-          usage = u.id;
-          curseur = 0;
-        }}>{u.label}</button
-      >
-    {/each}
+  <!-- 1. Ce qu'on vérifie -->
+  <div class="entete">
+    <div class="usages" role="group" aria-label="Usage évalué">
+      {#each USAGES as u (u.id)}
+        <button
+          aria-pressed={usage === u.id}
+          onclick={() => {
+            usage = u.id;
+            curseur = 0;
+            pisteVisee = 0;
+          }}>{u.label}</button
+        >
+      {/each}
+    </div>
+    <p class="regle">{seuil.regle} — il faut {fmt(seuil.aa)}:1</p>
   </div>
-  <p class="regle">{seuil.regle} — il faut {fmt(seuil.aa)}:1</p>
 
+  <!-- 2. L'action du moment, écrite en toutes lettres -->
   {#if echecs.length === 0}
-    <!-- Rien à décider : on le dit une fois, sans encart décoratif. -->
     <p class="tout-passe">
       <span class="signe" aria-hidden="true">✓</span>
       Les {paires.length} associations passent le seuil. Rien à corriger sur cet usage.
     </p>
-  {:else if courante}
-    {@const fix = courante.fix}
-    <!-- LE spécimen : vrai texte, vraie taille, vraie couleur -->
+  {:else}
+    <div class="barre-action">
+      <div class="barre-texte">
+        <p class="barre-titre">
+          {echecs.length} association{echecs.length > 1 ? 's' : ''} ne passe{echecs.length > 1
+            ? 'nt'
+            : ''} pas.
+        </p>
+        <p class="barre-detail">
+          {#if simulation.changements.length > 0}
+            L’outil peut en régler {simulation.changements.length} tout seul, en ne déplaçant que
+            la clarté — teintes et intensités conservées.
+          {:else}
+            Aucune ne se règle automatiquement sans toucher à tes teintes : elles se décident une
+            par une, ci-dessous.
+          {/if}
+        </p>
+      </div>
+      {#if simulation.changements.length > 0}
+        <button class="principal" onclick={ajusteTout}>
+          Ajuster automatiquement
+        </button>
+      {/if}
+    </div>
+
+    {#if resume}
+      <p class="resume" role="status">
+        {resume}
+        {#if avantAjustement}
+          <button class="lien" onclick={annule}>Annuler</button>
+        {/if}
+      </p>
+    {/if}
+  {/if}
+
+  <!-- 3. La décision en cours : le spécimen, puis les pistes -->
+  {#if courante && proposition}
     <div class="decision">
       <p class="micro">
-        À corriger — {curseur + 1} sur {echecs.length}
+        À décider — {curseur + 1} sur {echecs.length}
       </p>
       <h3 class="titre-decision">
         « {nomDe(courante.avantId)} » sur « {nomDe(courante.fondId)} », <i>illisible</i>.
       </h3>
+      <p class="diagnostic">{proposition.diagnostic}</p>
 
       <div class="specimens">
         <div class="specimen">
-          <div
-            class="page"
-            style="background:{courante.fondHex};color:{courante.avantHex}"
-            data-usage={usage}
-          >
+          <div class="page" style="background:{courante.fondHex};color:{courante.avantHex}">
             <p class="page-titre">Un titre de section</p>
             <p class="page-texte">
-              Le texte courant d’un paragraphe, à la taille où on le lit vraiment. C’est ici
-              que se juge la lisibilité, pas dans un chiffre.
+              Le texte courant d’un paragraphe, à la taille où on le lit vraiment. C’est ici que
+              se juge la lisibilité, pas dans un chiffre.
             </p>
           </div>
           <p class="mesure">
             <span class="ratio value">{fmt(courante.ratio)}:1</span>
-            <span class="verdict" data-ok="false"><span aria-hidden="true">✕</span> ne passe pas</span>
+            <span class="verdict" data-ok="false"><span aria-hidden="true">✕</span> aujourd’hui</span>
           </p>
         </div>
 
-        {#if fix}
+        {#if pisteActive}
+          {@const fond = pisteActive.cible === 'fond' ? pisteActive.hex : courante.fondHex}
+          {@const texte = pisteActive.cible === 'avant' ? pisteActive.hex : courante.avantHex}
           <div class="specimen">
-            <div
-              class="page"
-              style="background:{courante.fondHex};color:{fix.hex}"
-              data-usage={usage}
-            >
+            <div class="page" style="background:{fond};color:{texte}">
               <p class="page-titre">Un titre de section</p>
               <p class="page-texte">
-                Le texte courant d’un paragraphe, à la taille où on le lit vraiment. C’est ici
-                que se juge la lisibilité, pas dans un chiffre.
+                Le texte courant d’un paragraphe, à la taille où on le lit vraiment. C’est ici que
+                se juge la lisibilité, pas dans un chiffre.
               </p>
             </div>
             <p class="mesure">
-              <span class="ratio value">{fmt(fix.ratio)}:1</span>
-              <span class="verdict" data-ok="true"><span aria-hidden="true">✓</span> passe AA</span>
+              <span class="ratio value">{fmt(pisteActive.ratio)}:1</span>
+              <span class="verdict" data-ok="true"><span aria-hidden="true">✓</span> avec la piste choisie</span>
             </p>
           </div>
         {/if}
       </div>
 
-      {#if fix}
-        <p class="note-pied">{fix.phrase}</p>
-        <div class="actions">
-          <button class="principal" onclick={() => appliquer(courante.avantId, fix.hex)}>
-            Appliquer la correction
-          </button>
-          {#if echecs.length > 1}
-            <button onclick={() => (curseur = (curseur + 1) % echecs.length)}>
-              Voir la suivante
-            </button>
-          {/if}
-        </div>
+      <!-- Les pistes : on choisit, on ne subit pas -->
+      {#if pistes.length > 0}
+        <p class="micro">Ce que je te propose</p>
+        <!--
+          role="radio" et non aria-pressed : ce sont des options
+          exclusives, pas des interrupteurs. La distinction n'est pas
+          cosmétique — le style global d'un bouton « enfoncé » repeint le
+          fond en Terre avec du texte Paille, ce qui rendait le libellé de
+          la piste sélectionnée illisible sur la carte claire.
+        -->
+        <ul class="pistes" role="radiogroup" aria-label="Pistes de correction">
+          {#each pistes as piste, i (piste.cible + piste.hex)}
+            <li>
+              <button
+                class="piste"
+                class:visee={i === pisteVisee}
+                role="radio"
+                aria-checked={i === pisteVisee}
+                onmouseenter={() => (pisteVisee = i)}
+                onfocus={() => (pisteVisee = i)}
+                onclick={() => (pisteVisee === i ? appliquePiste(piste) : (pisteVisee = i))}
+              >
+                <span class="piste-duo" aria-hidden="true">
+                  <span
+                    style="background:{piste.cible === 'avant' ? courante.avantHex : courante.fondHex}"
+                  ></span>
+                  <span class="fleche">→</span>
+                  <span style="background:{piste.hex}"></span>
+                </span>
+                <span class="piste-corps">
+                  <span class="piste-tete">
+                    <strong>{piste.cible === 'avant' ? 'Changer le texte' : 'Changer le fond'}</strong>
+                    <span class="piste-badge" data-douce={piste.douce}>
+                      {piste.douce ? 'sans douleur' : piste.memeFamille ? 'gros écart' : 'change la couleur'}
+                    </span>
+                  </span>
+                  <span class="piste-phrase">{piste.phrase}</span>
+                  <span class="piste-chiffres value">
+                    {piste.hex} · {fmt(piste.ratio)}:1 · {piste.deltaL} points de clarté
+                  </span>
+                </span>
+              </button>
+            </li>
+          {/each}
+        </ul>
+        <p class="aide">
+          Survole une piste pour la voir dans le spécimen, clique pour l’appliquer.
+        </p>
       {:else}
         <p class="note-pied">
-          Aucune clarté ne rend cette association lisible : ces deux couleurs ne sont pas faites
-          pour se porter l’une l’autre. Sépare-les dans la maquette.
+          Aucune variante de ces deux couleurs n’atteint le seuil : elles ne peuvent pas se porter
+          l’une l’autre. Sépare-les dans la maquette.
         </p>
-        {#if echecs.length > 1}
-          <div class="actions">
-            <button onclick={() => (curseur = (curseur + 1) % echecs.length)}>Voir la suivante</button>
-          </div>
-        {/if}
       {/if}
+
+      <div class="actions">
+        {#if pisteActive}
+          <button class="principal" onclick={() => appliquePiste(pisteActive)}>
+            Appliquer cette piste
+          </button>
+        {/if}
+        {#if proposition.usageTenable && proposition.usageTenable !== usage}
+          <button onclick={() => { usage = proposition.usageTenable as PairUse; curseur = 0; }}>
+            La garder pour {NOM_USAGE[proposition.usageTenable]}
+          </button>
+        {/if}
+        {#if echecs.length > 1}
+          <button
+            class="ghost"
+            onclick={() => {
+              curseur = (curseur + 1) % echecs.length;
+              pisteVisee = 0;
+            }}>Passer</button
+          >
+        {/if}
+      </div>
 
       {#if showTechnical}
         <p class="tech value">
@@ -169,7 +335,7 @@
         {#each echecs as e, i (e.avantId + e.fondId)}
           {#if i !== curseur}
             <li>
-              <button onclick={() => (curseur = i)}>
+              <button onclick={() => { curseur = i; pisteVisee = 0; }}>
                 <span class="puce" style="background:{e.fondHex};color:{e.avantHex}">Aa</span>
                 <span>{nomDe(e.avantId)} sur {nomDe(e.fondId)}</span>
                 <span class="value">{fmt(e.ratio)}:1</span>
@@ -181,178 +347,229 @@
     {/if}
   {/if}
 
-  <!-- Second niveau : la vue de contrôle exhaustive -->
-  <button class="lien-matrice" onclick={() => (matriceOuverte = !matriceOuverte)}>
-    {matriceOuverte ? 'Masquer' : 'Voir'} les {paires.length} associations
-  </button>
+  <!-- 4. Tout le reste, replié : ce sont des contrôles, pas des décisions -->
+  <details class="controles" bind:open={controlesOuverts}>
+    <summary>Contrôles de vérification</summary>
 
-  {#if matriceOuverte}
-    <div class="matrice-scroll">
-      <table>
-        <caption class="vh">Matrice de toutes les associations</caption>
-        <thead>
-          <tr>
-            <th scope="col"><span class="vh">Sur</span></th>
-            {#each settings.colors as c (c.id)}
-              <th scope="col"><span class="tete" style="background:{c.hex}"></span>{c.label}</th>
-            {/each}
-          </tr>
-        </thead>
-        <tbody>
-          {#each settings.colors as ligne (ligne.id)}
-            <tr>
-              <th scope="row"><span class="tete" style="background:{ligne.hex}"></span>{ligne.label}</th>
-              {#each settings.colors as colonne (colonne.id)}
-                {#if ligne.id === colonne.id}
-                  <td class="diag" aria-hidden="true"></td>
-                {:else}
-                  {@const p = paires.find((x) => x.avantId === ligne.id && x.fondId === colonne.id)}
-                  <td>
-                    {#if p}
-                      <span class="signe" aria-hidden="true">{p.niveau ? '✓' : '✕'}</span>
-                      <span class="value">{fmt(p.ratio)}</span>
-                      <span class="niveau">{p.niveau ?? '—'}</span>
+    <div class="controles-corps">
+      <div class="bloc">
+        <p class="micro">Toutes les associations</p>
+        <div class="matrice-scroll">
+          <table>
+            <caption class="vh">Matrice de toutes les associations</caption>
+            <thead>
+              <tr>
+                <th scope="col"><span class="vh">Sur</span></th>
+                {#each settings.colors as c (c.id)}
+                  <th scope="col"><span class="tete" style="background:{c.hex}"></span>{c.label}</th>
+                {/each}
+              </tr>
+            </thead>
+            <tbody>
+              {#each settings.colors as ligne (ligne.id)}
+                <tr>
+                  <th scope="row"><span class="tete" style="background:{ligne.hex}"></span>{ligne.label}</th>
+                  {#each settings.colors as colonne (colonne.id)}
+                    {#if ligne.id === colonne.id}
+                      <td class="diag" aria-hidden="true"></td>
+                    {:else}
+                      {@const p = paires.find((x) => x.avantId === ligne.id && x.fondId === colonne.id)}
+                      <td>
+                        {#if p}
+                          <span class="signe" aria-hidden="true">{p.niveau ? '✓' : '✕'}</span>
+                          <span class="value">{fmt(p.ratio)}</span>
+                          <span class="niveau">{p.niveau ?? '—'}</span>
+                        {/if}
+                      </td>
                     {/if}
-                  </td>
-                {/if}
+                  {/each}
+                </tr>
               {/each}
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  {/if}
-
-  <!-- Épreuve en trois rangs : ici, là où elle sert -->
-  <div class="epreuve">
-    <p class="micro">L’épreuve</p>
-    {#each epreuve as rang (rang.label)}
-      <div class="rang">
-        <span class="rang-label">{rang.label}</span>
-        <span class="rang-bande" aria-hidden="true">
-          {#each rang.hexes as hex, i (i)}<span style="background:{hex}"></span>{/each}
-        </span>
+            </tbody>
+          </table>
+        </div>
       </div>
-    {/each}
-  </div>
 
-  {#if spotCollisions.length > 0}
-    <div class="spot">
-      <p class="micro">En ton direct</p>
-      {#each spotCollisions as c (c.a + c.b)}
-        <p class="note-pied">{c.message}</p>
-      {/each}
+      <div class="bloc">
+        <p class="micro">L’épreuve</p>
+        {#each epreuve as rang (rang.label)}
+          <div class="rang">
+            <span class="rang-label">{rang.label}</span>
+            <span class="rang-bande" aria-hidden="true">
+              {#each rang.hexes as hex, i (i)}<span style="background:{hex}"></span>{/each}
+            </span>
+          </div>
+        {/each}
+      </div>
+
+      {#if spotCollisions.length > 0}
+        <div class="bloc">
+          <p class="micro">En ton direct</p>
+          {#each spotCollisions as c (c.a + c.b)}
+            <p class="note-pied">{c.message}</p>
+          {/each}
+        </div>
+      {/if}
+
+      <div class="bloc">
+        <p class="micro">Le niveau A — à vérifier toi-même</p>
+        <p class="a-question">{LEVEL_A_CHECK.question}</p>
+        <label class="a-check">
+          <input type="checkbox" bind:checked={settings.levelAConfirmed} />
+          Non — chaque information a un second indice (texte, icône, motif).
+        </label>
+        <p class="note-pied">{LEVEL_A_CHECK.why}</p>
+      </div>
     </div>
-  {/if}
-
-  <!-- Niveau A : une vérification, jamais un ratio -->
-  <div class="niveau-a">
-    <p class="micro">Le niveau A — à vérifier toi-même</p>
-    <p class="a-question">{LEVEL_A_CHECK.question}</p>
-    <label class="a-check">
-      <input type="checkbox" bind:checked={settings.levelAConfirmed} />
-      Non — chaque information a un second indice (texte, icône, motif).
-    </label>
-    <p class="note-pied">{LEVEL_A_CHECK.why}</p>
-  </div>
+  </details>
 </div>
 
 <style>
   .wrap {
     display: grid;
-    gap: var(--gap-bloc);
+    gap: 1.2rem;
+  }
+
+  .entete {
+    display: grid;
+    gap: 0.35rem;
   }
 
   .usages {
     display: flex;
-    gap: 0.4rem;
+    gap: 0.35rem;
     flex-wrap: wrap;
   }
 
   .usages button {
-    font-size: 0.86rem;
-    padding: 0.35rem 0.9rem;
-    min-block-size: 0;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.9rem;
   }
 
   .regle {
-    margin: -1.6rem 0 0;
+    margin: 0;
     font-size: 0.78rem;
     color: var(--text-muted);
   }
 
   .tout-passe {
     margin: 0;
-    font-size: 1rem;
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
+    font-size: 0.95rem;
   }
 
-  .signe {
+  .tout-passe .signe {
+    color: var(--conforme);
     font-weight: 600;
   }
 
-  /* — LA décision — */
+  /* — La barre d'action : ce qu'il y a à faire, et le bouton pour le faire — */
+  .barre-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.2rem;
+    flex-wrap: wrap;
+    background: var(--surface-panel);
+    border-radius: var(--radius);
+    padding: 0.9rem 1.1rem;
+  }
+
+  .barre-texte {
+    display: grid;
+    gap: 0.15rem;
+    min-inline-size: 0;
+  }
+
+  .barre-titre {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 500;
+  }
+
+  .barre-detail {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    max-inline-size: 34rem;
+  }
+
+  .resume {
+    margin: 0;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  button.lien {
+    border: none;
+    background: none;
+    padding: 0;
+    min-block-size: 0;
+    text-decoration: underline;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  /* — La décision — */
   .decision {
     display: grid;
-    gap: 0.9rem;
+    gap: 0.7rem;
+  }
+
+  .decision .micro {
+    margin: 0;
   }
 
   .titre-decision {
-    font-size: 1.6rem;
-    margin: -0.5rem 0 0;
+    margin: 0;
+    font-size: 1.3rem;
+  }
+
+  .diagnostic {
+    margin: 0;
+    font-size: 0.88rem;
+    max-inline-size: 44rem;
   }
 
   .specimens {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
+    gap: 0.9rem;
   }
 
-  /* Aucune bordure, aucune ombre : les échantillons sont posés sur le blanc. */
   .page {
-    padding: 1.6rem 1.5rem;
-    min-block-size: 11rem;
+    padding: 1.1rem 1.2rem;
+    border-radius: var(--radius);
   }
 
   .page-titre {
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.4rem;
     font-family: var(--font-titre);
-    font-size: 1.5rem;
+    font-size: 1.15rem;
   }
 
   .page-texte {
     margin: 0;
-    font-size: 1rem;
-    line-height: 1.6;
-    max-inline-size: var(--mesure);
-  }
-
-  /* Grand texte : on montre ce que la norme appelle grand texte. */
-  .page[data-usage='titre'] .page-texte {
-    font-size: 1.5rem;
-    line-height: 1.35;
-  }
-
-  .page[data-usage='composant'] .page-texte {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
   }
 
   .mesure {
-    margin: 0.6rem 0 0;
     display: flex;
     align-items: baseline;
-    gap: 0.9rem;
+    gap: 0.6rem;
+    margin: 0.4rem 0 0;
   }
 
   .ratio {
-    font-size: 1.6rem;
+    font-size: 1.35rem;
   }
 
   .verdict {
-    font-size: 0.88rem;
-    font-weight: 600;
+    font-size: 0.82rem;
+    font-weight: 500;
   }
 
   .verdict[data-ok='true'] {
@@ -363,32 +580,128 @@
     color: var(--non-conforme);
   }
 
+  /* — Les pistes proposées — */
+  .pistes {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .piste {
+    inline-size: 100%;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    text-align: left;
+    padding: 0.7rem 0.9rem;
+    border-radius: var(--radius);
+    border: 1px solid rgba(28, 18, 5, 0.12);
+    background: var(--surface-canvas);
+  }
+
+  /* Couleur de texte réaffirmée : sans elle, la piste sélectionnée
+     hériterait du style de bouton actif et deviendrait illisible. */
+  .piste.visee {
+    border-color: var(--text-main);
+    background: var(--surface-panel);
+    color: var(--text-main);
+  }
+
+  .piste-duo {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+    margin-block-start: 0.15rem;
+  }
+
+  .piste-duo > span:not(.fleche) {
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 1px rgba(28, 18, 5, 0.14);
+  }
+
+  .fleche {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .piste-corps {
+    display: grid;
+    gap: 0.15rem;
+    min-inline-size: 0;
+  }
+
+  .piste-tete {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.9rem;
+  }
+
+  /* Le badge dit le coût ; il ne se lit pas à la couleur seule, le mot
+     porte l'information. */
+  .piste-badge {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-pill);
+    background: rgba(28, 18, 5, 0.07);
+    color: var(--text-muted);
+  }
+
+  .piste-badge[data-douce='true'] {
+    background: var(--etape-active);
+    color: var(--ebene);
+  }
+
+  .piste-phrase {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+  .piste-chiffres {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .aide {
+    margin: 0;
+    font-size: 0.75rem;
+    font-style: italic;
+    color: var(--text-muted);
+  }
+
   .actions {
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
   }
 
-  button.principal {
-    background: var(--text-main);
-    border-color: var(--text-main);
-    color: var(--blanc);
+  button.ghost {
+    border-color: transparent;
+    color: var(--text-muted);
   }
 
   .tech {
     margin: 0;
-    font-size: 0.76rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
   }
 
-  /* — Le reste, en liste courte — */
+  /* — La liste courte des autres échecs — */
   .reste {
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 0.2rem;
-    max-inline-size: 34rem;
+    gap: 0.15rem;
   }
 
   .reste button {
@@ -397,23 +710,15 @@
     align-items: center;
     gap: 0.7rem;
     border: none;
-    padding: 0.35rem 0.4rem;
-    min-block-size: 44px;
+    background: none;
+    padding: 0.3rem 0.4rem;
+    border-radius: var(--radius-sm);
     font-size: 0.85rem;
-    text-align: left;
+    min-block-size: 38px;
   }
 
   .reste button:hover {
     background: var(--surface-panel);
-  }
-
-  .puce {
-    display: grid;
-    place-items: center;
-    inline-size: 2.2rem;
-    block-size: 1.7rem;
-    font-size: 0.8rem;
-    flex-shrink: 0;
   }
 
   .reste .value {
@@ -421,81 +726,92 @@
     color: var(--text-muted);
   }
 
-  .lien-matrice {
-    justify-self: start;
-    border: none;
-    padding: 0;
-    min-block-size: 44px;
-    text-decoration: underline;
-    font-size: 0.86rem;
+  .puce {
+    inline-size: 1.6rem;
+    block-size: 1.6rem;
+    display: grid;
+    place-items: center;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    flex-shrink: 0;
   }
 
-  .lien-matrice:hover {
-    background: none;
+  /* — Les contrôles, repliés — */
+  .controles {
+    border-block-start: 1px solid rgba(28, 18, 5, 0.09);
+    padding-block-start: 0.9rem;
   }
 
-  /* — Matrice, second niveau — */
+  .controles summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-main);
+  }
+
+  .controles-corps {
+    display: grid;
+    gap: 1.4rem;
+    margin-block-start: 1rem;
+  }
+
+  .bloc {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .bloc .micro {
+    margin: 0;
+  }
+
   .matrice-scroll {
     overflow-x: auto;
   }
 
   table {
     border-collapse: collapse;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
   }
 
   th,
   td {
-    padding: 0.4rem 0.6rem;
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid rgba(28, 18, 5, 0.09);
     text-align: left;
     white-space: nowrap;
   }
 
-  thead th,
-  tbody th {
+  thead th {
     font-weight: 400;
     color: var(--text-muted);
-    font-size: 0.76rem;
   }
 
   .tete {
     display: inline-block;
-    inline-size: 0.7rem;
-    block-size: 0.7rem;
-    margin-right: 0.35rem;
-    vertical-align: -0.05em;
-  }
-
-  td {
-    display: table-cell;
+    inline-size: 0.8rem;
+    block-size: 0.8rem;
+    border-radius: 2px;
+    margin-inline-end: 0.35rem;
+    vertical-align: -1px;
   }
 
   td .signe {
-    margin-right: 0.3rem;
+    margin-inline-end: 0.3rem;
   }
 
-  td .niveau {
-    margin-left: 0.35rem;
-    font-size: 0.7rem;
+  .niveau {
     color: var(--text-muted);
+    margin-inline-start: 0.3rem;
   }
 
   .diag {
     background: var(--surface-panel);
   }
 
-  /* — Épreuve — */
-  .epreuve {
-    display: grid;
-    gap: 0.25rem;
-    max-inline-size: 34rem;
-  }
-
   .rang {
     display: grid;
     grid-template-columns: 8rem 1fr;
     align-items: center;
-    gap: 0.8rem;
+    gap: 0.7rem;
   }
 
   .rang-label {
@@ -505,24 +821,11 @@
   }
 
   .rang-bande {
-    display: flex;
-    gap: 2px;
-    block-size: 1.1rem;
-  }
-
-  .rang-bande span {
-    flex: 1;
-  }
-
-  .spot,
-  .niveau-a {
     display: grid;
-    gap: 0.4rem;
-    max-inline-size: var(--mesure);
-  }
-
-  .niveau-a {
-    max-inline-size: 34rem;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    block-size: 1.5rem;
+    gap: 2px;
   }
 
   .a-question {
@@ -530,7 +833,6 @@
     font-size: 0.9rem;
   }
 
-  /* La cible tactile est portée par le libellé entier, pas par la case. */
   .a-check {
     display: flex;
     align-items: flex-start;

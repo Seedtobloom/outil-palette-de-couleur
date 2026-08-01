@@ -1,86 +1,138 @@
 /**
  * Couleurs d'extension pour les réseaux sociaux.
  *
- * Contrainte propre au support : une image de post est vue en petit, dans
- * un flux qui alterne fond blanc et fond sombre, à côté de contenus qui
- * crient. Il faut donc des couleurs plus vives que la marque, mais qui
- * restent de la même famille — et qui gardent un contraste suffisant sur
- * les deux fonds de flux.
+ * Une palette d'interface est faite pour être discrète et lisible sur
+ * une page. Un visuel de réseau social est vu en petit, dans un flux qui
+ * défile, entre deux contenus qui crient, sur fond blanc ou sur fond noir
+ * selon le thème de la personne qui scrolle. Il lui faut donc plus
+ * d'amplitude.
+ *
+ * Cette amplitude se prend dans la CLARTÉ, pas dans la teinte.
+ *
+ * C'est le point important : dériver des couleurs en faisant tourner la
+ * roue produit des teintes que la graphiste n'a jamais choisies, et le
+ * résultat ne ressemble plus à sa marque. Ici, chaque couleur d'extension
+ * garde exactement la teinte de la couleur dont elle sort — seule sa
+ * clarté bouge. On obtient une version claire et une version profonde de
+ * chaque couleur de la palette : de quoi tenir une série de posts sans
+ * jamais quitter l'identité.
  */
-import type { OklchColor } from '../types';
 import { gamutMap, maxChroma } from '../color/gamut';
 import { oklchToHex, parseToOklch } from '../color/space';
 import { contrastRatio } from '../contrast/wcag';
-import { rotateOnWheel, type WheelName } from './wheels';
+
+export type NamedHex = { id: string; hex: string; label?: string };
+
+export type Ton = 'claire' | 'aplat' | 'profonde';
 
 export type SocialColor = {
   hex: string;
   label: string;
+  /** La couleur de la palette dont celle-ci est tirée. */
+  sourceId: string;
+  sourceLabel: string;
+  sourceHex: string;
+  ton: Ton;
   /** À quoi elle sert dans un post. */
   use: string;
   /** Contraste avec le blanc du flux clair. */
   onLight: number;
   /** Contraste avec le sombre du flux nuit. */
   onDark: number;
+  /** Écart de teinte avec la source, en degrés. Doit rester nul. */
+  ecartTeinte: number;
 };
 
-/** Fonds de flux de référence (blanc pur et gris très sombre : ce que
- * font Instagram, LinkedIn et consorts en thème clair et sombre). */
+/** Fonds de flux de référence : blanc pur et gris très sombre, ce que
+ *  servent la plupart des applications en thème clair et en thème nuit. */
 const FEED_LIGHT = '#ffffff';
 const FEED_DARK = '#111111';
 
+/** Clartés visées pour les deux nuances. Assez écartées de l'aplat pour
+ *  qu'on les distingue au premier coup d'œil dans un flux. */
+const L_CLAIRE = 0.9;
+const L_PROFONDE = 0.28;
+
+const USAGES: Record<Ton, string> = {
+  claire:
+    'fonds de post, cartouches de citation, arrière-plans de carrousel — du texte foncé passe dessus',
+  aplat: 'la couleur telle qu’elle est dans ta charte : logo, aplats identitaires, pictogrammes',
+  profonde: 'bandeaux, fonds de vidéo, blocs de texte inversé — du texte clair passe dessus',
+};
+
+const SUFFIXES: Record<Ton, string> = {
+  claire: 'claire',
+  aplat: 'aplat',
+  profonde: 'profonde',
+};
+
 /**
- * Dérive 5 couleurs d'extension à partir de la couleur de marque :
- * une version « qui claque » de la marque, deux voisines, une opposée
- * pour les mises en avant, et un fond profond pour les visuels sombres.
+ * Décline la palette en nuances claires et profondes.
+ *
+ * On ne décline que les couleurs qui ont une teinte à décliner : un gris
+ * n'a pas de version « claire de la même famille », il a juste une autre
+ * valeur de gris — et la palette en contient déjà. Les couleurs sont
+ * prises de la plus intense à la moins intense, et plafonnées : trois
+ * familles déclinées en trois tons font déjà neuf visuels possibles,
+ * au-delà la série ne se tient plus.
  */
-export function socialPalette(base: string | OklchColor, wheel: WheelName = 'ryb'): SocialColor[] {
-  const parsed = typeof base === 'string' ? parseToOklch(base) : base;
-  if (!parsed) return [];
+export function socialPalette(couleurs: NamedHex[], maxFamilles = 3): SocialColor[] {
+  const parsed = couleurs
+    .map((c) => ({ ...c, oklch: parseToOklch(c.hex) }))
+    .filter((c): c is NamedHex & { oklch: NonNullable<ReturnType<typeof parseToOklch>> } =>
+      c.oklch !== null,
+    );
 
-  const make = (l: number, chromaRatio: number, h: number): string => {
-    const c = chromaRatio * maxChroma(l, h, 'srgb');
-    return oklchToHex(gamutMap({ l, c, h }, 'srgb'));
-  };
+  const sources = parsed
+    .filter((c) => c.oklch.c >= 0.04)
+    .sort((a, b) => b.oklch.c - a.oklch.c)
+    .slice(0, maxFamilles);
 
-  const h = parsed.h;
-  const specs: { hex: string; label: string; use: string }[] = [
-    {
-      hex: make(0.62, 0.92, h),
-      label: 'Marque saturée',
-      use: 'aplats de fond de post, stories — la marque poussée pour survivre au flux',
-    },
-    {
-      hex: make(0.72, 0.9, rotateOnWheel(wheel, h, 28)),
-      label: 'Voisine claire',
-      use: 'variations de posts d’une même série, fonds de citations',
-    },
-    {
-      hex: make(0.5, 0.9, rotateOnWheel(wheel, h, -28)),
-      label: 'Voisine profonde',
-      use: 'bandeaux, blocs de texte inversé, carrousels',
-    },
-    {
-      hex: make(0.66, 0.95, rotateOnWheel(wheel, h, 180)),
-      label: 'Opposée (accent)',
-      use: 'un seul élément par visuel : bouton, chiffre clé, mot souligné',
-    },
-    {
-      hex: make(0.26, 0.55, h),
-      label: 'Fond profond',
-      use: 'visuels sombres, fonds de vidéo, texte blanc dessus',
-    },
-  ];
+  const out: SocialColor[] = [];
 
-  return specs.map((s) => ({
-    ...s,
-    onLight: contrastRatio(s.hex, FEED_LIGHT),
-    onDark: contrastRatio(s.hex, FEED_DARK),
-  }));
+  for (const source of sources) {
+    const { c, h } = source.oklch;
+    const nom = source.label ?? source.id;
+
+    const nuance = (ton: Ton): string => {
+      if (ton === 'aplat') return source.hex;
+      const cible = ton === 'claire' ? L_CLAIRE : L_PROFONDE;
+      // La version claire s'assourdit un peu — à cette clarté, garder
+      // toute l'intensité donne un pastel criard. La version profonde
+      // garde la sienne : c'est ce qui la fait tenir en petit.
+      const part = ton === 'claire' ? 0.5 : 1;
+      return oklchToHex(
+        gamutMap({ l: cible, c: Math.min(c * part, maxChroma(cible, h, 'srgb')), h }, 'srgb'),
+      );
+    };
+
+    for (const ton of ['claire', 'aplat', 'profonde'] as Ton[]) {
+      const hex = nuance(ton);
+      const arrivee = parseToOklch(hex);
+      // Distance sur le cercle des teintes, déjà ramenée dans [0, 180].
+      const ecart =
+        arrivee && c >= 0.02 ? Math.abs((((arrivee.h - h) % 360) + 540) % 360 - 180) : 0;
+      out.push({
+        hex,
+        label: `${nom}, ${SUFFIXES[ton]}`,
+        sourceId: source.id,
+        sourceLabel: nom,
+        sourceHex: source.hex,
+        ton,
+        use: USAGES[ton],
+        onLight: contrastRatio(hex, FEED_LIGHT),
+        onDark: contrastRatio(hex, FEED_DARK),
+        ecartTeinte: ecart,
+      });
+    }
+  }
+
+  return out;
 }
 
 export const SOCIAL_NOTE =
-  'Ces couleurs sont plus vives que ta palette d’interface : c’est volontaire. ' +
-  'Un post est vu en petit, entre deux contenus criards, sur fond blanc ou noir selon le thème ' +
-  'de la personne. Elles restent dans la famille de ta marque, mais elles tiennent le flux. ' +
-  'Ne les utilise pas pour du texte courant sur un site.';
+  'Ces couleurs ne sont pas de nouvelles couleurs : ce sont tes couleurs, déclinées en clair et ' +
+  'en profond. La teinte ne bouge pas d’un degré — seule la clarté change. C’est ce qui permet ' +
+  'à une série de posts d’avoir de l’amplitude sans quitter ta charte. Les valeurs de contraste ' +
+  'indiquent la tenue sur un flux clair et sur un flux nuit ; en dessous de 3, ne pose pas de ' +
+  'texte dessus.';

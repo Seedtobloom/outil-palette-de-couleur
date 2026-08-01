@@ -144,6 +144,20 @@ export {
   type PairUse,
 } from './contrast/fix';
 export {
+  proposeCorrections,
+  corrigeTout,
+  usageTenable,
+  MOUVEMENT_DOUX,
+  PLANCHER_INTENSITE,
+  TOLERANCE_TEINTE,
+  type Candidat,
+  type Proposition,
+  type Verdict,
+  type Changement,
+  type Restant,
+  type Bilan,
+} from './contrast/propose';
+export {
   kmeansOklab,
   echantillonneRgba,
   type Echantillon,
