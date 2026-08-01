@@ -23,6 +23,8 @@ import { oklchToHex, parseToOklch } from '../color/space';
 import { deltaE00 } from '../color/distance';
 import { contrastRatio } from './wcag';
 import { SEUILS, type PairUse } from './fix';
+import { analyzeHarmony } from '../harmony/analysis';
+import { bandOf, type Band } from '../analyze/coverage';
 
 /**
  * « Est-ce encore ma couleur ? » — trois critères, et surtout PAS ΔE2000.
@@ -385,6 +387,105 @@ export type Bilan = {
   restants: Restant[];
 };
 
+export type Impact = {
+  /** Paires en échec avant le changement. */
+  avant: number;
+  /** Paires en échec après. */
+  apres: number;
+  /** Paires que ce changement fait passer. */
+  resolues: number;
+  /** Paires que ce changement fait tomber — l'information qui manquait. */
+  cassees: number;
+  /** Score d'harmonie avant le changement. */
+  harmonieAvant: number;
+  /** Score d'harmonie après. */
+  harmonieApres: number;
+  /**
+   * La bande de clarté que ce changement laisserait vide.
+   *
+   * Le garde-fou de structure : une palette a besoin d'un clair, d'un
+   * moyen et d'un foncé. Assombrir la seule couleur claire règle
+   * effectivement des contrastes — et détruit le système, puisqu'il ne
+   * reste plus rien pour faire un fond de page. Aucun compte de paires
+   * ne voit ce désastre : il fallait le mesurer à part.
+   */
+  bandeVidee: Band | null;
+};
+
+const BANDES: Band[] = ['light', 'mid', 'dark'];
+
+function compteBandes(couleurs: Couleur[]): Record<Band, number> {
+  const out: Record<Band, number> = { light: 0, mid: 0, dark: 0 };
+  for (const c of couleurs) {
+    const oklch = parseToOklch(c.hex);
+    if (oklch) out[bandOf(oklch)]++;
+  }
+  return out;
+}
+
+/** Rend la bande que le passage `avant` → `apres` laisserait vide. */
+function bandeVidee(avant: Couleur[], apres: Couleur[]): Band | null {
+  const a = compteBandes(avant);
+  const b = compteBandes(apres);
+  return BANDES.find((k) => a[k] > 0 && b[k] === 0) ?? null;
+}
+
+/**
+ * Ce qu'une couleur de remplacement fait à TOUTE la palette.
+ *
+ * C'est l'information décisive, et elle manquait : corriger « A sur B »
+ * en déplaçant A peut très bien faire tomber « A sur C ». Sans ce calcul,
+ * on applique une correction, le compteur ne bouge pas — ou remonte — et
+ * on a le sentiment de tourner en rond sans savoir pourquoi.
+ *
+ * Le calcul est exact, pas estimé : on compare paire à paire l'état avant
+ * et l'état après.
+ *
+ * Le score d'harmonie est mesuré en même temps, pour la même raison :
+ * une correction ne doit pas régler le contraste en défaisant l'accord.
+ * Le SCHÉMA, lui, ne peut pas bouger — les corrections ne déplacent que
+ * la clarté et ne touchent jamais aux teintes, dont le schéma dépend
+ * (garanti par test). Ce qui peut se dégrader, c'est l'équilibre des
+ * clartés : c'est exactement ce que ce score rend visible.
+ */
+export function impactSurPalette(
+  couleurs: Couleur[],
+  idCible: string,
+  hex: string,
+  usage: PairUse = 'texte',
+): Impact {
+  const seuil = SEUILS[usage].aa;
+  const apresColors = couleurs.map((c) => (c.id === idCible ? { ...c, hex } : c));
+
+  let avant = 0;
+  let apres = 0;
+  let resolues = 0;
+  let cassees = 0;
+
+  for (let i = 0; i < couleurs.length; i++) {
+    for (let j = i + 1; j < couleurs.length; j++) {
+      const passeAvant =
+        contrastRatio((couleurs[i] as Couleur).hex, (couleurs[j] as Couleur).hex) >= seuil;
+      const passeApres =
+        contrastRatio((apresColors[i] as Couleur).hex, (apresColors[j] as Couleur).hex) >= seuil;
+      if (!passeAvant) avant++;
+      if (!passeApres) apres++;
+      if (!passeAvant && passeApres) resolues++;
+      if (passeAvant && !passeApres) cassees++;
+    }
+  }
+
+  return {
+    avant,
+    apres,
+    resolues,
+    cassees,
+    harmonieAvant: analyzeHarmony(couleurs).score,
+    harmonieApres: analyzeHarmony(apresColors).score,
+    bandeVidee: bandeVidee(couleurs, apresColors),
+  };
+}
+
 /** Compte les paires qui échouent — le critère que l'ajustement fait baisser. */
 function compteEchecs(couleurs: Couleur[], seuil: number): number {
   let n = 0;
@@ -456,6 +557,9 @@ export function corrigeTout(
           if (origine && arrivee && Math.abs(arrivee.l - origine.l) * 100 > budget) continue;
 
           const essai = courant.map((c) => (c.id === avant.id ? { ...c, hex: candidat.hex } : c));
+          // Jamais au prix de la structure : mieux vaut une paire en
+          // échec qu'une palette sans couleur claire.
+          if (bandeVidee(courant, essai)) continue;
           const echecs = compteEchecs(essai, seuil);
           if (echecs >= echecsAvant) continue;
 

@@ -20,6 +20,7 @@
     corrigeTout,
     evaluePaires,
     lectureApca,
+    impactSurPalette,
     proposeCorrections,
     SEUILS,
     LEVEL_A_CHECK,
@@ -27,6 +28,7 @@
     simulateCvd,
     toGrayscale,
     type Candidat,
+    type Impact,
     type PairUse,
   } from '../engine';
   import { settings } from './state.svelte';
@@ -50,9 +52,15 @@
   let curseur = $state(0);
   /** Piste survolée ou sélectionnée, pour l'aperçu « après ». */
   let pisteVisee = $state(0);
-  /** Sauvegarde d'un coup, pour pouvoir revenir en arrière. */
-  let avantAjustement: typeof settings.colors | null = $state(null);
+  /**
+   * Pile d'annulation. Un seul niveau ne suffisait pas : on enchaîne les
+   * corrections, et il faut pouvoir défaire les trois dernières quand on
+   * s'aperçoit qu'on est parti dans le mauvais sens.
+   */
+  let historique: (typeof settings.colors)[] = $state([]);
   let resume = $state('');
+  /** Ce que la dernière action a changé, pour l'afficher noir sur blanc. */
+  let dernierBilan: { avant: number; apres: number } | null = $state(null);
 
   const seuil = $derived(SEUILS[usage]);
   const paires = $derived(evaluePaires(settings.colors, usage));
@@ -79,9 +87,85 @@
     courante ? proposeCorrections(courante.avantHex, courante.fondHex, usage) : null,
   );
 
-  /** Trois pistes au maximum : au-delà, on choisit moins bien, pas mieux. */
-  const pistes = $derived(proposition ? proposition.candidats.slice(0, 3) : []);
+  /**
+   * Chaque piste est mesurée sur TOUTE la palette, pas seulement sur la
+   * paire en cours — c'est ce qui manquait : on corrigeait une paire, une
+   * autre tombait, le compteur ne descendait pas et on avait le sentiment
+   * de cliquer dans le vide.
+   *
+   * Le classement suit le gain net : une piste qui règle trois paires
+   * passe devant une piste indolore qui n'en règle qu'une.
+   */
+  const pistes = $derived.by(() => {
+    if (!proposition || !courante) return [];
+    return proposition.candidats
+      .map((c) => ({
+        c,
+        impact: impactSurPalette(
+          settings.colors,
+          c.cible === 'avant' ? courante.avantId : courante.fondId,
+          c.hex,
+          usage,
+        ),
+      }))
+      .sort((a, b) => {
+        // Une piste qui vide une bande de clarté passe toujours en
+        // dernier, quel que soit son gain en contraste : elle règle des
+        // paires en cassant le système.
+        const videA = a.impact.bandeVidee !== null;
+        const videB = b.impact.bandeVidee !== null;
+        if (videA !== videB) return videA ? 1 : -1;
+        const gainA = a.impact.resolues - a.impact.cassees;
+        const gainB = b.impact.resolues - b.impact.cassees;
+        if (gainA !== gainB) return gainB - gainA;
+        if (a.c.douce !== b.c.douce) return a.c.douce ? -1 : 1;
+        return a.c.deltaL - b.c.deltaL;
+      })
+      .slice(0, 3);
+  });
+
   const pisteActive = $derived(pistes[Math.min(pisteVisee, Math.max(0, pistes.length - 1))] ?? null);
+
+  /** Le libellé d'impact, en français, jamais un chiffre nu. */
+  function libelleImpact(i: Impact): string {
+    if (i.cassees === 0) {
+      return i.resolues > 1 ? `règle ${i.resolues} associations` : 'règle celle-ci';
+    }
+    const reglees = i.resolues > 1 ? `en règle ${i.resolues}` : 'en règle une';
+    const cassees = i.cassees > 1 ? `en casse ${i.cassees}` : 'en casse une';
+    return `${reglees}, ${cassees}`;
+  }
+
+  /**
+   * Gain net de la meilleure piste disponible. S'il est nul ou négatif,
+   * c'est un renseignement en soi : aucune retouche de CETTE paire ne
+   * fait avancer l'ensemble, donc le problème est ailleurs — dans la
+   * structure de la palette, pas dans cette association.
+   */
+  const meilleurGain = $derived(
+    pistes.length > 0
+      ? Math.max(...pistes.map((p) => p.impact.resolues - p.impact.cassees))
+      : 0,
+  );
+
+  const impasse = $derived(pistes.length > 0 && meilleurGain <= 0);
+
+  /** Une piste qui dégrade l'accord des couleurs doit le dire. */
+  function alerteHarmonie(i: Impact): string {
+    const perte = i.harmonieAvant - i.harmonieApres;
+    return perte >= 8 ? `harmonie ${i.harmonieAvant} → ${i.harmonieApres}` : '';
+  }
+
+  const NOM_BANDE: Record<string, string> = {
+    light: 'claire',
+    mid: 'moyenne',
+    dark: 'foncée',
+  };
+
+  /** L'alerte de structure : celle qu'aucun compte de paires ne donne. */
+  function alerteBande(i: Impact): string {
+    return i.bandeVidee ? `plus aucune couleur ${NOM_BANDE[i.bandeVidee]}` : '';
+  }
 
   /** Ce que l'ajustement automatique réglerait, sans rien appliquer. */
   const simulation = $derived(corrigeTout(settings.colors, usage));
@@ -94,10 +178,15 @@
     return (Math.floor(r * 100) / 100).toFixed(2).replace('.', ',');
   }
 
+  function memorise(): number {
+    historique = [...historique, settings.colors.map((c) => ({ ...c }))].slice(-10);
+    return echecs.length;
+  }
+
   function ajusteTout(): void {
     const bilan = corrigeTout(settings.colors, usage);
     if (bilan.changements.length === 0) return;
-    avantAjustement = settings.colors.map((c) => ({ ...c }));
+    const avant = memorise();
     // Le moteur rend des couleurs au label facultatif ; le nuancier, lui,
     // en exige un — on repart des entrées d'origine pour le conserver.
     settings.colors = settings.colors.map((c) => ({
@@ -105,32 +194,47 @@
       hex: bilan.couleurs.find((n) => n.id === c.id)?.hex ?? c.hex,
     }));
     const n = bilan.changements.length;
-    const r = bilan.restants.length;
-    resume =
-      `${n} couleur${n > 1 ? 's' : ''} ajustée${n > 1 ? 's' : ''}` +
-      (r > 0
-        ? ` — ${r} association${r > 1 ? 's' : ''} ne peu${r > 1 ? 'vent' : 't'} pas être réglée${r > 1 ? 's' : ''} automatiquement, elle${r > 1 ? 's sont' : ' est'} détaillée${r > 1 ? 's' : ''} ci-dessous.`
-        : ' — tout passe.');
+    resume = `${n} couleur${n > 1 ? 's' : ''} ajustée${n > 1 ? 's' : ''}.`;
+    dernierBilan = { avant, apres: echecs.length };
     curseur = 0;
     pisteVisee = 0;
   }
 
   function annule(): void {
-    if (!avantAjustement) return;
-    settings.colors = avantAjustement;
-    avantAjustement = null;
-    resume = '';
+    const precedent = historique.at(-1);
+    if (!precedent) return;
+    historique = historique.slice(0, -1);
+    settings.colors = precedent;
+    resume = 'Retour en arrière.';
+    dernierBilan = null;
   }
 
+  /**
+   * Applique une piste et RESTE dans le fil : le curseur n'est pas remis
+   * à zéro. La paire réglée disparaît de la liste, donc le même index
+   * pointe déjà sur la suivante — c'est ce qui fait la différence entre
+   * avancer et avoir l'impression de recliquer sur la même chose.
+   */
   function appliquePiste(candidat: Candidat): void {
     if (!courante) return;
     const id = candidat.cible === 'avant' ? courante.avantId : courante.fondId;
-    avantAjustement = settings.colors.map((c) => ({ ...c }));
+    const avant = memorise();
     settings.colors = settings.colors.map((c) => (c.id === id ? { ...c, hex: candidat.hex } : c));
-    resume = `« ${nomDe(id)} » remplacée. ${candidat.phrase}`;
-    curseur = 0;
+    resume = `« ${nomDe(id)} » ajustée.`;
+    dernierBilan = { avant, apres: echecs.length };
     pisteVisee = 0;
+    if (curseur > echecs.length - 1) curseur = 0;
   }
+
+  /** La phrase de progression, celle qui dit si on avance ou non. */
+  const phraseProgression = $derived.by(() => {
+    if (!dernierBilan) return '';
+    const { avant, apres } = dernierBilan;
+    if (apres === 0) return `${avant} → 0 : tout passe.`;
+    if (apres < avant) return `${avant} → ${apres} associations en échec.`;
+    if (apres === avant) return `Toujours ${apres} associations en échec : cette correction en a réglé une et cassé une autre.`;
+    return `${avant} → ${apres} : cette correction a créé plus de problèmes qu’elle n’en a réglé.`;
+  });
 
   const spotCollisions = $derived(findSpotCollisions(settings.colors));
 
@@ -191,9 +295,12 @@
     </div>
 
     {#if resume}
-      <p class="resume" role="status">
-        {resume}
-        {#if avantAjustement}
+      <p class="resume" data-recul={dernierBilan !== null && dernierBilan.apres >= dernierBilan.avant} role="status">
+        <span class="resume-fait">{resume}</span>
+        {#if phraseProgression}
+          <span class="resume-progres">{phraseProgression}</span>
+        {/if}
+        {#if historique.length > 0}
           <button class="lien" onclick={annule}>Annuler</button>
         {/if}
       </p>
@@ -227,8 +334,8 @@
         </div>
 
         {#if pisteActive}
-          {@const fond = pisteActive.cible === 'fond' ? pisteActive.hex : courante.fondHex}
-          {@const texte = pisteActive.cible === 'avant' ? pisteActive.hex : courante.avantHex}
+          {@const fond = pisteActive.c.cible === 'fond' ? pisteActive.c.hex : courante.fondHex}
+          {@const texte = pisteActive.c.cible === 'avant' ? pisteActive.c.hex : courante.avantHex}
           <div class="specimen">
             <div class="page" style="background:{fond};color:{texte}">
               <p class="page-titre">Un titre de section</p>
@@ -238,7 +345,7 @@
               </p>
             </div>
             <p class="mesure">
-              <span class="ratio value">{fmt(pisteActive.ratio)}:1</span>
+              <span class="ratio value">{fmt(pisteActive.c.ratio)}:1</span>
               <span class="verdict" data-ok="true"><span aria-hidden="true">✓</span> avec la piste choisie</span>
             </p>
           </div>
@@ -246,8 +353,22 @@
       </div>
 
       <!-- Les pistes : on choisit, on ne subit pas -->
+      {#if impasse}
+        <!--
+          Le renseignement le plus utile de toute l'étape : continuer à
+          retoucher ici ferait tourner en rond. On le dit AVANT le clic,
+          et on renvoie là où le problème se règle vraiment.
+        -->
+        <p class="impasse">
+          Aucune retouche de cette paire ne fait baisser le total : chaque correction possible
+          en casse autant qu’elle en règle. Le problème n’est pas cette association, c’est
+          l’écart de clarté dans la palette — il se règle à l’étape Nuancier, en ajoutant une
+          couleur franchement plus claire ou plus foncée.
+        </p>
+      {/if}
+
       {#if pistes.length > 0}
-        <p class="micro">Ce que je te propose</p>
+        <p class="micro">{impasse ? 'Malgré tout, si tu veux forcer' : 'Ce que je te propose'}</p>
         <!--
           role="radio" et non aria-pressed : ce sont des options
           exclusives, pas des interrupteurs. La distinction n'est pas
@@ -256,7 +377,7 @@
           la piste sélectionnée illisible sur la carte claire.
         -->
         <ul class="pistes" role="radiogroup" aria-label="Pistes de correction">
-          {#each pistes as piste, i (piste.cible + piste.hex)}
+          {#each pistes as { c: piste, impact }, i (piste.cible + piste.hex)}
             <li>
               <button
                 class="piste"
@@ -277,9 +398,21 @@
                 <span class="piste-corps">
                   <span class="piste-tete">
                     <strong>{piste.cible === 'avant' ? 'Changer le texte' : 'Changer le fond'}</strong>
-                    <span class="piste-badge" data-douce={piste.douce}>
-                      {piste.douce ? 'sans douleur' : piste.memeFamille ? 'gros écart' : 'change la couleur'}
+                    <!-- L'effet sur l'ENSEMBLE, avant de cliquer. -->
+                    <span class="piste-badge" data-net={impact.cassees === 0}>
+                      {libelleImpact(impact)}
                     </span>
+                    {#if !piste.douce}
+                      <span class="piste-badge">
+                        {piste.memeFamille ? 'gros écart' : 'change la couleur'}
+                      </span>
+                    {/if}
+                    {#if alerteBande(impact)}
+                      <span class="piste-badge" data-net={false}>{alerteBande(impact)}</span>
+                    {/if}
+                    {#if alerteHarmonie(impact)}
+                      <span class="piste-badge" data-net={false}>{alerteHarmonie(impact)}</span>
+                    {/if}
                   </span>
                   <span class="piste-phrase">{piste.phrase}</span>
                   <span class="piste-chiffres value">
@@ -302,8 +435,10 @@
 
       <div class="actions">
         {#if pisteActive}
-          <button class="principal" onclick={() => appliquePiste(pisteActive)}>
-            Appliquer cette piste
+          <!-- En impasse, l'action n'est plus l'action principale : la
+               mettre en avant serait pousser vers un clic inutile. -->
+          <button class:principal={!impasse} onclick={() => appliquePiste(pisteActive.c)}>
+            {impasse ? 'Appliquer quand même' : 'Appliquer et passer à la suivante'}
           </button>
         {/if}
         {#if proposition.usageTenable && proposition.usageTenable !== usage}
@@ -493,6 +628,8 @@
     max-inline-size: 34rem;
   }
 
+  /* Le bilan d'une action : ce qui a été fait, puis l'effet chiffré sur
+     l'ensemble. C'est la ligne qui manquait pour savoir si on avance. */
   .resume {
     margin: 0;
     font-size: 0.85rem;
@@ -500,6 +637,24 @@
     align-items: baseline;
     gap: 0.6rem;
     flex-wrap: wrap;
+    background: var(--surface-panel);
+    border-inline-start: 3px solid var(--conforme);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.8rem;
+  }
+
+  /* Le mot « recul » est porté par le texte ; le filet ne fait que
+     renforcer, il ne porte jamais seul l'information. */
+  .resume[data-recul='true'] {
+    border-inline-start-color: var(--non-conforme);
+  }
+
+  .resume-fait {
+    font-weight: 500;
+  }
+
+  .resume-progres {
+    color: var(--text-muted);
   }
 
   button.lien {
@@ -655,7 +810,9 @@
     color: var(--text-muted);
   }
 
-  .piste-badge[data-douce='true'] {
+  /* Gain net : mis en avant. Effet de bord : laissé neutre, le libellé
+     (« en casse une ») porte l'alerte — pas la couleur seule. */
+  .piste-badge[data-net='true'] {
     background: var(--etape-active);
     color: var(--ebene);
   }
@@ -669,6 +826,17 @@
   .piste-chiffres {
     font-size: 0.75rem;
     color: var(--text-muted);
+  }
+
+  .impasse {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    max-inline-size: 44rem;
+    background: var(--surface-panel);
+    border-inline-start: 3px solid var(--non-conforme);
+    border-radius: var(--radius-sm);
+    padding: 0.7rem 0.9rem;
   }
 
   .aide {

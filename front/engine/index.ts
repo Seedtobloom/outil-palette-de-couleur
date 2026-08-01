@@ -146,7 +146,9 @@ export {
 export {
   proposeCorrections,
   corrigeTout,
+  impactSurPalette,
   usageTenable,
+  type Impact,
   MOUVEMENT_DOUX,
   PLANCHER_INTENSITE,
   TOLERANCE_TEINTE,
