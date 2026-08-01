@@ -5,6 +5,46 @@ trois mois sans redécouvrir les arbitrages.
 
 ---
 
+## Infrastructure Cloudflare — front + back (2026-08-01)
+
+Demandé par Cindy en avance de phase (la persistance était prévue en
+Phase 4) : l'outil est désormais déployable sur sa stack Cloudflare.
+
+### Décisions
+
+- **Un seul Worker** : le front (SPA Vite buildée dans `dist/`) est servi
+  par les assets statiques de la plateforme (`not_found_handling:
+  single-page-application`), le back (`worker/index.ts`) ne reçoit que
+  `/api/*` grâce à `run_worker_first` — sans quoi le fallback SPA
+  avalerait les routes d'API.
+- **Le back ne fait que la persistance.** Le moteur reste 100 % client
+  (interdit du brief : pas de backend pour le moteur). Endpoints :
+  `GET /api/health`, `POST /api/palettes`, `GET /api/palettes/:id`.
+- **On stocke la recette, pas la palette** : couleur de base + réglages
+  (< 1 Ko), le front régénère à l'identique. Avantages : KV minuscule,
+  liens pérennes même si le moteur s'améliore (versionné `version: 1`),
+  et rien d'autre que des données validées en base — `validatePalette`
+  rejette tout champ inconnu et borne toutes les valeurs (testé).
+- **Identifiants** : 16 caractères base36 tirés de `crypto.getRandomValues`
+  (~82 bits) — liens non devinables, pas d'énumération.
+- **Pas de framework serveur** (Hono, etc.) : 3 routes, un `fetch` nu
+  suffit ; zéro dépendance d'exécution ajoutée.
+- **tsconfig séparé pour le worker** (types workers-types sans DOM),
+  vérifié par `npm run check` ; validation testée par Vitest.
+- Vérifié de bout en bout en local : `wrangler dev` (KV miniflare) +
+  parcours navigateur complet (créer un lien → l'ouvrir → palette
+  restaurée).
+
+### Reste à faire au déploiement réel
+
+- `wrangler kv namespace create NUANCIER_KV` puis coller l'id dans
+  `wrangler.jsonc` (placeholder explicite en attendant).
+- R2 (profils ICC, PDF) : prévu Phase 3/4, binding à ajouter le moment venu.
+- Pas de limitation de débit sur `POST /api/palettes` pour l'instant —
+  à ajouter si l'outil devient public (Turnstile ou rate limiting Workers).
+
+---
+
 ## Phase 1 — Rampes, harmonie, palette complète (2026-08-01)
 
 ### Périmètre livré

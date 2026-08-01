@@ -4,6 +4,9 @@
     scorePalette,
     exportCss,
     exportTailwind,
+    parseToOklch,
+    gamutMap,
+    oklchToHex,
     SCHEMES,
     ROLE_LABELS,
     type SchemeName,
@@ -25,6 +28,81 @@
   let previewMode: ThemeMode = $state('light');
   let exportFormat: 'css' | 'tailwind' = $state('css');
   let copied = $state(false);
+
+  // — Partage via le Worker (back : /api/palettes, stockage KV) —
+  let shareUrl = $state('');
+  let shareState: 'idle' | 'busy' | 'error' = $state('idle');
+  let shareCopied = $state(false);
+  let loadNotice = $state('');
+
+  function currentRecipe() {
+    const oklch = parseToOklch(baseColor);
+    return {
+      baseColor: oklch ? oklchToHex(gamutMap(oklch, 'srgb')) : baseColor,
+      options: {
+        scheme,
+        wheel,
+        intensity,
+        neutralInfluence: neutralInfluence / 100,
+        hueTorsion,
+      },
+    };
+  }
+
+  async function sharePalette(): Promise<void> {
+    shareState = 'busy';
+    shareUrl = '';
+    try {
+      const response = await fetch('/api/palettes', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(currentRecipe()),
+      });
+      if (!response.ok) throw new Error(String(response.status));
+      const { id } = (await response.json()) as { id: string };
+      shareUrl = `${location.origin}${location.pathname}?p=${id}`;
+      shareState = 'idle';
+    } catch {
+      shareState = 'error';
+    }
+  }
+
+  async function copyShareUrl(): Promise<void> {
+    await navigator.clipboard.writeText(shareUrl);
+    shareCopied = true;
+    setTimeout(() => (shareCopied = false), 1600);
+  }
+
+  // Chargement d'une palette partagée (?p=identifiant).
+  $effect(() => {
+    const id = new URLSearchParams(location.search).get('p');
+    if (!id || !/^[0-9a-z]{16}$/.test(id)) return;
+    void (async () => {
+      try {
+        const response = await fetch(`/api/palettes/${id}`);
+        if (!response.ok) throw new Error(String(response.status));
+        const stored = (await response.json()) as {
+          baseColor: string;
+          options: {
+            scheme: SchemeName;
+            wheel: WheelName;
+            intensity: number;
+            neutralInfluence: number;
+            hueTorsion: number;
+          };
+        };
+        baseColor = stored.baseColor;
+        scheme = stored.options.scheme;
+        wheel = stored.options.wheel;
+        intensity = stored.options.intensity;
+        neutralInfluence = Math.round(stored.options.neutralInfluence * 100);
+        hueTorsion = stored.options.hueTorsion;
+        loadNotice = 'Palette partagée chargée.';
+      } catch {
+        loadNotice = 'Impossible de charger la palette partagée (lien expiré ou service indisponible).';
+      }
+    })();
+  });
 
   const palette = $derived.by(() => {
     try {
@@ -163,6 +241,10 @@
     </label>
   </div>
 
+  {#if loadNotice}
+    <p class="notice" role="status">{loadNotice}</p>
+  {/if}
+
   {#if !palette}
     <p class="parse-error" role="alert">Couleur illisible — donnez un hex comme #2563eb.</p>
   {:else}
@@ -290,6 +372,27 @@
     </div>
     <textarea class="export-area" readonly rows="10" value={exportText} aria-label="Code exporté"
     ></textarea>
+
+    <h3>Partager</h3>
+    <p class="help">
+      Crée un lien qui rouvre exactement cette palette (la recette est sauvegardée côté
+      serveur, la palette est régénérée à l’identique à l’ouverture).
+    </p>
+    <div class="share-row">
+      <button onclick={sharePalette} disabled={shareState === 'busy'}>
+        {shareState === 'busy' ? 'Création…' : 'Créer un lien de partage'}
+      </button>
+      {#if shareUrl}
+        <input class="share-url" type="text" readonly value={shareUrl} aria-label="Lien de partage" />
+        <button onclick={copyShareUrl}>{shareCopied ? 'Copié ✓' : 'Copier'}</button>
+      {/if}
+    </div>
+    {#if shareState === 'error'}
+      <p class="parse-error" role="alert">
+        Le partage nécessite le back déployé (Worker + KV). En développement local,
+        lancez <code>npm run dev:full</code>.
+      </p>
+    {/if}
   {/if}
 </section>
 
@@ -523,11 +626,28 @@
     font-size: 0.75rem;
   }
 
-  .parse-error {
+  .parse-error,
+  .notice {
     color: var(--ink);
     background: var(--paper-sunken);
     border-left: 3px solid var(--hairline-strong);
     padding: 0.4rem 0.6rem;
     font-size: 0.85rem;
+    max-width: 46rem;
+  }
+
+  .share-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+  }
+
+  .share-url {
+    flex: 1;
+    min-inline-size: 16rem;
+    max-inline-size: 34rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
   }
 </style>

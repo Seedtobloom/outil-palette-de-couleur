@@ -1,0 +1,26 @@
+{
+  // Nuancier — front (SPA statique) + back (API de persistance) sur un
+  // seul Worker Cloudflare. Le moteur colorimétrique reste côté client :
+  // le Worker ne fait que sauvegarder et servir les palettes partagées.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nuancier",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // SPA : toute route inconnue sert index.html…
+    "not_found_handling": "single-page-application",
+    // …sauf l'API, qui doit atteindre le Worker.
+    "run_worker_first": ["/api/*"]
+  },
+  "kv_namespaces": [
+    {
+      "binding": "NUANCIER_KV",
+      // À créer une fois : `npx wrangler kv namespace create NUANCIER_KV`
+      // puis coller l'id retourné ici.
+      "id": "REMPLACER_PAR_L_ID_KV"
+    }
+  ],
+  "observability": { "enabled": true }
+}

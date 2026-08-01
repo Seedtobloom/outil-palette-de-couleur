@@ -13,11 +13,41 @@ coller des couleurs, lire la matrice de contraste expliquée, corriger en un cli
 
 ```bash
 npm install
-npm run dev      # développement
-npm test         # recette du moteur (Vitest)
-npm run check    # svelte-check + TypeScript strict
-npm run build    # build de production
+npm run dev      # développement front seul (Vite)
+npm run dev:full # front + back ensemble (wrangler dev, KV simulé en local)
+npm test         # recette du moteur + validation du back (Vitest)
+npm run check    # svelte-check + TypeScript strict (front et worker)
+npm run build    # build de production du front
+npm run deploy   # build + déploiement Cloudflare (front + back)
 ```
+
+## Déploiement Cloudflare (front + back)
+
+L'application est un **seul Worker** : le front (`dist/`) est servi en assets
+statiques, le back (`worker/`) ne reçoit que les routes `/api/*`
+(sauvegarde et partage de palettes en KV). Le moteur colorimétrique reste
+entièrement côté client.
+
+Première mise en place :
+
+```bash
+npx wrangler login
+npx wrangler kv namespace create NUANCIER_KV
+# → coller l'id retourné dans wrangler.jsonc (kv_namespaces[0].id)
+npm run deploy
+```
+
+API du back :
+
+| Route | Méthode | Rôle |
+|---|---|---|
+| `/api/health` | GET | état du service |
+| `/api/palettes` | POST | sauvegarde une recette de palette → `{ id }` |
+| `/api/palettes/:id` | GET | relit une recette (liens de partage `/?p=id`) |
+
+On ne stocke jamais la palette générée : seulement la **recette** (couleur
+de base + réglages), validée et bornée côté serveur — le front régénère la
+palette à l'identique à l'ouverture du lien.
 
 ## Architecture
 
