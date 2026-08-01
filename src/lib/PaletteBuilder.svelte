@@ -29,7 +29,14 @@
   let exportFormat: 'css' | 'tailwind' = $state('css');
   let copied = $state(false);
 
-  // — Partage via le Worker (back : /api/palettes, stockage KV) —
+  // — Partage via le back (API /api/palettes, stockage KV) —
+  // Par défaut l'API est appelée sur le même domaine (Pages Functions ou
+  // Worker routé). Si le back est un Worker séparé (*.workers.dev), définir
+  // VITE_API_BASE au build : variable d'environnement du projet Pages.
+  const API_BASE: string = ((import.meta.env.VITE_API_BASE as string | undefined) ?? '').replace(
+    /\/$/,
+    '',
+  );
   let shareUrl = $state('');
   let shareState: 'idle' | 'busy' | 'error' = $state('idle');
   let shareCopied = $state(false);
@@ -53,7 +60,7 @@
     shareState = 'busy';
     shareUrl = '';
     try {
-      const response = await fetch('/api/palettes', {
+      const response = await fetch(`${API_BASE}/api/palettes`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(currentRecipe()),
@@ -79,7 +86,7 @@
     if (!id || !/^[0-9a-z]{16}$/.test(id)) return;
     void (async () => {
       try {
-        const response = await fetch(`/api/palettes/${id}`);
+        const response = await fetch(`${API_BASE}/api/palettes/${id}`);
         if (!response.ok) throw new Error(String(response.status));
         const stored = (await response.json()) as {
           baseColor: string;

@@ -28,6 +28,20 @@ wrangler** → le chemin principal est Cloudflare Pages + Git.
   indisponible.
 - Vérifié en local en simulant Pages (`wrangler pages dev dist --kv`,
   outil de vérification uniquement) : santé, POST/GET, 422, front, SPA.
+- **Second choix de Cindy : le back en Worker créé depuis le template
+  « Hello World » du dashboard.** Ajouts en conséquence :
+  `worker/standalone.ts` (API seule + CORS ouvert, pas d'assets) bundlé
+  par `npm run build:worker` en `worker-dashboard.js` — LE fichier unique
+  à coller dans l'éditeur en ligne, commité pour être copiable depuis
+  GitHub. Le front lit `VITE_API_BASE` (variable de build Pages) pour
+  appeler le Worker sur son domaine workers.dev ; vide = appels relatifs
+  (Pages Functions ou Worker routé sur le même domaine). CORS en `*` :
+  données non sensibles, pas de session. Point de vigilance documenté :
+  le fichier collé ne se met pas à jour tout seul, il faut recoller après
+  chaque évolution de l'API (README, section « Mise à jour du back »).
+- **Lisibilité du dépôt demandée par Cindy** : arborescence FRONT/BACK
+  annotée en tête de README + un mini README par dossier (src, worker,
+  functions, shared) — GitHub les affiche en naviguant dans les dossiers.
 
 - **Un seul Worker** : le front (SPA Vite buildée dans `dist/`) est servi
   par les assets statiques de la plateforme (`not_found_handling:
