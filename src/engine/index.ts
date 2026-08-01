@@ -57,3 +57,37 @@ export {
 export { diagnoseContrast, diagnoseCvd } from './explain/diagnostics';
 export { contrastRemedies, type NamedColor } from './explain/remedies';
 export { GLOSSARY, glossaryEntry, type GlossaryEntry } from './explain/glossary';
+
+export {
+  DEFAULT_STEPS,
+  CHROMATIC_L_PROFILE,
+  NEUTRAL_L_PROFILE,
+  DEFAULT_CHROMA_CURVE,
+  chromaShape,
+  resampleProfile,
+  stepLabels,
+  type ChromaCurveParams,
+} from './ramp/curves';
+export { generateRamp, nearestStepByLightness, type Ramp, type RampStep, type RampOptions } from './ramp/generate';
+export { generateNeutralRamp, type NeutralOptions } from './ramp/neutrals';
+export { twistedHue } from './ramp/twist';
+export { stepForContrast, type InverseResult } from './ramp/inverse';
+
+export { wheelToHue, hueToWheel, rotateOnWheel, type WheelName } from './harmony/wheels';
+export { SCHEMES, schemeByName, schemeHues, type Scheme, type SchemeName } from './harmony/schemes';
+export { scorePalette, type ConstraintReport } from './harmony/constraints';
+
+export {
+  SEMANTIC_RAMPS,
+  ROLE_LABELS,
+  type PaletteRamps,
+  type RampName,
+  type RoleName,
+  type SemanticName,
+  type TokenRef,
+} from './semantic/roles';
+export { buildTheme, type Theme, type ThemeMode, type AuditedPair } from './semantic/theme';
+
+export { generatePalette, type GeneratedPalette, type PaletteOptions } from './palette';
+export { exportCss } from './export/css';
+export { exportTailwind } from './export/tailwind';
