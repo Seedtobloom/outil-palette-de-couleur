@@ -144,6 +144,45 @@ captures d'un outil de référence en inspiration (« tu peux adapter »).
 
 ---
 
+## Placement en trois colonnes (2026-08-01)
+
+Cindy : « je parle aussi au niveau placement et design comment c'est
+fait » — le placement de ses références, pas seulement leurs principes.
+
+- **Trois colonnes** : rail d'étapes (Terre) | scène d'évaluation
+  (blanc) | **panneau latéral droit persistant** (Off-white). C'est la
+  structure de ses captures ET celle du brief §7 (« assistant de
+  complétion — panneau de droite », « aperçu de la suivante en bas à
+  droite avec sa condition d'accès »).
+- Le panneau porte des cartes contextuelles par étape : assistant de
+  complétion (Nuancier), rappel des seuils (Contraste), guide
+  d'attribution (Rôles), repères d'encrage (Impression) — et en bas la
+  carte « Prochaine étape » avec le titre de la suivante, sa condition
+  si elle bloque, et le bouton Continuer.
+- **La carte de suggestion** suit la structure du DS : micro-libellé en
+  capitales, pastille, valeur hex, phrase d'explication rédigée pour le
+  cas, deux actions (Ajouter / Autre proposition).
+- Le bouton Continuer n'existe plus qu'à un seul endroit (le panneau) ;
+  le pied de scène ne garde que Retour.
+
+### Défauts trouvés à la capture et corrigés
+
+- **Bande témoin** : une couleur identique au chrome (le Terre lui-même)
+  disparaissait purement et simplement. Fond clair ajouté sous la bande.
+- « Il tu manque une couleur claire » : faute résiduelle de la
+  conversion automatique au tutoiement.
+
+### Écarté volontairement des références
+
+- Les curseurs « froid/chaud, terne/vibrant » : anti-objectif §4 du
+  brief (métriques descriptives qui ne débouchent sur aucune action).
+- L'encart « Harmonie validée ! » affiché à côté d'un score de 55/100 :
+  c'est exactement la contradiction que le brief interdit et que le
+  moteur empêche par construction.
+- Les valeurs Pantone dans la fiche couleur : décision déjà arrêtée.
+
+---
+
 ## Phase 2 — Étape Contraste refondue (§9.0) (2026-08-01)
 
 « Le spécimen avant le chiffre » appliqué.

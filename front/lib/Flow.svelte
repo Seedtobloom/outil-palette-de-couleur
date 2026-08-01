@@ -23,6 +23,7 @@
   import StepPrint from './StepPrint.svelte';
   import StepSocial from './StepSocial.svelte';
   import ShareLink from './ShareLink.svelte';
+  import SidePanel from './SidePanel.svelte';
 
   let {
     palette,
@@ -187,6 +188,16 @@
   }
 
   const baseValid = $derived(parseToOklch(settings.baseColor) !== null);
+
+  const etapeSuivante = $derived(steps[index + 1] ?? null);
+  const conditionSuivante = $derived.by(() => {
+    const suiv = etapeSuivante;
+    if (!suiv?.condition) return null;
+    return suiv.condition.met() ? null : suiv.condition.texte;
+  });
+  const peutContinuer = $derived(
+    etapeSuivante !== null && conditionSuivante === null && !(current.id === 'color' && !baseValid),
+  );
   const report = $derived(palette ? scorePalette(palette) : null);
 
   const auditSummary = $derived.by(() => {
@@ -507,20 +518,24 @@
         {#if index > 0}
           <button class="ghost" onclick={() => (index -= 1)}>← Retour</button>
         {:else}<span></span>{/if}
-        {#if index < steps.length - 1}
-          <button class="solid" onclick={next} disabled={current.id === 'color' && !baseValid}>
-            Continuer →
-          </button>
-        {/if}
+
       </footer>
     </section>
   {/key}
+
+  <SidePanel
+    etapeId={current.id}
+    suivante={etapeSuivante ? { titre: etapeSuivante.title, court: etapeSuivante.short } : null}
+    {peutContinuer}
+    {conditionSuivante}
+    onContinuer={next}
+  />
 </div>
 
 <style>
   .flow {
     display: grid;
-    grid-template-columns: 12rem minmax(0, 1fr);
+    grid-template-columns: 12rem minmax(0, 1fr) 17rem;
     gap: var(--gap-bloc);
     align-items: start;
     max-inline-size: 78rem;
@@ -600,7 +615,6 @@
 
   .stage {
     inline-size: 100%;
-    max-inline-size: 44rem;
     background: var(--surface-canvas);
     padding: 0 0 1.3rem;
     display: grid;
@@ -990,6 +1004,12 @@
   button.ghost:hover {
     color: var(--text-main);
     border-color: var(--ink-muted);
+  }
+
+  @media (max-width: 68rem) {
+    .flow {
+      grid-template-columns: 1fr;
+    }
   }
 
   @media (max-width: 46rem) {

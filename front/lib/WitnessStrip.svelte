@@ -74,9 +74,13 @@
   }
 
   /* Cases accolées, gap 2px, sans arrondi — gamme de contrôle imprimeur. */
+  /* Fond clair sous la bande : sans lui, une couleur identique au chrome
+     disparaîtrait purement et simplement. */
   .strip {
     display: flex;
     gap: 2px;
+    padding: 2px;
+    background: var(--text-on-chrome-muted);
   }
 
   .case {
