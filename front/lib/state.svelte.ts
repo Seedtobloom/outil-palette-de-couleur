@@ -5,7 +5,7 @@
 import type { SchemeName, ThemeMode, WheelName } from '../engine';
 
 export type UsageContext = 'web' | 'identity' | 'print' | 'dataviz';
-export type StartMode = 'color' | 'mood' | 'palette';
+export type StartMode = 'color' | 'mood' | 'palette' | 'image';
 
 /** Une couleur du nuancier de travail (éditable par la graphiste). */
 export type PaletteEntry = { id: string; hex: string; label: string };

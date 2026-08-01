@@ -144,6 +144,46 @@ captures d'un outil de référence en inspiration (« tu peux adapter »).
 
 ---
 
+## Phase 3 — Étape Construire : image et pipette (2026-08-01)
+
+### Moteur (`engine/extract.ts`, 9 tests)
+
+- **k-means dans OKLab**, jamais de median cut en RGB : dans OKLab la
+  distance euclidienne correspond à l'écart perçu, donc les groupes
+  formés sont ceux que l'œil forme.
+- **Déterministe** : initialisation k-means++ avec un générateur
+  pseudo-aléatoire à graine fixe (mulberry32), jamais `Math.random`.
+  Deux extractions de la même image donnent exactement la même palette —
+  testé. C'est indispensable si la couleur sert de base à un système.
+- **Pondération par l'aire** : une couleur qui occupe 40 % de l'image
+  pèse quarante fois plus qu'une couleur sur 1 %. Les parts sont
+  affichées et somment à 1 (testé).
+- Quantification 5 bits par canal avant regroupement : le calcul reste
+  instantané sur une grande image sans changer le résultat perçu.
+- Testé aussi : pas de doublons dans la sortie (ΔE00 > 10 entre les
+  couleurs extraites), jamais plus de couleurs que d'échantillons.
+
+### Interface
+
+- Étape Départ : quatrième entrée « J'ai une image » (photo, moodboard).
+  Aperçu, curseur 3–8 couleurs recalculé en direct, bande proportionnelle
+  aux aires, liste avec les parts, import en un clic.
+- **Le calcul tourne dans le navigateur** (canvas + k-means) : l'image ne
+  part sur aucun serveur, et c'est dit dans la note de pied.
+- **Pipette écran** sur l'étape Couleur, avec repli explicite : quand
+  l'API EyeDropper n'est pas exposée (Firefox, Safari), la phrase le dit
+  et renvoie vers la saisie hex — pas de bouton mort.
+- Vérifié en navigateur réel sur une image à quatre aplats d'aires
+  connues : les quatre couleurs sont retrouvées et les proportions
+  annoncées (60 / 23 / 13 / 4 %) correspondent à l'image.
+
+### Reste sur cette étape
+
+- Import `.ase` (le collage de hex et le JSON couvrent l'essentiel).
+- Glisser-déposer de l'image (le sélecteur de fichier fonctionne).
+
+---
+
 ## Placement en trois colonnes (2026-08-01)
 
 Cindy : « je parle aussi au niveau placement et design comment c'est

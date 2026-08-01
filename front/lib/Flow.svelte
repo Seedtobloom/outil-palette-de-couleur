@@ -24,6 +24,7 @@
   import StepSocial from './StepSocial.svelte';
   import ShareLink from './ShareLink.svelte';
   import SidePanel from './SidePanel.svelte';
+  import ImportImage from './ImportImage.svelte';
 
   let {
     palette,
@@ -187,6 +188,23 @@
     next();
   }
 
+  // Pipette écran : API EyeDropper, avec repli explicite quand elle
+  // n'est pas exposée (Firefox, Safari).
+  const pipetteDisponible =
+    typeof window !== 'undefined' && 'EyeDropper' in window;
+
+  async function pipette(): Promise<void> {
+    try {
+      const Outil = (window as unknown as {
+        EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> };
+      }).EyeDropper;
+      const { sRGBHex } = await new Outil().open();
+      settings.baseColor = sRGBHex;
+    } catch {
+      // Annulation par la personne : rien à signaler.
+    }
+  }
+
   const baseValid = $derived(parseToOklch(settings.baseColor) !== null);
 
   const etapeSuivante = $derived(steps[index + 1] ?? null);
@@ -319,7 +337,18 @@
           >
             <strong>J’ai une palette</strong><small>à valider, à compléter</small>
           </button>
+          <button
+            class="choice"
+            role="radio"
+            aria-checked={startMode === 'image'}
+            onclick={() => (startMode = 'image')}
+          >
+            <strong>J’ai une image</strong><small>photo, moodboard</small>
+          </button>
         </div>
+        {#if startMode === 'image'}
+          <ImportImage onImporte={next} />
+        {/if}
         {#if startMode === 'palette'}
           <div class="paste">
             <label class="paste-label" for="paste-hex">
@@ -370,6 +399,14 @@
               aria-label="Couleur en hexadécimal"
             />
             <p class="muted">Conservée exactement — tout se construit autour.</p>
+            {#if pipetteDisponible}
+              <button onclick={pipette}>Pipeter une couleur à l’écran</button>
+            {:else}
+              <p class="note-pied">
+                La pipette écran n’est pas disponible dans ce navigateur (Firefox et Safari ne
+                l’exposent pas). Colle la valeur hex à la place.
+              </p>
+            {/if}
           </div>
         </div>
         {#if palette}
@@ -676,7 +713,7 @@
   }
 
   .choices.three {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .choice {

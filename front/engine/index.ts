@@ -143,3 +143,9 @@ export {
   type PaireEvaluee,
   type PairUse,
 } from './contrast/fix';
+export {
+  kmeansOklab,
+  echantillonneRgba,
+  type Echantillon,
+  type CouleurExtraite,
+} from './extract';
