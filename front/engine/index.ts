@@ -134,3 +134,12 @@ export {
   type Axis,
 } from './harmony/analysis';
 export { healthScore, type HealthScore, type ScoreComponent } from './score';
+export {
+  corrigeParClarte,
+  evaluePaires,
+  lectureApca,
+  SEUILS,
+  type Fix,
+  type PaireEvaluee,
+  type PairUse,
+} from './contrast/fix';

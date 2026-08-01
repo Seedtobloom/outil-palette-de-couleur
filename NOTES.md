@@ -144,6 +144,50 @@ captures d'un outil de référence en inspiration (« tu peux adapter »).
 
 ---
 
+## Phase 2 — Étape Contraste refondue (§9.0) (2026-08-01)
+
+« Le spécimen avant le chiffre » appliqué.
+
+### Moteur (`contrast/fix.ts`, 11 tests)
+
+- `corrigeParClarte()` : n'ajuste QUE le L d'OKLCH, choisit le
+  déplacement le plus court des deux sens, annonce l'écart en points de
+  clarté (« 8 points de clarté en moins suffisent — la teinte et
+  l'intensité ne bougent pas »). Testé : teinte préservée à moins de 2°,
+  intensité jamais augmentée, seuil réellement atteint.
+- `evaluePaires()` : classe les paires pour permettre « une décision par
+  écran ». Priorité aux échecs **réparables et proches du seuil** — une
+  paire à 4,3:1 se corrige d'un rien, une paire à 1,2:1 n'a rien à faire
+  ensemble. Testé.
+- Les trois usages portent leur règle nommée, dont le **3:1 non textuel
+  (SC 1.4.11)** traité en critère de premier plan.
+
+### Écran
+
+- LA paire à corriger, en **spécimen avant/après** : vrai titre, vrai
+  paragraphe, vraies tailles (le grand texte s'affiche vraiment en grand),
+  posés sur le blanc sans bordure ni ombre. Le ratio en grand dessous,
+  le verdict porté par le signe ✓/✕ avant la couleur.
+- La justification est une **note en italique sous les deux blocs**, pas
+  une bulle d'aide.
+- Le reste des échecs en **liste courte** cliquable.
+- La matrice exhaustive passe en **second niveau**, derrière
+  « voir les N associations ».
+- L'épreuve en trois rangs (écran / gris / deutéranopie) vit ici, comme
+  décidé — plus en permanence.
+- Titres d'étape au registre du DS : casse phrase, un mot en italique,
+  point final (« Chaque paire, *vérifiée*. »).
+
+### Reste sur cette étape
+
+- Panneau latéral droit « prochaine étape + condition d'accès » (présent
+  dans le brief §7 et dans les références fournies) : pas encore fait.
+- Correction multi-couleurs (quand aucune clarté ne suffit d'un seul
+  côté) : l'écran le dit honnêtement mais ne propose pas de corriger le
+  fond à la place.
+
+---
+
 ## Phase 1 — Socle design Seed to bloom (2026-08-01)
 
 Audit rendu (phase 0), puis socle design appliqué. Décisions de Cindy

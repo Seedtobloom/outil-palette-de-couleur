@@ -50,52 +50,52 @@
     {
       id: 'build',
       short: 'Génération',
-      title: 'La palette se construit',
+      title: 'Le système se construit.',
       lead: 'Trois teintes de marque, des gris teintés, quatre couleurs fonctionnelles.',
     },
     {
       id: 'palette',
       short: 'Nuancier',
       condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
-      title: 'Ton nuancier',
+      title: 'Ton nuancier, complet.',
       lead: 'Ajoute, retirez, renommez. L’outil te dit ce qui manque.',
     },
     {
       id: 'harmony',
       condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
       short: 'Harmonie',
-      title: 'Le groupe tient-il ensemble ?',
+      title: 'Le groupe, accordé.',
       lead: 'Le schéma réellement suivi, et les couleurs qui en sortent.',
     },
     {
       id: 'roles',
       condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
       short: 'Rôles',
-      title: 'À quoi sert chaque couleur',
+      title: 'Chaque couleur, à sa place.',
       lead: 'Déduit des contrastes réels, pas de l’intention.',
     },
     {
       id: 'contrast',
       condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
       short: 'Contraste',
-      title: 'Lisibilité, couleur par couleur',
-      lead: 'Les quatre tests qui décident de tous les usages, et les niveaux atteints.',
+      title: 'Chaque paire, vérifiée.',
+      lead: 'Le spécimen d’abord, le chiffre en preuve. Une correction à la fois.',
     },
     {
       id: 'print',
       condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
       short: 'Impression',
-      title: 'À l’impression',
+      title: 'Sur le papier, vraiment.',
       lead: 'Estimation des encres, taux d’encrage, rendu sur le papier choisi.',
     },
     {
       id: 'social',
       condition: { met: () => settings.colors.length >= 3, texte: 'Il faut au moins 3 couleurs' },
       short: 'Réseaux',
-      title: 'Pour les réseaux sociaux',
+      title: 'En situation.',
       lead: 'Des couleurs de la même famille, mais qui tiennent dans un flux.',
     },
-    { id: 'deliver', short: 'Livraison', title: 'C’est à toi' },
+    { id: 'deliver', short: 'Livraison', title: 'À toi de jouer.' },
   ];
 
   const steps = $derived(
@@ -264,7 +264,7 @@
     <section class="stage" class:wide={['palette', 'contrast', 'roles', 'print', 'social'].includes(current.id)}>
       <header class="stage-head">
         <div>
-          <h2>{current.title}</h2>
+          <h2>{@html current.title.replace(/(\w+)\.$/, '<i>$1</i>.')}</h2>
           {#if current.lead}<p class="lead">{current.lead}</p>{/if}
         </div>
         <span class="count num">{index + 1}/{steps.length}</span>
