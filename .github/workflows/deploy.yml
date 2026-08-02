@@ -1,0 +1,60 @@
+# Déploiement de Nuancier sur Cloudflare Workers.
+#
+# Pourquoi passer par GitHub plutôt que par une session Claude : le jeton
+# Cloudflare reste dans les secrets du dépôt, il n'est jamais présent dans
+# un environnement de travail éphémère, et chaque déploiement laisse une
+# trace datée avec ses logs.
+#
+# Deux déclencheurs :
+# - workflow_dispatch : lancement à la demande (c'est celui que Claude
+#   peut actionner, et il faut donc que quelqu'un l'ait demandé) ;
+# - push sur la branche par défaut, une fois la recette validée.
+#
+# Prérequis, à faire une seule fois (voir la conversation) :
+# - secrets du dépôt : CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID ;
+# - l'identifiant du namespace KV renseigné dans wrangler.jsonc.
+name: Déployer sur Cloudflare
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+# Un seul déploiement à la fois : deux workers publiés en parallèle
+# donneraient un état final imprévisible.
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  deployer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      # On ne publie pas ce qui ne passe pas : les 290 tests et le
+      # contrôle de types tournent AVANT le déploiement, pas après.
+      - name: Types
+        run: npm run check
+
+      - name: Tests
+        run: npm test
+
+      - name: Construire
+        run: npm run build
+
+      - name: Publier
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
