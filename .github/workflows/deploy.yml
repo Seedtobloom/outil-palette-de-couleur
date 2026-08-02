@@ -16,9 +16,17 @@
 name: Déployer sur Cloudflare
 
 on:
+  # Lancement à la main depuis l'onglet Actions.
   workflow_dispatch:
+  # Et sur push de la branche de travail, qui est ici la branche par
+  # défaut du dépôt. Viser `main` ne servait à rien : cette branche
+  # n'existe pas, le workflow ne pouvait donc jamais se déclencher.
+  #
+  # Conséquence à connaître : tout commit poussé ici part en ligne. C'est
+  # voulu — c'est ce qui permet un déploiement sans intervention. Pour
+  # revenir à un déploiement uniquement manuel, supprimer ce bloc `push`.
   push:
-    branches: [main]
+    branches: [claude/nuancier-color-palette-rr85tm]
 
 # Un seul déploiement à la fois : deux workers publiés en parallèle
 # donneraient un état final imprévisible.
