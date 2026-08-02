@@ -128,6 +128,48 @@ NUANCIER_KV`, coller l'id dans `wrangler.jsonc`, puis `npm run deploy`.
 La logique d'API est partagée (`back/api.ts`) : tous les modes restent
 identiques.
 
+## Déploiement automatique (le mode en service)
+
+C'est le mode réellement utilisé aujourd'hui. **Tout commit poussé sur la
+branche par défaut part en ligne**, via `.github/workflows/deploy.yml`.
+
+En ligne : <https://nuancier.seedtobloom.workers.dev>
+
+Le workflow enchaîne installation, contrôle de types, tests, construction,
+publication — dans cet ordre. La publication est la dernière étape : si un
+test tombe, **rien ne part en production**.
+
+### Ce dont il a besoin
+
+Deux secrets de dépôt (*Settings → Secrets and variables → Actions*) :
+
+| Secret | Où le trouver |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare → Mon profil → Jetons d'API, permission *Workers Scripts: Edit* |
+| `CLOUDFLARE_ACCOUNT_ID` | Dashboard Cloudflare, page Workers, colonne de droite |
+
+L'identifiant du namespace KV, lui, vit dans `wrangler.jsonc`. Ce n'est
+pas un secret : c'est une référence, pas une clé d'accès.
+
+### Remplacer le jeton Cloudflare
+
+Un jeton se remplace sans rien casser, à condition de respecter l'ordre —
+sinon le déploiement échoue entre les deux étapes.
+
+1. Cloudflare → Mon profil → Jetons d'API → menu `⋯` → **Roll**. Le jeton
+   garde son nom et ses permissions, seule sa valeur change ; l'ancienne
+   est invalidée immédiatement. La nouvelle ne s'affiche qu'une fois.
+2. GitHub → le secret `CLOUDFLARE_API_TOKEN` → **Update secret**.
+
+Rien d'autre ne bouge : ni le Worker, ni le KV, ni le site en ligne. Un
+jeton ne sert qu'à s'authentifier auprès de l'API Cloudflare.
+
+### Revenir à un déploiement manuel
+
+Supprimer le bloc `push:` de `.github/workflows/deploy.yml`. Il ne reste
+alors que `workflow_dispatch`, c'est-à-dire le bouton « Run workflow » de
+l'onglet Actions.
+
 ## Architecture
 
 `front/engine/` est du TypeScript pur, sans le moindre import d'interface,
