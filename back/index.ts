@@ -8,9 +8,20 @@
 import { apiError, healthResponse, readPalette, savePalette } from './api';
 
 export interface Env {
-  NUANCIER_KV: KVNamespace;
+  /**
+   * Optionnel à dessein. Le stockage ne sert QU'aux liens de partage :
+   * tout le reste de l'outil tourne dans le navigateur. Exiger un
+   * namespace KV pour déployer bloquerait la mise en ligne pour une
+   * fonction annexe — le Worker se déploie donc sans, et seules les
+   * routes de partage répondent alors qu'elles ne sont pas configurées.
+   */
+  NUANCIER_KV?: KVNamespace;
   ASSETS: Fetcher;
 }
+
+const SANS_STOCKAGE =
+  'Le partage de palette n’est pas activé sur ce déploiement : il demande ' +
+  'un namespace KV nommé NUANCIER_KV. Tout le reste de l’outil fonctionne.';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -26,10 +37,12 @@ export default {
       return healthResponse();
     }
     if (pathname === '/api/palettes' && request.method === 'POST') {
+      if (!env.NUANCIER_KV) return apiError(503, SANS_STOCKAGE);
       return savePalette(request, env.NUANCIER_KV);
     }
     const match = pathname.match(/^\/api\/palettes\/([0-9a-z]+)$/);
     if (match && request.method === 'GET') {
+      if (!env.NUANCIER_KV) return apiError(503, SANS_STOCKAGE);
       return readPalette(match[1] as string, env.NUANCIER_KV);
     }
     return apiError(404, 'Route inconnue.');

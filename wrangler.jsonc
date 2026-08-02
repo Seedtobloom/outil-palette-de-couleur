@@ -14,12 +14,15 @@
     // …sauf l'API, qui doit atteindre le Worker.
     "run_worker_first": ["/api/*"]
   },
+  // Stockage des palettes partagées — il ne sert QU'aux liens de partage.
+  // L'identifiant du namespace n'est pas un secret : c'est une référence,
+  // pas une clé d'accès. Il a sa place dans le dépôt, comme le nom du
+  // Worker. Le Worker sait se déployer sans (les routes de partage
+  // répondent alors « partage non activé »), mais ici il est configuré.
   "kv_namespaces": [
     {
       "binding": "NUANCIER_KV",
-      // À créer une fois : `npx wrangler kv namespace create NUANCIER_KV`
-      // puis coller l'id retourné ici.
-      "id": "REMPLACER_PAR_L_ID_KV"
+      "id": "5f14f21e2dc4498c836ab018cff3a225"
     }
   ],
   "observability": { "enabled": true }
