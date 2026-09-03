@@ -90,6 +90,7 @@ async function readPalette(id, store) {
 }
 
 // back/standalone.ts
+var SANS_STOCKAGE = "Le partage de palette n\u2019est pas activ\xE9 sur ce d\xE9ploiement : il demande un namespace KV nomm\xE9 NUANCIER_KV. Tout le reste de l\u2019outil fonctionne.";
 var CORS_HEADERS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, OPTIONS",
@@ -115,17 +116,16 @@ var standalone_default = {
         )
       );
     }
-    if (!env.NUANCIER_KV) {
-      return withCors(apiError(503, "Stockage non configur\xE9 (binding KV NUANCIER_KV absent)."));
-    }
     if (pathname === "/api/health" && request.method === "GET") {
       return withCors(healthResponse());
     }
     if (pathname === "/api/palettes" && request.method === "POST") {
+      if (!env.NUANCIER_KV) return withCors(apiError(503, SANS_STOCKAGE));
       return withCors(await savePalette(request, env.NUANCIER_KV));
     }
     const match = pathname.match(/^\/api\/palettes\/([0-9a-z]+)$/);
     if (match && request.method === "GET") {
+      if (!env.NUANCIER_KV) return withCors(apiError(503, SANS_STOCKAGE));
       return withCors(await readPalette(match[1], env.NUANCIER_KV));
     }
     return withCors(apiError(404, "Route inconnue."));

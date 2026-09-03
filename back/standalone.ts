@@ -16,8 +16,13 @@
 import { apiError, healthResponse, readPalette, savePalette } from './api';
 
 export interface Env {
-  NUANCIER_KV: KVNamespace;
+  /** Optionnel, comme dans back/index.ts : seul le partage en dépend. */
+  NUANCIER_KV?: KVNamespace;
 }
+
+const SANS_STOCKAGE =
+  'Le partage de palette n’est pas activé sur ce déploiement : il demande ' +
+  'un namespace KV nommé NUANCIER_KV. Tout le reste de l’outil fonctionne.';
 
 const CORS_HEADERS: Record<string, string> = {
   'access-control-allow-origin': '*',
@@ -49,18 +54,18 @@ export default {
       );
     }
 
-    if (!env.NUANCIER_KV) {
-      return withCors(apiError(503, 'Stockage non configuré (binding KV NUANCIER_KV absent).'));
-    }
-
+    // La santé répond toujours : c'est ce que le README demande de vérifier
+    // juste après le collage, avant même d'avoir créé le namespace KV.
     if (pathname === '/api/health' && request.method === 'GET') {
       return withCors(healthResponse());
     }
     if (pathname === '/api/palettes' && request.method === 'POST') {
+      if (!env.NUANCIER_KV) return withCors(apiError(503, SANS_STOCKAGE));
       return withCors(await savePalette(request, env.NUANCIER_KV));
     }
     const match = pathname.match(/^\/api\/palettes\/([0-9a-z]+)$/);
     if (match && request.method === 'GET') {
+      if (!env.NUANCIER_KV) return withCors(apiError(503, SANS_STOCKAGE));
       return withCors(await readPalette(match[1] as string, env.NUANCIER_KV));
     }
     return withCors(apiError(404, 'Route inconnue.'));
