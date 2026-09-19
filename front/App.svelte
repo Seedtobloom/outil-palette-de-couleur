@@ -8,11 +8,9 @@
   import { restaure, sauvegarde } from './lib/persistance.svelte';
   import Flow from './lib/Flow.svelte';
   import HealthBadge from './lib/HealthBadge.svelte';
-  import WitnessStrip from './lib/WitnessStrip.svelte';
   import Messages from './lib/Messages.svelte';
   import Aide from './lib/Aide.svelte';
 
-  let showTechnical = $state(false);
   let aideOuverte = $state(false);
 
   const palette: GeneratedPalette | null = $derived.by(() => {
@@ -220,20 +218,13 @@
           >
         </div>
 
-        <label class="tech-toggle">
-          <input type="checkbox" bind:checked={showTechnical} />
-          Détails techniques
-        </label>
       </div>
     </div>
 
-    <!-- La bande témoin garde sa place : c'est la gamme de contrôle de
-         l'imprimeur, elle se lit d'un coup d'œil à tout moment. -->
-    <WitnessStrip />
   </header>
 
   <main>
-    <Flow {palette} {showTechnical} />
+    <Flow {palette} />
   </main>
 
   <footer>
@@ -440,14 +431,6 @@
     color: var(--text-main);
   }
 
-  .tech-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    white-space: nowrap;
-  }
 
   /* — Plan de travail : le fond dégradé vient de html, les cartes
        portent le blanc. — */

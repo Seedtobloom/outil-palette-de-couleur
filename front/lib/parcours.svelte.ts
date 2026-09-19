@@ -25,7 +25,14 @@ export type StepDef = {
 };
 
 /** Étapes qui travaillent sur le nuancier, et le supposent donc rempli. */
-const ETAPES_ANALYSE = ['palette', 'harmony', 'roles', 'contrast'];
+const ETAPES_ANALYSE = ['palette', 'harmony', 'contrast', 'roles', 'convert'];
+
+/**
+ * Nombre d'associations de contraste à retenir avant d'ouvrir la suite
+ * du parcours. C'est le verrou de la référence : on ne distribue pas des
+ * rôles avant d'avoir décidé quelles paires on utilise réellement.
+ */
+export const PAIRINGS_REQUIS = 4;
 
 class Parcours {
   index = $state(0);
@@ -42,47 +49,81 @@ class Parcours {
   /** Appelé à l'entrée d'une étape, pour laisser Flow amorcer le nuancier. */
   onEntree: ((id: string) => void) | null = null;
 
+  /**
+   * Les six étapes, calquées sur celles de l'outil de référence — y
+   * compris l'ordre : le contraste se teste AVANT d'attribuer les rôles,
+   * puisque les rôles se déduisent des paires réellement lisibles.
+   *
+   * Le départ n'est plus une étape à part : les entrées (coller une
+   * palette, importer une photo, construire, piper une couleur) sont la
+   * barre d'outils de l'étape « Construire ».
+   */
   private readonly toutes: StepDef[] = [
-    { id: 'start', short: 'Départ', sub: 'Couleur ou image', title: 'D’où on part ?' },
     {
       id: 'palette',
-      short: 'Nuancier',
+      short: 'Construire',
       sub: 'Ajouter, nommer',
-      condition: this.auMoins3(),
-      title: 'Ton nuancier, complet.',
-      lead: 'Ajoute, retire, renomme. L’outil te dit ce qui manque.',
+      title: 'Construire la palette.',
+      lead: 'Colle, importe, construis. Ajoute, retire, renomme, verrouille.',
     },
     {
       id: 'harmony',
       short: 'Harmonie',
       sub: 'Le schéma suivi',
       condition: this.auMoins3(),
-      title: 'Le groupe, accordé.',
-      lead: 'Le schéma réellement suivi, et les couleurs qui en sortent.',
-    },
-    {
-      id: 'roles',
-      short: 'Rôles',
-      sub: 'Qui fait quoi',
-      condition: this.auMoins3(),
-      title: 'Chaque couleur, à sa place.',
-      lead: 'Déduit des contrastes réels, pas de l’intention.',
+      title: 'Analyser l’harmonie.',
+      lead: 'Le schéma réellement suivi, les fausses notes, et les réglages d’ensemble.',
     },
     {
       id: 'contrast',
       short: 'Contraste',
       sub: 'AA, AAA, par paire',
       condition: this.auMoins3(),
-      title: 'Chaque paire, vérifiée.',
-      lead: 'Le spécimen d’abord, le chiffre en preuve. Une décision à la fois.',
+      title: 'Tester le contraste.',
+      lead: 'Toutes les paires, leur ratio et leur niveau. Retiens celles que tu utiliseras.',
     },
-    { id: 'deliver', short: 'Livraison', sub: 'Exporter', title: 'À toi de jouer.' },
+    {
+      id: 'roles',
+      short: 'Rôles',
+      sub: 'Qui fait quoi',
+      condition: this.auMoinsPairings(),
+      title: 'Attribuer les rôles.',
+      lead: 'Dominante, accents, neutres — d’après les contrastes réels, pas l’intention.',
+    },
+    {
+      id: 'convert',
+      short: 'Convertir',
+      sub: 'HEX, RVB, HSL, CMJN',
+      condition: this.auMoinsPairings(),
+      title: 'Convertir.',
+      lead: 'Une fiche par couleur, dans tous les formats — clique une valeur pour la copier.',
+    },
+    {
+      id: 'deliver',
+      short: 'Exporter',
+      sub: 'Fichiers et code',
+      condition: this.auMoinsPairings(),
+      title: 'Exporter & utiliser.',
+    },
   ];
 
   private auMoins3() {
     return {
       met: () => settings.colors.length >= 3 || this.paletteDisponible,
       texte: 'Il faut au moins 3 couleurs',
+    };
+  }
+
+  /**
+   * Le verrou de la référence : les trois dernières étapes n'ouvrent
+   * qu'une fois quatre associations de contraste retenues. Ce n'est pas
+   * une formalité — c'est ce qui garantit qu'on distribue des rôles sur
+   * des paires dont on a vérifié la lisibilité.
+   */
+  private auMoinsPairings() {
+    return {
+      met: () => settings.pairings.length >= PAIRINGS_REQUIS,
+      texte: `Retiens ${PAIRINGS_REQUIS} associations de contraste pour débloquer`,
     };
   }
 

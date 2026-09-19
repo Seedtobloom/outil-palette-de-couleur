@@ -21,13 +21,10 @@
     maxChroma,
     oklchToHex,
     parseToOklch,
-    type GeneratedPalette,
   } from '../engine';
   import { settings, type PaletteEntry } from './state.svelte';
   import { journal } from './journal.svelte';
   import { messages } from './messages.svelte';
-
-  let { palette }: { palette: GeneratedPalette | null } = $props();
 
   /** Génère une couleur de remplacement dans la bande manquante, en
    * restant dans la famille de la marque. */
@@ -137,19 +134,6 @@
   let saisie: number | null = $state(null);
   let cible: number | null = $state(null);
 
-  function importFromGenerated(): void {
-    if (!palette) return;
-    const t = palette.themes.light.tokens;
-    journal.agis('Reprise des couleurs générées', () => {
-      settings.colors = [
-        { id: 'g1', hex: t.primary.hex, label: 'Principale' },
-        { id: 'g2', hex: t.secondary.hex, label: 'Secondaire' },
-        { id: 'g3', hex: t.accent.hex, label: 'Accent' },
-        { id: 'g4', hex: palette.ramps.neutral.steps[1]!.hex, label: 'Gris clair' },
-        { id: 'g5', hex: palette.ramps.neutral.steps[9]!.hex, label: 'Gris foncé' },
-      ];
-    });
-  }
 
   const bandOfHex = (hex: string) => {
     const c = parseToOklch(hex);
@@ -266,11 +250,6 @@
   </div>
 
   <div class="sous-barre">
-    {#if palette}
-      <button class="import" onclick={importFromGenerated}>
-        Repartir des couleurs générées à l’étape précédente
-      </button>
-    {/if}
     {#if verrouillees > 0}
       <p class="note-verrou">
         <span aria-hidden="true">🔒</span>
@@ -459,10 +438,6 @@
     flex-wrap: wrap;
   }
 
-  .import {
-    font-size: 0.82rem;
-    padding: 0.3rem 0.9rem;
-  }
 
   .note-verrou {
     margin: 0;

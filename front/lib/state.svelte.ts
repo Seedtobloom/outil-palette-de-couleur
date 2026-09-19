@@ -2,9 +2,22 @@
  * État partagé de la palette en cours. Tout le parcours lit et écrit ici :
  * changer d'étape ne perd jamais le travail.
  */
-import type { SchemeName, ThemeMode, WheelName } from '../engine';
+import type { SchemaVise, SchemeName, ThemeMode, WheelName } from '../engine';
 
 export type StartMode = 'color' | 'mood' | 'palette' | 'image';
+
+/** Les quatre rôles de l'étape « Attribuer les rôles ». */
+export type RoleCouleur = 'hero' | 'accent' | 'neutre-claire' | 'neutre-foncee';
+
+export const LIBELLES_ROLE: Record<RoleCouleur, string> = {
+  hero: 'Dominante',
+  accent: 'Accent',
+  'neutre-claire': 'Neutre claire',
+  'neutre-foncee': 'Neutre foncée',
+};
+
+// Le schéma visé vient du moteur : l'état ne fait que le transporter.
+export type { SchemaVise };
 
 /**
  * Une couleur du nuancier de travail (éditable par la graphiste).
@@ -15,7 +28,20 @@ export type StartMode = 'color' | 'mood' | 'palette' | 'image';
  * logo déposé, une teinte déjà imprimée — et de laisser l'outil corriger
  * tout le reste autour d'elle.
  */
-export type PaletteEntry = { id: string; hex: string; label: string; verrou?: boolean };
+export type PaletteEntry = {
+  id: string;
+  hex: string;
+  label: string;
+  verrou?: boolean;
+  /**
+   * Référence de ton direct SAISIE par la graphiste, d'après son propre
+   * nuancier papier. L'outil ne fournit aucune bibliothèque Pantone : le
+   * brief §5.4 rappelle que republier les valeurs Lab d'un nuancier
+   * déposé expose juridiquement — Adobe a retiré le support natif
+   * Pantone de ses applications pour cette raison.
+   */
+  reference?: string;
+};
 
 export const settings = $state({
   baseColor: '#2563eb',
@@ -28,6 +54,22 @@ export const settings = $state({
   /** Le nuancier de travail : rempli depuis la palette générée, puis
    * librement modifiable (ajout, retrait, renommage). */
   colors: [] as PaletteEntry[],
+  /**
+   * Les associations de contraste retenues, sous la forme
+   * `idTexte|idFond`. Elles déverrouillent la suite du parcours et
+   * disent quelles paires seront réellement employées.
+   */
+  pairings: [] as string[],
+  /** Rôle attribué à chaque couleur, par identifiant. */
+  roles: {} as Record<string, RoleCouleur>,
+  /** Réglages d'harmonie appliqués à l'ensemble de la palette. */
+  harmonie: {
+    schema: 'auto' as SchemaVise,
+    force: 0,
+    temperature: 0,
+    saturation: 0,
+    luminosite: 0,
+  },
 });
 
 /** Remplit le nuancier de travail depuis une palette générée. */

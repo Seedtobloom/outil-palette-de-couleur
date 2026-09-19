@@ -29,8 +29,6 @@
   import { settings } from './state.svelte';
   import { journal } from './journal.svelte';
 
-  let { showTechnical }: { showTechnical: boolean } = $props();
-
   const USAGES: { id: PairUse; label: string }[] = [
     { id: 'texte', label: 'Texte courant' },
     { id: 'titre', label: 'Grand texte' },
@@ -82,6 +80,89 @@
   });
 
   const courante = $derived(echecs[Math.min(curseur, Math.max(0, echecs.length - 1))]);
+
+  // — Le testeur : toutes les paires, filtrables, et celles qu'on retient —
+
+  type Onglet = 'tout' | 'grand-texte' | 'aa' | 'aaa';
+
+  /**
+   * ⚠ PAS D'ONGLET « A ».
+   * L'outil de référence propose Tout / A / AA / AAA et étiquette 3:1
+   * « niveau A ». Il n'existe pas de niveau A de contraste : le seul
+   * critère de niveau A lié à la couleur, SC 1.4.1, n'impose aucun
+   * ratio. Le seuil de 3:1 est un seuil AA — celui du grand texte
+   * (SC 1.4.3) et des éléments non textuels (SC 1.4.11). L'onglet porte
+   * donc son vrai nom.
+   */
+  const ONGLETS: { id: Onglet; label: string; seuil: number }[] = [
+    { id: 'tout', label: 'Tout', seuil: 0 },
+    { id: 'grand-texte', label: 'Grand texte', seuil: 3 },
+    { id: 'aa', label: 'AA', seuil: 4.5 },
+    { id: 'aaa', label: 'AAA', seuil: 7 },
+  ];
+
+  let onglet: Onglet = $state('tout');
+
+  /** Toutes les paires possibles, dédoublonnées, la plus claire en fond. */
+  const toutesPaires = $derived.by(() => {
+    const vus = new Set<string>();
+    return paires.filter((p) => {
+      const cle = [p.avantId, p.fondId].sort().join('|');
+      if (vus.has(cle)) return false;
+      vus.add(cle);
+      return true;
+    });
+  });
+
+  const seuilOnglet = $derived(ONGLETS.find((o) => o.id === onglet)?.seuil ?? 0);
+  const pairesVisibles = $derived(toutesPaires.filter((p) => p.ratio >= seuilOnglet));
+
+  function compte(seuil: number): number {
+    return toutesPaires.filter((p) => p.ratio >= seuil).length;
+  }
+
+  const cle = (p: { avantId: string; fondId: string }) => `${p.avantId}|${p.fondId}`;
+
+  function retenue(p: { avantId: string; fondId: string }): boolean {
+    return settings.pairings.includes(cle(p));
+  }
+
+  function basculeRetenue(p: { avantId: string; fondId: string }): void {
+    const k = cle(p);
+    journal.agis(retenue(p) ? 'Retrait d’une association' : 'Association retenue', () => {
+      settings.pairings = retenue(p)
+        ? settings.pairings.filter((x) => x !== k)
+        : [...settings.pairings, k];
+    });
+  }
+
+  /** Bascule d'un coup toutes les paires de l'onglet courant. */
+  const toutesRetenues = $derived(
+    pairesVisibles.length > 0 && pairesVisibles.every((p) => retenue(p)),
+  );
+
+  function basculeToutes(): void {
+    const cles = pairesVisibles.map(cle);
+    journal.agis(toutesRetenues ? 'Retrait des associations' : 'Associations retenues', () => {
+      settings.pairings = toutesRetenues
+        ? settings.pairings.filter((x) => !cles.includes(x))
+        : [...new Set([...settings.pairings, ...cles])];
+    });
+  }
+
+  /** Une couleur « couverte » a au moins un partenaire lisible en AA. */
+  const couvertes = $derived(
+    settings.colors.filter((c) =>
+      settings.colors.some((autre) => autre.id !== c.id && contrasteEntre(c.id, autre.id) >= 4.5),
+    ).length,
+  );
+
+  function contrasteEntre(a: string, b: string): number {
+    const p = paires.find(
+      (x) => (x.avantId === a && x.fondId === b) || (x.avantId === b && x.fondId === a),
+    );
+    return p?.ratio ?? 0;
+  }
 
   const proposition = $derived(
     courante ? proposeCorrections(courante.avantHex, courante.fondHex, usage) : null,
@@ -526,9 +607,202 @@
 
     </div>
   </details>
+
+  <!--
+    Le testeur. Toutes les paires possibles, rendues en conditions
+    réelles, et celles qu'on retient pour la suite. Retenir n'est pas
+    décoratif : c'est ce qui ouvre les étapes Rôles, Convertir et
+    Exporter — on ne distribue pas des rôles avant d'avoir décidé quelles
+    associations on va réellement employer.
+  -->
+  <section class="testeur">
+    <div class="testeur-tete">
+      <p class="section-titre">
+        <span class="glyphe" aria-hidden="true">◐</span> Testeur de palette
+      </p>
+      <span class="panel-compte">
+        {pairesVisibles.length} paire{pairesVisibles.length > 1 ? 's' : ''}
+      </span>
+      {#if pairesVisibles.length > 0}
+        <button class="lien" onclick={basculeToutes}>
+          {toutesRetenues ? 'Tout désélectionner' : 'Tout sélectionner'}
+        </button>
+      {/if}
+    </div>
+
+    <div class="onglets" role="group" aria-label="Filtrer par niveau atteint">
+      {#each ONGLETS as o (o.id)}
+        <button aria-pressed={onglet === o.id} onclick={() => (onglet = o.id)}>
+          {o.label} <span class="cc num">{compte(o.seuil)}</span>
+        </button>
+      {/each}
+    </div>
+
+    {#if settings.colors.length < 2}
+      <p class="note-pied">Ajoute au moins 2 couleurs pour générer les combinaisons.</p>
+    {:else if pairesVisibles.length === 0}
+      <p class="note-pied">Aucune paire n’atteint ce niveau.</p>
+    {:else}
+      <ul class="paires">
+        {#each pairesVisibles as p (p.avantId + p.fondId)}
+          <li class="paire" class:retenue={retenue(p)}>
+            <div class="apercu" style="background:{p.fondHex};color:{p.avantHex}">
+              <span class="apercu-titre">Titre lisible</span>
+              <span class="apercu-corps">Exemple de texte courant sur ce fond.</span>
+            </div>
+            <div class="mesure">
+              <span class="ratio value">{fmt(p.ratio)}:1</span>
+              <span class="niveau-badge" data-ok={p.niveau !== null}>
+                {p.niveau ?? 'Échec'}
+              </span>
+            </div>
+            <label class="retenir">
+              <input type="checkbox" checked={retenue(p)} onchange={() => basculeRetenue(p)} />
+              Retenir
+            </label>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    <p class="couverture">
+      <span class="value">{couvertes}</span> couleur{couvertes > 1 ? 's' : ''} sur
+      <span class="value">{settings.colors.length}</span>
+      {couvertes > 1 ? 'ont' : 'a'} au moins une association lisible en AA.
+      {#if couvertes < settings.colors.length}
+        Il en manque : ajoute une neutre claire ou foncée pour améliorer la couverture.
+      {/if}
+    </p>
+  </section>
 </div>
 
 <style>
+  /* — Le testeur de paires — */
+  .testeur {
+    display: grid;
+    gap: 0.7rem;
+    padding-block-start: 1.2rem;
+    border-block-start: 1px solid var(--filet);
+  }
+
+  .testeur-tete {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+  }
+
+  .testeur-tete .section-titre {
+    margin: 0;
+    flex: 1;
+  }
+
+  .onglets {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+
+  .onglets button {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.8rem;
+    min-block-size: 36px;
+  }
+
+  .onglets .cc {
+    color: var(--text-muted);
+    margin-inline-start: 0.25rem;
+  }
+
+  .onglets button[aria-pressed='true'] .cc {
+    color: var(--text-on-chrome);
+    opacity: 0.8;
+  }
+
+  .paires {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .paire {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--filet);
+    border-radius: var(--radius);
+  }
+
+  /* Retenue : un filet plein, pas seulement une teinte — la case cochée
+     porte déjà l'information, la bordure ne fait que la renforcer. */
+  .paire.retenue {
+    border-color: var(--surface-chrome);
+    background: var(--surface-conforme);
+  }
+
+  .apercu {
+    display: grid;
+    gap: 0.1rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-sm);
+    min-inline-size: 0;
+  }
+
+  .apercu-titre {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  .apercu-corps {
+    font-size: 0.82rem;
+  }
+
+  .mesure {
+    display: grid;
+    justify-items: end;
+    gap: 0.15rem;
+    white-space: nowrap;
+  }
+
+  .ratio {
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .niveau-badge {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.05rem 0.4rem;
+    border-radius: var(--radius-pill);
+    background: var(--surface-attente);
+    color: var(--text-muted);
+  }
+
+  .niveau-badge[data-ok='true'] {
+    background: var(--surface-conforme);
+    color: var(--conforme);
+  }
+
+  .retenir {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    min-block-size: 44px;
+  }
+
+  .couverture {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    max-inline-size: var(--mesure);
+  }
+
   .wrap {
     display: grid;
     gap: 1.2rem;

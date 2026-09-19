@@ -25,6 +25,8 @@ export {
   normalizeHue,
 } from './color/space';
 export { inGamut, gamutMap, maxChroma } from './color/gamut';
+export { nommeCouleur, nommePalette } from './color/nommage';
+export { rgbToCmjn, formatCmjn, CMJN_RESERVE, type Cmjn } from './color/cmjn';
 export { deltaE00, deltaEOK, deltaE00Lab } from './color/distance';
 
 export {
@@ -66,6 +68,21 @@ export { stepForContrast, type InverseResult } from './ramp/inverse';
 export { wheelToHue, hueToWheel, rotateOnWheel, type WheelName } from './harmony/wheels';
 export { SCHEMES, schemeByName, schemeHues, type Scheme, type SchemeName } from './harmony/schemes';
 export { scorePalette, type ConstraintReport } from './harmony/constraints';
+export {
+  appliqueReglages,
+  reglagesNeutres,
+  libelleTemperature,
+  libelleSaturation,
+  libelleForce,
+  FORCE_AMORCEE,
+  libelleLuminosite,
+  LIBELLES_SCHEMA,
+  POLES,
+  REGLAGES_NEUTRES,
+  type Reglages,
+  type SchemaVise,
+  type EntreeReglable,
+} from './harmony/reglages';
 
 export {
   SEMANTIC_RAMPS,
@@ -83,6 +100,15 @@ export { exportCss } from './export/css';
 export { exportAse } from './export/ase';
 export { exportPlancheSvg, type EntreePlanche } from './export/planche';
 
+export {
+  construitPalette,
+  trieParFamilles,
+  libelleTri,
+  messageTri,
+  type SensTri,
+  type EntreeAtelier,
+  type CouleurConstruite,
+} from './analyze/atelier';
 export {
   analyzeCoverage,
   bandOf,

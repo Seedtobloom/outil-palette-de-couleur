@@ -12,34 +12,107 @@
     gamutMap,
     oklchToHex,
     parseToOklch,
+    construitPalette,
+    trieParFamilles,
+    libelleTri,
+    messageTri,
+    nommePalette,
+    type SensTri,
     exportCss,
     exportAse,
     exportPlancheSvg,
     generatePalette,
     type GeneratedPalette,
   } from '../engine';
-  import { settings, MOODS, type StartMode } from './state.svelte';
+  import { settings } from './state.svelte';
+  import { journal } from './journal.svelte';
   import { parcours } from './parcours.svelte';
   import { messages } from './messages.svelte';
   import StepPalette from './StepPalette.svelte';
   import StepHarmony from './StepHarmony.svelte';
   import StepContrast from './StepContrast.svelte';
   import StepRoles from './StepRoles.svelte';
+  import StepConvert from './StepConvert.svelte';
   import SidePanel from './SidePanel.svelte';
   import ImportImage from './ImportImage.svelte';
 
-  let {
-    palette,
-    showTechnical,
-  }: {
-    palette: GeneratedPalette | null;
-    showTechnical: boolean;
-  } = $props();
+  let { palette }: { palette: GeneratedPalette | null } = $props();
 
-  // Par défaut, le panneau ouvert est celui du collage de palette : c'est
-  // la porte d'entrée la plus fréquente, et elle doit être visible sans
-  // avoir à cliquer quoi que ce soit.
-  let startMode: StartMode = $state('palette');
+  /**
+   * Panneau d'entrée ouvert sous la barre d'outils. « Coller » est
+   * ouvert d'emblée : on arrive presque toujours avec une charte à
+   * valider, rarement d'une page blanche.
+   */
+  let panneau: 'coller' | 'image' | null = $state('coller');
+
+  function ouvre(lequel: 'coller' | 'image'): void {
+    panneau = panneau === lequel ? null : lequel;
+  }
+
+  /**
+   * Le sens du prochain tri. Il bascule à chaque clic : le bouton
+   * annonce ce qu'il fera, pas ce qu'il vient de faire.
+   */
+  let sensTri: SensTri = $state('clair-fonce');
+
+  function trie(): void {
+    const sens = sensTri;
+    journal.agis('Tri du nuancier', () => {
+      settings.colors = trieParFamilles(settings.colors, sens);
+    });
+    sensTri = sens === 'clair-fonce' ? 'fonce-clair' : 'clair-fonce';
+    messages.montre(messageTri(sens), 'info');
+  }
+
+  /**
+   * Construit une palette complète. Chaque clic propose autre chose —
+   * un autre schéma, une autre clarté d'accents — en gardant les
+   * couleurs verrouillées comme ancres.
+   */
+  let graine = $state(0);
+
+  function construit(): void {
+    const g = graine;
+    const avant = settings.colors.length;
+    journal.agis('Construction de la palette', () => {
+      const faites = construitPalette(settings.colors, g, () => 'Couleur');
+      const noms = nommePalette(faites.map((c) => c.hex));
+      settings.colors = faites.map((c, i) => {
+        const ancre = settings.colors.find((a) => a.verrou && a.hex === c.hex);
+        return (
+          ancre ?? {
+            id: `k${g}-${i}-${Date.now().toString(36)}`,
+            hex: c.hex,
+            label: noms[i] as string,
+          }
+        );
+      });
+      settings.pairings = [];
+    });
+    graine = g + 1;
+    messages.succes(
+      avant === 0
+        ? `Palette construite — ${settings.colors.length} couleurs.`
+        : `Nouvelle palette — ${settings.colors.length} couleurs.`,
+      { libelle: 'Annuler', faire: () => journal.annule() },
+    );
+  }
+
+  /** Vider garde les couleurs verrouillées : c'est tout l'intérêt du verrou. */
+  function vide(): void {
+    const gardees = settings.colors.filter((c) => c.verrou).length;
+    journal.agis('Vidage du nuancier', () => {
+      settings.colors = settings.colors.filter((c) => c.verrou);
+      settings.pairings = [];
+    });
+    messages.montre(
+      gardees > 0
+        ? `Palette réinitialisée — ${gardees} couleur${gardees > 1 ? 's' : ''} verrouillée${gardees > 1 ? 's' : ''} conservée${gardees > 1 ? 's' : ''}.`
+        : 'Palette vidée.',
+      'info',
+      { libelle: 'Annuler', faire: () => journal.annule() },
+    );
+  }
 
   const current = $derived(parcours.courante);
 
@@ -70,46 +143,6 @@
     ];
   }
 
-  /**
-   * Les points de départ, dans l'ordre de fréquence réelle : on arrive
-   * presque toujours avec quelque chose — une charte imposée, un logo,
-   * une photo — et beaucoup plus rarement d'une page blanche.
-   */
-  const DEPARTS: { id: StartMode; label: string; hint: string; consigne: string }[] = [
-    {
-      id: 'palette',
-      label: 'J’ai une palette',
-      hint: 'à valider, à compléter',
-      consigne: 'Colle tes couleurs — une par ligne, ou séparées par des espaces',
-    },
-    {
-      id: 'color',
-      label: 'J’ai une couleur',
-      hint: 'un hex, un logo',
-      consigne: 'Entre ta couleur — elle sera conservée exactement',
-    },
-    {
-      id: 'image',
-      label: 'J’ai une image',
-      hint: 'photo, moodboard',
-      consigne: 'Choisis une image — l’analyse reste dans ton navigateur',
-    },
-    {
-      id: 'mood',
-      label: 'Une ambiance',
-      hint: 'au feeling',
-      consigne: 'Choisis une ambiance de départ — tout reste modifiable ensuite',
-    },
-  ];
-
-  const DEPART_COURANT = $derived(
-    DEPARTS.find((d) => d.id === startMode) ?? (DEPARTS[0] as (typeof DEPARTS)[number]),
-  );
-
-  function moodHex(mood: (typeof MOODS)[number]): string {
-    return oklchToHex(gamutMap({ l: mood.l, c: mood.c, h: mood.hue }, 'srgb'));
-  }
-
   // Import d'une palette existante (le point d'entrée le plus fréquent :
   // une charte à valider ou à compléter).
   let pastedColors = $state('');
@@ -131,7 +164,7 @@
       label: `Couleur ${i + 1}`,
     }));
     settings.baseColor = parsedPaste[0] as string;
-    next();
+    panneau = null;
   }
 
   // Pipette écran : API EyeDropper, avec repli explicite quand elle
@@ -266,33 +299,33 @@
         {#if current.lead}<p class="lead">{current.lead}</p>{/if}
       </header>
 
-      {#if current.id === 'start'}
+      {#if current.id === 'palette'}
         <!--
-          Les quatre entrées se comportent à l'identique : on choisit, le
-          panneau s'ouvre juste en dessous, on fait la chose. Avant, « j'ai
-          une couleur » sautait à l'étape suivante pendant que les trois
-          autres ouvraient un panneau : cliquer « j'ai une palette » avait
-          donc l'air de ne rien faire.
-          « J'ai une palette » vient en premier : c'est l'entrée la plus
-          fréquente — on arrive avec une charte à valider, pas de zéro.
+          La barre d'outils de l'étape : par où la palette entre, et les
+          trois actions qui agissent sur l'ensemble. Ces entrées vivaient
+          dans une étape « Départ » séparée — c'était une étape de plus
+          pour un choix qu'on refait en cours de route. Elles sont
+          maintenant au-dessus du nuancier, là où on s'en sert.
         -->
-        <div class="choices three" role="radiogroup" aria-label="Point de départ">
-          {#each DEPARTS as d (d.id)}
-            <button
-              class="choice"
-              role="radio"
-              aria-checked={startMode === d.id}
-              onclick={() => (startMode = d.id)}
-            >
-              <strong>{d.label}</strong><small>{d.hint}</small>
-            </button>
-          {/each}
+        <div class="barre-outils" role="group" aria-label="Construire la palette">
+          <button class:actif={panneau === 'coller'} onclick={() => ouvre('coller')}>
+            Coller une palette
+          </button>
+          <button class:actif={panneau === 'image'} onclick={() => ouvre('image')}>
+            Importer une photo
+          </button>
+          <button class="solid" onclick={construit}>Construire</button>
+          {#if settings.colors.length >= 2}
+            <button onclick={trie} title={libelleTri(sensTri)}>Trier</button>
+          {/if}
+          {#if settings.colors.length > 0}
+            <button class="vider" onclick={vide}>Vider la palette</button>
+          {/if}
         </div>
 
-        <div class="panneau-depart">
-          <p class="micro">{DEPART_COURANT.consigne}</p>
-
-          {#if startMode === 'palette'}
+        {#if panneau === 'coller'}
+          <div class="panneau-depart">
+            <p class="micro">Colle tes couleurs — une par ligne, ou séparées par des espaces</p>
             <div class="paste">
               <label class="vh" for="paste-hex">Tes couleurs en hexadécimal</label>
               <textarea
@@ -319,48 +352,23 @@
                 </p>
               {/if}
             </div>
-          {:else if startMode === 'color'}
-            <div class="depart-couleur">
-              <label class="pick-swatch petite" style="background:{baseValid ? settings.baseColor : '#ccc'}">
-                <input type="color" bind:value={settings.baseColor} aria-label="Choisir la couleur" />
-              </label>
-              <input
-                class="pick-hex"
-                type="text"
-                bind:value={settings.baseColor}
-                spellcheck="false"
-                aria-label="Couleur en hexadécimal"
-              />
-              {#if pipetteDisponible}
-                <button onclick={pipette}>Pipeter à l’écran</button>
-              {/if}
-              <button class="solid" onclick={next} disabled={!baseValid}>Continuer</button>
-            </div>
-          {:else if startMode === 'image'}
-            <ImportImage onImporte={next} />
-          {:else}
-            <div class="moods">
-              {#each MOODS as mood (mood.id)}
-                <button
-                  class="mood"
-                  style="--mood:{moodHex(mood)}"
-                  onclick={() => { settings.baseColor = moodHex(mood); next(); }}
-                >
-                  <span class="mood-fill" aria-hidden="true"></span>
-                  <span class="mood-name">{mood.label}</span>
-                </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      {:else if current.id === 'palette'}
-        <StepPalette {palette} />
+          </div>
+        {:else if panneau === 'image'}
+          <div class="panneau-depart">
+            <p class="micro">Choisis une image — l’analyse reste dans ton navigateur</p>
+            <ImportImage onImporte={() => (panneau = null)} />
+          </div>
+        {/if}
+
+        <StepPalette />
       {:else if current.id === 'harmony'}
         <StepHarmony />
       {:else if current.id === 'roles'}
         <StepRoles />
       {:else if current.id === 'contrast'}
-        <StepContrast {showTechnical} />
+        <StepContrast />
+      {:else if current.id === 'convert'}
+        <StepConvert />
       {:else if current.id === 'deliver'}
         {#if palette}
           <div class="previews">
@@ -545,48 +553,39 @@
     max-inline-size: 46rem;
   }
 
-  .choices {
-    display: grid;
-    gap: 0.6rem;
-  }
-
-  .choices.three {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .choice {
-    display: grid;
-    gap: 0.1rem;
-    justify-items: start;
-    text-align: left;
-    padding: 1.1rem 1.2rem;
-    border: 1px solid rgba(28, 18, 5, 0.12);
-    border-radius: var(--radius);
-    background: var(--surface-panel);
-  }
-
-  .choice strong {
-    font-size: 1.02rem;
-    font-weight: 500;
-  }
-
-  .choice small {
-    color: var(--text-muted);
-    font-size: 0.8rem;
-  }
-
-  .choice:hover {
-    border-color: var(--text-muted);
-    background: var(--surface-canvas);
-  }
-
-  .choice[aria-checked='true'] {
-    border-color: var(--text-main);
-    background: var(--surface-canvas);
-  }
-
   /* Le panneau de départ est visuellement rattaché aux cartes de choix :
      on doit voir que c'est la suite du clic, pas un bloc indépendant. */
+  /* — Barre d'outils de l'étape « Construire » — */
+  .barre-outils {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .barre-outils button {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.95rem;
+    min-block-size: 40px;
+  }
+
+  .barre-outils button.actif {
+    background: var(--surface-chrome);
+    border-color: var(--surface-chrome);
+    color: var(--text-on-chrome);
+  }
+
+  /* « Vider » se détache du reste, et s'écarte : c'est la seule action
+     destructive de la barre. Elle reste annulable au Ctrl+Z. */
+  .barre-outils button.vider {
+    margin-inline-start: auto;
+    color: var(--non-conforme);
+  }
+
+  .barre-outils button.vider:hover {
+    border-color: var(--non-conforme);
+  }
+
   .panneau-depart {
     display: grid;
     gap: 0.7rem;
@@ -597,19 +596,6 @@
 
   .panneau-depart .micro {
     margin: 0;
-  }
-
-  .depart-couleur {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-  }
-
-  .pick-swatch.petite {
-    block-size: 3rem;
-    inline-size: 3rem;
-    flex-shrink: 0;
   }
 
   .paste {
@@ -635,56 +621,6 @@
     border-radius: 4px;
   }
 
-  .moods {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.6rem;
-  }
-
-  .mood {
-    border: none;
-    background: none;
-    padding: 0;
-    display: grid;
-    gap: 0.35rem;
-  }
-
-  .mood-fill {
-    block-size: 4.2rem;
-    border-radius: var(--radius);
-    background: var(--mood);
-  }
-
-  .mood-name {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    text-align: center;
-  }
-
-  .pick-swatch {
-    position: relative;
-    block-size: 10rem;
-    border-radius: var(--radius);
-    overflow: hidden;
-    cursor: pointer;
-    box-shadow: inset 0 0 0 1px var(--ink-muted);
-  }
-
-  .pick-swatch input {
-    position: absolute;
-    inset: 0;
-    inline-size: 100%;
-    block-size: 100%;
-    opacity: 0;
-    border: none;
-    cursor: pointer;
-  }
-
-  .pick-hex {
-    font-family: var(--font-ui);
-    font-size: 1.4rem;
-    inline-size: 8.5ch;
-  }
   .why {
     font-size: 0.85rem;
     color: var(--text-muted);
@@ -792,8 +728,6 @@
       padding: 1.1rem 1.1rem 1rem;
     }
 
-    .choices.three,
-    .moods,
     .previews {
       grid-template-columns: 1fr;
     }
