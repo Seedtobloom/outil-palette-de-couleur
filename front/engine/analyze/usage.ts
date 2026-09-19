@@ -10,7 +10,6 @@
 import type { OklchColor } from '../types';
 import { parseToOklch } from '../color/space';
 import { contrastRatio } from '../contrast/wcag';
-import { apcaLc } from '../contrast/apca';
 import { bandOf, type Band } from './coverage';
 
 export type TextTest = {
@@ -20,7 +19,6 @@ export type TextTest = {
   bg: string;
   label: string;
   ratio: number;
-  lc: number;
   /** Niveau atteint pour du texte courant. */
   body: 'AAA' | 'AA' | null;
   /** Niveau atteint pour du grand texte (≥ 24 px, ou 18,66 px gras). */
@@ -39,7 +37,7 @@ function levels(ratio: number): Pick<TextTest, 'body' | 'large' | 'ui'> {
 
 function test(fg: string, bg: string, label: string): TextTest {
   const ratio = contrastRatio(fg, bg);
-  return { fg, bg, label, ratio, lc: apcaLc(fg, bg), ...levels(ratio) };
+  return { fg, bg, label, ratio, ...levels(ratio) };
 }
 
 export type ColorUsage = {
@@ -164,17 +162,3 @@ function fmt(r: number): string {
   return `${(Math.floor(r * 100) / 100).toFixed(2).replace('.', ',')}:1`;
 }
 
-/**
- * Le critère de niveau A lié à la couleur (SC 1.4.1) : il ne se calcule
- * pas, il se vérifie. On fournit la question à cocher, pas un verdict.
- */
-export const LEVEL_A_CHECK = {
-  rule: 'WCAG 2.2 SC 1.4.1 — Utilisation de la couleur (niveau A)',
-  question:
-    'Une information de ta maquette est-elle portée par la couleur SEULE (lien repéré uniquement par sa couleur, statut signalé par une pastille sans texte, courbe de graphique sans légende) ?',
-  why:
-    'C’est le seul critère de niveau A qui concerne la couleur, et il n’impose aucun ratio : ' +
-    'il exige qu’un deuxième indice (texte, icône, soulignement, motif) accompagne toujours la couleur. ' +
-    'Une palette parfaitement contrastée peut échouer ici.',
-  fix: 'Ajoute un libellé, une icône, un soulignement ou un motif en plus de la couleur.',
-} as const;

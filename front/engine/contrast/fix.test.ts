@@ -93,9 +93,4 @@ describe('priorisation — une décision par écran', () => {
     expect(paires.every((p) => p.fix === null)).toBe(true);
   });
 
-  it('APCA accompagne chaque paire, en complément informatif', () => {
-    for (const p of evaluePaires(palette)) {
-      expect(typeof p.lc).toBe('number');
-    }
-  });
 });

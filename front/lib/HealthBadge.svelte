@@ -19,7 +19,6 @@
     harmony: 'Harmonie',
     palette: 'Nuancier',
     roles: 'Rôles',
-    print: 'Impression',
   };
 </script>
 

@@ -4,7 +4,6 @@ import { scorePalette } from './harmony/constraints';
 import { findCvdCollisions } from './contrast/cvd';
 import { stepForContrast } from './ramp/inverse';
 import { exportCss } from './export/css';
-import { exportTailwind } from './export/tailwind';
 import { SEMANTIC_RAMPS } from './semantic/roles';
 
 /**
@@ -159,9 +158,4 @@ describe('exports', () => {
     expect((css.match(/--color-\w+-\d+:/g) ?? []).length).toBe(8 * 11 * 2);
   });
 
-  it('Tailwind v4 : bloc @theme complet en oklch', () => {
-    const tw = exportTailwind(palette);
-    expect(tw).toContain('@theme {');
-    expect((tw.match(/--color-\w+-\d+: oklch\(/g) ?? []).length).toBe(8 * 11);
-  });
 });

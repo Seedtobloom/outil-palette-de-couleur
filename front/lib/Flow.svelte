@@ -1,34 +1,30 @@
 <script lang="ts">
   /**
-   * LE parcours. Tout l'outil vit ici, étape par étape — rien n'est
-   * ailleurs. Les étapes print n'apparaissent que si le projet en a
-   * besoin (choix de l'usage à l'étape 1).
+   * LE parcours, en six étapes : Départ, Nuancier, Harmonie, Rôles,
+   * Contraste, Livraison. Tout l'outil vit ici — rien n'est ailleurs.
+   *
+   * Il en a compté onze, dont un choix de projet, une étape de sélection
+   * de la couleur de base, une étape de génération de rampes, une étape
+   * d'impression et une de déclinaison réseaux sociaux. Elles sont
+   * tombées pour ramener l'outil au périmètre de la référence.
    */
   import {
     gamutMap,
     oklchToHex,
     parseToOklch,
-    scorePalette,
     exportCss,
-    exportTailwind,
-    exportDtcg,
-    exportScss,
     exportAse,
     exportPlancheSvg,
     generatePalette,
-    SCHEMES,
     type GeneratedPalette,
   } from '../engine';
-  import { settings, MOODS, type StartMode, type UsageContext } from './state.svelte';
+  import { settings, MOODS, type StartMode } from './state.svelte';
   import { parcours } from './parcours.svelte';
   import { messages } from './messages.svelte';
   import StepPalette from './StepPalette.svelte';
   import StepHarmony from './StepHarmony.svelte';
   import StepContrast from './StepContrast.svelte';
   import StepRoles from './StepRoles.svelte';
-  import StepPrint from './StepPrint.svelte';
-  import StepSocial from './StepSocial.svelte';
-  import ShareLink from './ShareLink.svelte';
   import SidePanel from './SidePanel.svelte';
   import ImportImage from './ImportImage.svelte';
 
@@ -110,13 +106,6 @@
     DEPARTS.find((d) => d.id === startMode) ?? (DEPARTS[0] as (typeof DEPARTS)[number]),
   );
 
-  const USAGES: { id: UsageContext; label: string; hint: string }[] = [
-    { id: 'web', label: 'Un site', hint: 'écran, clair + sombre' },
-    { id: 'identity', label: 'Une identité', hint: 'écran + papier' },
-    { id: 'print', label: 'Un imprimé', hint: 'papier' },
-    { id: 'dataviz', label: 'Des graphiques', hint: 'séries distinctes' },
-  ];
-
   function moodHex(mood: (typeof MOODS)[number]): string {
     return oklchToHex(gamutMap({ l: mood.l, c: mood.c, h: mood.hue }, 'srgb'));
   }
@@ -166,58 +155,17 @@
 
   const etapeSuivante = $derived(parcours.suivante);
   const conditionSuivante = $derived(parcours.conditionSuivante);
-  // La couleur de départ doit être lisible avant d'aller plus loin : une
-  // valeur hex invalide ne construit aucune palette.
-  const peutContinuer = $derived(
-    parcours.peutContinuer && !(current.id === 'color' && !baseValid),
-  );
-  const report = $derived(palette ? scorePalette(palette) : null);
-
-  const auditSummary = $derived.by(() => {
-    if (!palette) return null;
-    let tested = 0;
-    let failures = 0;
-    for (const t of [palette.themes.light, palette.themes.dark]) {
-      for (const p of t.audit) {
-        if (p.usage === 'decorative' || p.usage === 'surface') continue;
-        tested++;
-        if (!p.evaluation.wcag.passesAA) failures++;
-      }
-    }
-    return { tested, failures };
-  });
+  const peutContinuer = $derived(parcours.peutContinuer);
 
   /**
-   * Deux familles d'export, et la distinction compte :
-   *
-   * - CSS et Tailwind exportent la palette GÉNÉRÉE, rampes et rôles
-   *   compris — c'est ce qui part chez une personne qui intègre ;
-   * - DTCG et SCSS exportent LE NUANCIER, les couleurs qu'elle a
-   *   réellement retenues et nommées elle-même.
-   *
-   * Confondre les deux, c'est livrer 88 variables à quelqu'un qui en
-   * attendait cinq.
+   * Un seul export de code : les variables CSS du système généré.
+   * Tailwind, DTCG et SCSS sont tombés avec le reste — la référence ne
+   * sort que du CSS, du SVG, du PNG, du PDF, de l'ASE et du JSON.
    */
-  type FormatTexte = 'css' | 'tailwind' | 'dtcg' | 'scss';
-
-  const FORMATS: { id: FormatTexte; label: string; fichier: string; type: string }[] = [
-    { id: 'css', label: 'CSS', fichier: 'nuancier.css', type: 'text/css' },
-    { id: 'tailwind', label: 'Tailwind', fichier: 'tailwind.config.js', type: 'text/javascript' },
-    { id: 'dtcg', label: 'Tokens', fichier: 'nuancier.tokens.json', type: 'application/json' },
-    { id: 'scss', label: 'SCSS', fichier: '_nuancier.scss', type: 'text/x-scss' },
-  ];
-
-  let exportFormat: FormatTexte = $state('css');
+  const FICHIER_CSS = 'nuancier.css';
   let copied = $state(false);
 
-  const formatCourant = $derived(FORMATS.find((f) => f.id === exportFormat) as (typeof FORMATS)[0]);
-
-  const exportText = $derived.by(() => {
-    if (exportFormat === 'dtcg') return exportDtcg(settings.colors);
-    if (exportFormat === 'scss') return exportScss(settings.colors);
-    if (!palette) return '';
-    return exportFormat === 'css' ? exportCss(palette) : exportTailwind(palette);
-  });
+  const exportText = $derived(palette ? exportCss(palette) : '');
 
   async function copyExport(): Promise<void> {
     await navigator.clipboard.writeText(exportText);
@@ -236,8 +184,8 @@
   }
 
   function telechargeTexte(): void {
-    telecharge(exportText, formatCourant.fichier, `${formatCourant.type};charset=utf-8`);
-    messages.succes(`${formatCourant.fichier} téléchargé.`);
+    telecharge(exportText, FICHIER_CSS, 'text/css;charset=utf-8');
+    messages.succes(`${FICHIER_CSS} téléchargé.`);
   }
 
   function telechargeAse(): void {
@@ -318,24 +266,7 @@
         {#if current.lead}<p class="lead">{current.lead}</p>{/if}
       </header>
 
-      {#if current.id === 'usage'}
-        <div class="choices two">
-          {#each USAGES as u (u.id)}
-            <button
-              class="choice"
-              role="radio"
-              aria-checked={settings.usage === u.id}
-              onclick={() => {
-                settings.usage = u.id;
-                next();
-              }}
-            >
-              <strong>{u.label}</strong>
-              <small>{u.hint}</small>
-            </button>
-          {/each}
-        </div>
-      {:else if current.id === 'start'}
+      {#if current.id === 'start'}
         <!--
           Les quatre entrées se comportent à l'identique : on choisit, le
           panneau s'ouvre juste en dessous, on fait la chose. Avant, « j'ai
@@ -422,109 +353,6 @@
             </div>
           {/if}
         </div>
-      {:else if current.id === 'color'}
-        <div class="pick">
-          <label class="pick-swatch" style="background:{baseValid ? settings.baseColor : '#ccc'}">
-            <input type="color" bind:value={settings.baseColor} aria-label="Choisir la couleur" />
-          </label>
-          <div class="pick-side">
-            <input
-              class="pick-hex"
-              type="text"
-              bind:value={settings.baseColor}
-              spellcheck="false"
-              aria-label="Couleur en hexadécimal"
-            />
-            <p class="muted">Conservée exactement — tout se construit autour.</p>
-            {#if pipetteDisponible}
-              <button onclick={pipette}>Pipeter une couleur à l’écran</button>
-            {:else}
-              <p class="note-pied">
-                La pipette écran n’est pas disponible dans ce navigateur (Firefox et Safari ne
-                l’exposent pas). Colle la valeur hex à la place.
-              </p>
-            {/if}
-          </div>
-        </div>
-        {#if palette}
-          <div class="big-ramp" aria-hidden="true">
-            {#each palette.ramps.primary.steps as s (s.step)}
-              <span style="background:{s.hex}" class:base={s.isBase}></span>
-            {/each}
-          </div>
-        {/if}
-      {:else if current.id === 'build'}
-        {#if palette}
-          <div class="ramps">
-            {#each BRAND_RAMPS as [key, label] (key)}
-              <div class="ramp-row">
-                <span class="ramp-name">{label}</span>
-                <span class="ramp-strip" aria-hidden="true">
-                  {#each palette.ramps[key].steps as s (s.step)}
-                    <span style="background:{s.hex}" class:base={s.isBase}></span>
-                  {/each}
-                </span>
-              </div>
-            {/each}
-            <div class="ramp-row">
-              <span class="ramp-name">Fonctionnelles</span>
-              <span class="sem-group" aria-hidden="true">
-                {#each SEM_RAMPS as [key, label] (key)}
-                  <span class="sem" title={label}>
-                    {#each palette.ramps[key].steps.slice(2, 9) as s (s.step)}
-                      <span style="background:{s.hex}"></span>
-                    {/each}
-                  </span>
-                {/each}
-              </span>
-            </div>
-          </div>
-        {/if}
-        <div class="knobs">
-          <label class="knob">
-            <span class="knob-label">Caractère</span>
-            <select bind:value={settings.scheme}>
-              {#each SCHEMES as s (s.name)}<option value={s.name}>{s.label}</option>{/each}
-            </select>
-          </label>
-          <div class="knob">
-            <span class="knob-label">Roue</span>
-            <div class="seg" role="group" aria-label="Roue">
-              <button aria-pressed={settings.wheel === 'ryb'} onclick={() => (settings.wheel = 'ryb')}
-                >Peintres</button
-              >
-              <button aria-pressed={settings.wheel === 'rgb'} onclick={() => (settings.wheel = 'rgb')}
-                >Écrans</button
-              >
-            </div>
-          </div>
-          <label class="knob">
-            <span class="knob-label"
-              >Intensité <span class="num">{Math.round(settings.intensity * 100)}</span></span
-            >
-            <input type="range" min="0.5" max="1.2" step="0.05" bind:value={settings.intensity} />
-          </label>
-          <label class="knob">
-            <span class="knob-label"
-              >Gris teintés <span class="num">{settings.neutralInfluence}</span></span
-            >
-            <input type="range" min="0" max="100" step="5" bind:value={settings.neutralInfluence} />
-          </label>
-        </div>
-        {#if auditSummary}
-          <p class="verdict-line" data-ok={auditSummary.failures === 0}>
-            {auditSummary.failures === 0
-              ? `✓ Les ${auditSummary.tested} paires utilisées passent WCAG 2.2 AA, clair et sombre.`
-              : `✗ ${auditSummary.failures} paires échouent.`}
-            {#if report}· score {report.score}/100{/if}
-          </p>
-        {/if}
-        <details class="why">
-          <summary>Pourquoi ces couleurs&nbsp;?</summary>
-          <ul>
-            {#each palette?.explanations.slice(1, 5) ?? [] as e, i (i)}<li>{e}</li>{/each}
-          </ul>
-        </details>
       {:else if current.id === 'palette'}
         <StepPalette {palette} />
       {:else if current.id === 'harmony'}
@@ -533,10 +361,6 @@
         <StepRoles />
       {:else if current.id === 'contrast'}
         <StepContrast {showTechnical} />
-      {:else if current.id === 'print'}
-        <StepPrint />
-      {:else if current.id === 'social'}
-        <StepSocial />
       {:else if current.id === 'deliver'}
         {#if palette}
           <div class="previews">
@@ -571,27 +395,16 @@
           <div class="panel">
             <p class="panel-tete">
               Pour l’intégration
-              <span class="panel-compte">{formatCourant.fichier}</span>
+              <span class="panel-compte">{FICHIER_CSS}</span>
             </p>
             <div class="deliver-row">
-              <div class="seg" role="group" aria-label="Format">
-                {#each FORMATS as f (f.id)}
-                  <button aria-pressed={exportFormat === f.id} onclick={() => (exportFormat = f.id)}>
-                    {f.label}
-                  </button>
-                {/each}
-              </div>
               <button class="solid" onclick={copyExport}>
                 {copied ? 'Copié ✓' : 'Copier le code'}
               </button>
               <button onclick={telechargeTexte}>Télécharger</button>
             </div>
             <p class="note-pied">
-              {#if exportFormat === 'dtcg' || exportFormat === 'scss'}
-                Tes couleurs, avec les noms que tu leur as donnés.
-              {:else}
-                Le système complet généré à l’étape 4 : rampes, rôles, thèmes clair et sombre.
-              {/if}
+              Variables CSS : rampes, rôles, thèmes clair et sombre, prêtes à coller.
             </p>
             <details class="why">
               <summary>Voir le code</summary>
@@ -627,7 +440,6 @@
             </p>
           </div>
 
-          <ShareLink />
         {/if}
       {/if}
 
@@ -736,10 +548,6 @@
   .choices {
     display: grid;
     gap: 0.6rem;
-  }
-
-  .choices.two {
-    grid-template-columns: repeat(2, 1fr);
   }
 
   .choices.three {
@@ -853,13 +661,6 @@
     text-align: center;
   }
 
-  .pick {
-    display: grid;
-    grid-template-columns: 10rem 1fr;
-    gap: 1.5rem;
-    align-items: center;
-  }
-
   .pick-swatch {
     position: relative;
     block-size: 10rem;
@@ -879,118 +680,11 @@
     cursor: pointer;
   }
 
-  .pick-side {
-    display: grid;
-    gap: 0.6rem;
-    justify-items: start;
-  }
-
   .pick-hex {
     font-family: var(--font-ui);
     font-size: 1.4rem;
     inline-size: 8.5ch;
   }
-
-  .muted {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: 0.86rem;
-  }
-
-  .big-ramp {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    block-size: 3.2rem;
-    border-radius: var(--radius);
-    overflow: hidden;
-  }
-
-  .big-ramp .base,
-  .ramp-strip .base {
-    outline: 2px solid var(--surface-canvas);
-    outline-offset: -5px;
-  }
-
-  .ramps {
-    display: grid;
-    gap: 0.45rem;
-  }
-
-  .ramp-row {
-    display: grid;
-    grid-template-columns: 6rem 1fr;
-    align-items: center;
-    gap: 0.9rem;
-  }
-
-  .ramp-name {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    text-align: right;
-  }
-
-  .ramp-strip {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    block-size: 2rem;
-    border-radius: var(--radius);
-    overflow: hidden;
-  }
-
-  .sem-group {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.35rem;
-  }
-
-  .sem {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    block-size: 1.5rem;
-    border-radius: 4px;
-    overflow: hidden;
-  }
-
-  .knobs {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.9rem 1.5rem;
-  }
-
-  .knob {
-    display: grid;
-    gap: 0.3rem;
-  }
-
-  .knob-label {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    display: flex;
-    justify-content: space-between;
-  }
-
-  .seg {
-    display: flex;
-    gap: 0.3rem;
-  }
-
-  .seg button {
-    flex: 1;
-    /* Sans plancher, un libellé court (« CSS ») se referme en pastille
-       ronde et ne se lit plus comme un segment. */
-    min-inline-size: 5.5rem;
-    padding: 0.3rem 0.6rem;
-    font-size: 0.86rem;
-  }
-
-  .verdict-line {
-    margin: 0;
-    font-size: 0.88rem;
-  }
-
   .why {
     font-size: 0.85rem;
     color: var(--text-muted);
@@ -999,13 +693,6 @@
   .why summary {
     cursor: pointer;
     color: var(--text-main);
-  }
-
-  .why ul {
-    margin: 0.6rem 0 0;
-    padding-left: 1.1rem;
-    display: grid;
-    gap: 0.35rem;
   }
 
   .why textarea {
@@ -1105,14 +792,10 @@
       padding: 1.1rem 1.1rem 1rem;
     }
 
-    .choices.two,
     .choices.three,
     .moods,
-    .knobs,
-    .previews,
-    .pick {
+    .previews {
       grid-template-columns: 1fr;
     }
-
   }
 </style>

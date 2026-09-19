@@ -1,18 +1,13 @@
-# BACK — l'API de sauvegarde/partage (Worker + KV)
+# BACK — le Worker qui sert l'application
 
-Tout ce dossier est le **back**.
+Un seul fichier, `index.ts`, et il ne fait qu'une chose : servir les
+fichiers construits par Vite.
 
-La logique réelle :
-- `validate.ts` — validation stricte des recettes de palettes
-- `api.ts` — les trois opérations : santé, sauvegarde, lecture
+Ce dossier a porté une API de sauvegarde et de partage de palettes
+(`api.ts`, `validate.ts`, un namespace KV, une variante Pages dans
+`functions/`). Les liens de partage ont été retirés de l'outil, et tout
+cela avec eux.
 
-Les enrobages de déploiement :
-- `standalone.ts` — le Worker à créer **à la main dans le dashboard
-  Cloudflare** (template Hello World) : `npm run build:back` le compile
-  en **`back.js`** (à la racine du dépôt), le fichier unique à
-  coller dans l'éditeur en ligne.
-- `index.ts` — variante pour un déploiement en ligne de commande
-  (wrangler), non nécessaire si tu passes par le dashboard.
-
-Voir aussi `functions/` à la racine : la même API en variante intégrée à
-Pages (ce dossier-là doit garder son nom, convention Cloudflare).
+Conséquence : **rien ne quitte le navigateur**. Le moteur colorimétrique
+a toujours tourné côté client ; il n'y a désormais plus aucune route
+capable de recevoir quoi que ce soit.

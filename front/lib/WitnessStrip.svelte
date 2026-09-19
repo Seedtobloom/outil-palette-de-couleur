@@ -3,35 +3,15 @@
    * Bande témoin d'imprimeur — la signature de l'outil.
    * Cases accolées (gap 2px), sans arrondi, dans le header.
    *
-   * Elle est commutable : trois verres — écran, niveaux de gris,
-   * deutéranopie — appliqués à la bande de navigation elle-même.
-   * Un seul objet, trois lectures : le verre s'applique à l'objet que
-   * l'on manipule, plutôt que d'empiler deux bandes à l'écran.
-   *
-   * Un clic sur une case sélectionne la couleur.
+   * Elle a porté trois verres — écran, niveaux de gris, deutéranopie —
+   * appliqués à la bande elle-même. Les deux derniers sont tombés avec
+   * la simulation de daltonisme : il ne reste que les couleurs telles
+   * qu'elles sont. Un clic sur une case sélectionne la couleur.
    */
-  import { simulateCvd, toGrayscale } from '../engine';
   import { settings } from './state.svelte';
 
   let { onSelect }: { onSelect?: ((id: string) => void) | undefined } = $props();
 
-  type Lens = 'ecran' | 'gris' | 'deutan';
-
-  const LENSES: { id: Lens; label: string; hint: string }[] = [
-    { id: 'ecran', label: 'Écran', hint: 'les couleurs telles qu’elles sont' },
-    { id: 'gris', label: 'Niveaux de gris', hint: 'le contrôle de luminance le plus rapide' },
-    { id: 'deutan', label: 'Deutéranopie', hint: 'la forme la plus fréquente de daltonisme' },
-  ];
-
-  let lens: Lens = $state('ecran');
-
-  function through(hex: string): string {
-    if (lens === 'gris') return toGrayscale(hex);
-    if (lens === 'deutan') return simulateCvd(hex, 'deutan', 100);
-    return hex;
-  }
-
-  const current = $derived(LENSES.find((l) => l.id === lens) as (typeof LENSES)[number]);
 </script>
 
 {#if settings.colors.length > 0}
@@ -40,7 +20,7 @@
       {#each settings.colors as c (c.id)}
         <button
           class="case"
-          style="background:{through(c.hex)}"
+          style="background:{c.hex}"
           onclick={() => onSelect?.(c.id)}
           title="{c.label} · {c.hex}"
         >
@@ -48,20 +28,6 @@
         </button>
       {/each}
     </div>
-
-    <div class="lenses" role="group" aria-label="Verre appliqué à la bande">
-      {#each LENSES as l (l.id)}
-        <button
-          class="lens"
-          aria-pressed={lens === l.id}
-          onclick={() => (lens = l.id)}
-          title={l.hint}
-        >
-          {l.label}
-        </button>
-      {/each}
-    </div>
-    <p class="hint">{current.hint}</p>
   </div>
 {/if}
 
@@ -106,48 +72,5 @@
   .case:hover {
     outline: 2px solid var(--text-main);
     outline-offset: 1px;
-  }
-
-  .lenses {
-    display: flex;
-    gap: 0.15rem;
-  }
-
-  .lens {
-    border: none;
-    background: none;
-    color: var(--text-muted);
-    font-size: 0.75rem;
-    padding: 0.2rem 0.55rem;
-    min-block-size: 0;
-    border-radius: var(--radius-pill);
-  }
-
-  .lens:hover {
-    background: var(--surface-panel);
-    color: var(--text-main);
-  }
-
-  /* Sur la Glycine, le texte est TOUJOURS en Ébène, jamais en
-     --text-main : en thème sombre ce token vaut Paille, et Paille sur
-     Glycine est illisible. Le couple Ébène/Glycine est verrouillé en
-     AAA dans chrome.test.ts. */
-  .lens[aria-pressed='true'] {
-    background: var(--etape-active);
-    border-color: var(--etape-active);
-    color: var(--ebene);
-  }
-
-  .hint {
-    margin: 0;
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    font-style: italic;
-  }
-
-  @media (max-width: 54rem) {
-    .hint {
-      display: none;
-    }
   }
 </style>

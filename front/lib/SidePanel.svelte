@@ -4,8 +4,8 @@
    *
    * Il porte ce qui aide la décision en cours : l'assistant de
    * complétion (Nuancier), le guide d'attribution (Rôles), le rappel de
-   * règle (Contraste), les repères d'encrage (Impression), l'état de
-   * santé (Livraison) — et, en bas, l'étape suivante avec sa condition.
+   * règle (Contraste), l'état de santé (Livraison) — et, en bas,
+   * l'étape suivante avec sa condition.
    *
    * Chaque bloc suit la même structure : un intitulé en capitales posé
    * au-dessus, puis une carte blanche. L'intitulé vit hors de la carte :
@@ -83,7 +83,7 @@
 </script>
 
 <aside class="panneau" aria-label="Assistance">
-  {#if etapeId === 'palette' || etapeId === 'color'}
+  {#if etapeId === 'palette'}
     <section class="bloc">
       <p class="section-titre"><span class="glyphe" aria-hidden="true">✛</span> Compléter le système</p>
       <!-- Seule carte opaque du panneau : elle montre des couleurs à
@@ -144,20 +144,6 @@
           <dt>Neutres</dt>
           <dd>Fonds, surfaces et textes — la charpente. Teintés, jamais gris purs.</dd>
         </dl>
-      </div>
-    </section>
-  {/if}
-
-  {#if etapeId === 'print'}
-    <section class="bloc">
-      <p class="section-titre"><span class="glyphe" aria-hidden="true">▤</span> Repères d’encrage</p>
-      <div class="carte">
-        <ul class="rappels">
-          <li><span class="value">200 %</span> face principale</li>
-          <li><span class="value">150 %</span> faces secondaires</li>
-          <li><span class="value">300 %</span> refus probable en offset</li>
-        </ul>
-        <p class="note-pied">Conversion indicative, à vérifier en profil ICC avant BAT.</p>
       </div>
     </section>
   {/if}

@@ -36,16 +36,6 @@ export {
   type WcagResult,
   type WcagThresholds,
 } from './contrast/wcag';
-export { apcaLc, apcaAssess, apcaTargetFor, APCA_GUIDELINES, type ApcaAssessment } from './contrast/apca';
-export {
-  simulateCvd,
-  toGrayscale,
-  findCvdCollisions,
-  CVD_TYPES,
-  DISTINGUISHABILITY_THRESHOLD,
-  type CvdType,
-  type CvdCollision,
-} from './contrast/cvd';
 export {
   evaluatePair,
   contrastMatrix,
@@ -54,7 +44,7 @@ export {
   type ContrastMatrix,
 } from './contrast/matrix';
 
-export { diagnoseContrast, diagnoseCvd } from './explain/diagnostics';
+export { diagnoseContrast } from './explain/diagnostics';
 export { contrastRemedies, type NamedColor } from './explain/remedies';
 export { GLOSSARY, glossaryEntry, type GlossaryEntry } from './explain/glossary';
 
@@ -90,8 +80,6 @@ export { buildTheme, type Theme, type ThemeMode, type AuditedPair } from './sema
 
 export { generatePalette, type GeneratedPalette, type PaletteOptions } from './palette';
 export { exportCss } from './export/css';
-export { exportTailwind } from './export/tailwind';
-export { exportDtcg, exportScss, nomsTechniques, type EntreeNuancier } from './export/nuancier';
 export { exportAse } from './export/ase';
 export { exportPlancheSvg, type EntreePlanche } from './export/planche';
 
@@ -106,27 +94,6 @@ export {
   type CoverageReport,
   type NamedHex,
 } from './analyze/coverage';
-export { analyzeUsage, LEVEL_A_CHECK, type ColorUsage, type TextTest } from './analyze/usage';
-export {
-  estimateCmyk,
-  PROCESSES,
-  SUBSTRATES,
-  CMYK_DISCLAIMER,
-  SUBSTRATE_DISCLAIMER,
-  type CmykEstimate,
-  type PrintProcess,
-} from './print/cmyk';
-export { socialPalette, SOCIAL_NOTE, type SocialColor } from './harmony/social';
-export {
-  matchSpot,
-  findSpotCollisions,
-  interpretDeltaE,
-  SPOT_NOTE,
-  SPOT_DISTINCT_THRESHOLD,
-  type SpotEntry,
-  type SpotMatch,
-  type SpotCollision,
-} from './print/spot';
 export {
   analyzeHarmony,
   SCHEME_LABELS,
@@ -136,11 +103,11 @@ export {
   type SchemeGuess,
   type Axis,
 } from './harmony/analysis';
+export { analyzeUsage, type ColorUsage, type TextTest } from './analyze/usage';
 export { healthScore, type HealthScore, type ScoreComponent } from './score';
 export {
   corrigeParClarte,
   evaluePaires,
-  lectureApca,
   SEUILS,
   type Fix,
   type PaireEvaluee,

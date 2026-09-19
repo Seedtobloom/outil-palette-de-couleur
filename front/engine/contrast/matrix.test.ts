@@ -47,15 +47,4 @@ describe('contrastMatrix', () => {
     expect(asLarge.wcag.level).toBe('AAA');
   });
 
-  it('une paire conforme WCAG mais faible en APCA est warn, jamais fail', () => {
-    // Paire sombre : ratio WCAG ≥ 3 (grand texte) mais Lc faible.
-    const evaluation = evaluatePair(
-      { id: 'texte', hex: '#8a8a8a' },
-      { id: 'fond', hex: '#2e2e2e' },
-      'large-text',
-    );
-    expect(evaluation.wcag.passesAA).toBe(true);
-    expect(evaluation.apca.quality).toBe('weak');
-    expect(evaluation.status).toBe('warn');
-  });
 });

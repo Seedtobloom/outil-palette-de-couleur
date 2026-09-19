@@ -1,7 +1,8 @@
 {
-  // Nuancier — front (SPA statique) + back (API de persistance) sur un
-  // seul Worker Cloudflare. Le moteur colorimétrique reste côté client :
-  // le Worker ne fait que sauvegarder et servir les palettes partagées.
+  // Nuancier — application statique servie par un Worker Cloudflare.
+  // Tout le calcul colorimétrique vit dans le navigateur ; le Worker ne
+  // sert que les fichiers. Il a porté une API de partage de palettes,
+  // retirée avec les liens de partage : plus d'API, plus de stockage.
   "$schema": "node_modules/wrangler/config-schema.json",
   // ⚠ CE NOM EST L'ADRESSE EN LIGNE, ne pas le changer à la légère :
   // c'est lui qui donne front-outil-palette-de-couleurs.<compte>.workers.dev.
@@ -11,8 +12,8 @@
   // utilisée continuait d'afficher le `front.js` collé à la main. Les
   // déploiements réussissaient, et personne ne voyait rien changer.
   //
-  // Ce Worker-ci sert le front ET l'API (/api/*) : le Worker « back »
-  // séparé et son service binding BACK ne servent plus à rien.
+  // Le Worker « nuancier-back » séparé et son service binding BACK ne
+  // servent plus à rien : il n'y a plus d'API du tout.
   "name": "front-outil-palette-de-couleurs",
   "main": "back/index.ts",
   "compatibility_date": "2026-07-01",
@@ -22,21 +23,8 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    // SPA : toute route inconnue sert index.html…
-    "not_found_handling": "single-page-application",
-    // …sauf l'API, qui doit atteindre le Worker.
-    "run_worker_first": ["/api/*"]
+    // SPA : toute route inconnue sert index.html.
+    "not_found_handling": "single-page-application"
   },
-  // Stockage des palettes partagées — il ne sert QU'aux liens de partage.
-  // L'identifiant du namespace n'est pas un secret : c'est une référence,
-  // pas une clé d'accès. Il a sa place dans le dépôt, comme le nom du
-  // Worker. Le Worker sait se déployer sans (les routes de partage
-  // répondent alors « partage non activé »), mais ici il est configuré.
-  "kv_namespaces": [
-    {
-      "binding": "NUANCIER_KV",
-      "id": "5f14f21e2dc4498c836ab018cff3a225"
-    }
-  ],
   "observability": { "enabled": true }
 }

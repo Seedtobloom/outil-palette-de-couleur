@@ -55,19 +55,16 @@ const WHY_CONTRAST: Record<PairUsage, string> = {
 
 /**
  * Diagnostic complet d'une paire de couleurs pour un usage donné.
- * WCAG 2.2 décide du statut ; APCA n'est qu'un signal secondaire.
+ * WCAG 2.2 décide seul du statut.
  */
 export function diagnoseContrast(fg: NamedColor, bg: NamedColor, usage: PairUsage): Diagnostic {
   const evaluation = evaluatePair(fg, bg, usage);
-  const { wcag, apca } = evaluation;
+  const { wcag } = evaluation;
   const fgLabel = fg.label ?? fg.id;
   const bgLabel = bg.label ?? bg.id;
   const usageLabel = USAGE_LABELS[usage];
   const ratioText = fmtRatio(wcag.ratio);
-  const technical =
-    `Ratio WCAG ${wcag.ratio.toFixed(4)} — ${wcag.thresholds.rule}` +
-    ` · APCA Lc ${apca.lc.toFixed(1)}${apca.target !== null ? ` (cible indicative ${apca.target})` : ''}` +
-    ' — APCA est un signal qualité, pas une conformité.';
+  const technical = `Ratio WCAG ${wcag.ratio.toFixed(4)} — ${wcag.thresholds.rule}`;
 
   const base = {
     id: `contrast:${usage}:${fg.id}:${bg.id}`,
@@ -105,23 +102,6 @@ export function diagnoseContrast(fg: NamedColor, bg: NamedColor, usage: PairUsag
   }
 
   const levelText = wcag.level === 'AAA' ? 'AAA (confort maximal)' : 'AA (le minimum légal)';
-  if (evaluation.status === 'warn') {
-    // Conforme WCAG, mais perceptuellement faible selon APCA.
-    return {
-      ...base,
-      status: 'warn',
-      plain:
-        `Contraste ${ratioText} — la paire « ${fgLabel} » sur « ${bgLabel} » passe la norme ` +
-        `(${levelText}), mais reste perceptuellement inconfortable, surtout sur fond sombre ` +
-        'ou en petit corps. La norme est une porte, pas un objectif de confort.',
-      why:
-        WHY_CONTRAST[usage] +
-        ' La formule WCAG surévalue les paires sombres : un signal perceptuel complémentaire ' +
-        '(APCA) aide à repérer les paires « conformes mais pénibles ».',
-      remedies: contrastRemedies(fg, bg, usage, (wcag.thresholds.aaa ?? base.threshold + 2.5)),
-    };
-  }
-
   return {
     ...base,
     status: 'pass',

@@ -1,10 +1,5 @@
 <script lang="ts">
-  import {
-    generatePalette,
-    type GeneratedPalette,
-    type SchemeName,
-    type WheelName,
-  } from './engine';
+  import { generatePalette, type GeneratedPalette } from './engine';
   import { settings } from './lib/state.svelte';
   import { parcours } from './lib/parcours.svelte';
   import { journal } from './lib/journal.svelte';
@@ -18,18 +13,7 @@
   import Aide from './lib/Aide.svelte';
 
   let showTechnical = $state(false);
-  let loadNotice = $state('');
   let aideOuverte = $state(false);
-
-  /** Un lien de partage l'emporte sur la mémoire locale : celui qui
-   *  ouvre le lien veut voir CETTE palette, pas la sienne. */
-  const lienPartage =
-    typeof location !== 'undefined' && new URLSearchParams(location.search).has('p');
-
-  const API_BASE: string = ((import.meta.env.VITE_API_BASE as string | undefined) ?? '').replace(
-    /\/$/,
-    '',
-  );
 
   const palette: GeneratedPalette | null = $derived.by(() => {
     try {
@@ -63,7 +47,6 @@
   // après : la première chose annulable doit être une action de la
   // graphiste, pas le rechargement de son propre travail.
   $effect(() => {
-    if (lienPartage) return;
     const retrouve = restaure();
     journal.oublie();
     if (retrouve) {
@@ -75,10 +58,8 @@
   // et de l'étape courante suffit à abonner l'effet ; `sauvegarde()`
   // prend l'instantané complet.
   $effect(() => {
-    if (lienPartage) return;
     void settings.colors;
     void settings.baseColor;
-    void settings.usage;
     void parcours.index;
     void theme.mode;
     sauvegarde();
@@ -134,41 +115,6 @@
     if (label) messages.montre(`${refaire ? 'Rétabli' : 'Annulé'} : ${label}.`, 'info');
   }
 
-  // Ouverture d'un lien de partage (?p=identifiant) : la recette est
-  // rechargée dans l'état partagé et on ouvre directement l'atelier.
-  $effect(() => {
-    const id = new URLSearchParams(location.search).get('p');
-    if (!id || !/^[0-9a-z]{16}$/.test(id)) return;
-    void (async () => {
-      try {
-        const response = await fetch(`${API_BASE}/api/palettes/${id}`);
-        if (!response.ok) throw new Error(String(response.status));
-        const stored = (await response.json()) as {
-          baseColor: string;
-          options: {
-            scheme: SchemeName;
-            wheel: WheelName;
-            intensity: number;
-            neutralInfluence: number;
-            hueTorsion: number;
-          };
-        };
-        settings.baseColor = stored.baseColor;
-        settings.scheme = stored.options.scheme;
-        settings.wheel = stored.options.wheel;
-        settings.intensity = stored.options.intensity;
-        settings.neutralInfluence = Math.round(stored.options.neutralInfluence * 100);
-        settings.hueTorsion = stored.options.hueTorsion;
-        // La pile d'avant ne veut plus rien dire une fois qu'on a chargé
-        // la palette de quelqu'un d'autre.
-        journal.oublie();
-        loadNotice = 'Palette partagée chargée.';
-      } catch {
-        loadNotice =
-          'Impossible de charger la palette partagée (lien expiré ou service indisponible).';
-      }
-    })();
-  });
 </script>
 
 <svelte:window onkeydown={auClavier} />
@@ -282,9 +228,6 @@
   </header>
 
   <main>
-    {#if loadNotice}
-      <p class="notice" role="status">{loadNotice}</p>
-    {/if}
     <Flow {palette} {showTechnical} />
   </main>
 
@@ -507,13 +450,6 @@
     padding: var(--gap-bloc) var(--pad-lat) 3rem;
   }
 
-  .notice {
-    margin: 0 auto var(--gap-bloc);
-    max-inline-size: var(--largeur-max);
-    font-style: italic;
-    color: var(--text-muted);
-    font-size: 0.85rem;
-  }
 
   footer {
     border-block-start: 1px solid var(--filet);

@@ -1,10 +1,13 @@
 /**
  * Matrice de contraste N×N typée par usage.
- * WCAG 2.2 est le verrou (bloquant), APCA le signal qualité (informatif).
+ *
+ * WCAG 2.2 est le seul verrou. L'APCA servait ici à marquer « warn » les
+ * paires conformes mais perceptuellement faibles ; il a été retiré de
+ * l'outil, et avec lui ce troisième état. Une paire passe, ou elle ne
+ * passe pas.
  */
 import type { PairUsage } from '../types';
 import { wcagCheck, type WcagResult } from './wcag';
-import { apcaAssess, type ApcaAssessment } from './apca';
 
 export type PaletteColor = { id: string; hex: string };
 
@@ -13,23 +16,13 @@ export type PairEvaluation = {
   bg: PaletteColor;
   usage: PairUsage;
   wcag: WcagResult;
-  apca: ApcaAssessment;
-  /**
-   * Verdict de la paire. Uniquement fondé sur WCAG 2.2 :
-   * 'fail' si le verrou échoue, 'warn' si WCAG passe mais APCA signale une
-   * paire perceptuellement faible, 'pass' sinon.
-   */
-  status: 'pass' | 'warn' | 'fail';
+  /** Verdict de la paire, fondé sur le seuil AA de l'usage. */
+  status: 'pass' | 'fail';
 };
 
 export function evaluatePair(fg: PaletteColor, bg: PaletteColor, usage: PairUsage): PairEvaluation {
   const wcag = wcagCheck(fg.hex, bg.hex, usage);
-  const apca = apcaAssess(fg.hex, bg.hex, usage);
-  let status: PairEvaluation['status'];
-  if (!wcag.passesAA) status = 'fail';
-  else if (apca.quality === 'weak') status = 'warn';
-  else status = 'pass';
-  return { fg, bg, usage, wcag, apca, status };
+  return { fg, bg, usage, wcag, status: wcag.passesAA ? 'pass' : 'fail' };
 }
 
 export type ContrastMatrix = {
@@ -40,7 +33,6 @@ export type ContrastMatrix = {
   summary: {
     pairsTested: number;
     failures: number;
-    warnings: number;
     /** Niveau global atteint par toutes les paires testées (hors diagonale). */
     level: 'AAA' | 'AA' | 'non conforme';
   };
@@ -50,7 +42,6 @@ export type ContrastMatrix = {
 export function contrastMatrix(colors: PaletteColor[], usage: PairUsage): ContrastMatrix {
   const cells: (PairEvaluation | null)[][] = [];
   let failures = 0;
-  let warnings = 0;
   let allAAA = true;
   let pairsTested = 0;
 
@@ -64,7 +55,6 @@ export function contrastMatrix(colors: PaletteColor[], usage: PairUsage): Contra
       const evaluation = evaluatePair(colors[i]!, colors[j]!, usage);
       pairsTested++;
       if (evaluation.status === 'fail') failures++;
-      if (evaluation.status === 'warn') warnings++;
       if (evaluation.wcag.level !== 'AAA' && evaluation.wcag.level !== 'exempt') allAAA = false;
       row.push(evaluation);
     }
@@ -78,7 +68,6 @@ export function contrastMatrix(colors: PaletteColor[], usage: PairUsage): Contra
     summary: {
       pairsTested,
       failures,
-      warnings,
       level: failures > 0 ? 'non conforme' : allAAA ? 'AAA' : 'AA',
     },
   };

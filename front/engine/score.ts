@@ -8,14 +8,12 @@
  */
 import { analyzeCoverage, type NamedHex } from './analyze/coverage';
 import { analyzeHarmony } from './harmony/analysis';
-import { analyzeUsage } from './analyze/usage';
 import { contrastRatio } from './contrast/wcag';
-import { estimateCmyk } from './print/cmyk';
 import { bandOf } from './analyze/coverage';
 import { parseToOklch } from './color/space';
 
 export type ScoreComponent = {
-  id: 'accessibility' | 'harmony' | 'completeness' | 'balance' | 'ink';
+  id: 'accessibility' | 'harmony' | 'completeness' | 'balance';
   label: string;
   /** Sous-score 0–100. */
   value: number;
@@ -33,21 +31,20 @@ export type HealthScore = {
   components: ScoreComponent[];
 };
 
-/** Pondération du brief §8. */
+/**
+ * Pondération. Le brief §8 en prévoyait cinq, dont l'éco-encrage : la
+ * composante est tombée avec le module d'impression. Les 15 points
+ * qu'elle portait sont rendus à l'accessibilité, qui reste la seule
+ * composante dont un mauvais score rend la palette inutilisable.
+ */
 const WEIGHTS = {
-  accessibility: 0.3,
+  accessibility: 0.45,
   harmony: 0.2,
   completeness: 0.2,
   balance: 0.15,
-  ink: 0.15,
 } as const;
 
-export function healthScore(
-  colors: NamedHex[],
-  options: { tacLimit?: number } = {},
-): HealthScore {
-  const tacLimit = options.tacLimit ?? 280;
-
+export function healthScore(colors: NamedHex[]): HealthScore {
   // — Accessibilité : part des paires utiles conformes AA —
   let pairs = 0;
   let passing = 0;
@@ -99,13 +96,6 @@ export function healthScore(
           ),
         );
 
-  // — Éco-encrage : moyenne des TAC rapportée à la cible de 200 % —
-  const tacs = colors
-    .map((c) => estimateCmyk(c.hex, tacLimit)?.tac ?? 0)
-    .filter((t) => t > 0);
-  const avgTac = tacs.length ? mean(tacs) : 0;
-  const ink = Math.round(Math.max(0, Math.min(100, 100 - Math.max(0, avgTac - 200) / 2)));
-
   const components: ScoreComponent[] = [
     {
       id: 'accessibility',
@@ -151,25 +141,8 @@ export function healthScore(
           : `${neutralish} neutre(s) pour ${vivid} couleur(s) vive(s).`,
       step: 'roles',
     },
-    {
-      id: 'ink',
-      label: 'Éco-encrage',
-      value: ink,
-      weight: WEIGHTS.ink,
-      detail:
-        tacs.length === 0
-          ? 'Aucune couleur encrée à mesurer.'
-          : `Encrage moyen estimé : ${Math.round(avgTac)} % (cible face principale : 200 %).`,
-      step: 'print',
-    },
   ];
 
   const total = Math.round(components.reduce((sum, c) => sum + c.value * c.weight, 0));
   return { total, components };
 }
-
-function mean(values: number[]): number {
-  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
-}
-
-void analyzeUsage;

@@ -1,11 +1,10 @@
 /**
- * Les exports du nuancier de travail : DTCG, SCSS, ASE, planche SVG.
+ * Les exports du nuancier de travail : ASE et planche SVG.
  *
  * L'ASE est relu octet par octet — un export binaire qu'aucun test ne
  * décode est un export qu'on découvre cassé en ouvrant Illustrator.
  */
 import { describe, expect, it } from 'vitest';
-import { exportDtcg, exportScss, nomsTechniques } from './nuancier';
 import { exportAse } from './ase';
 import { exportPlancheSvg } from './planche';
 
@@ -15,61 +14,8 @@ const PALETTE = [
   { hex: '#e4d1fe', label: 'Glycine' },
 ];
 
-describe('noms techniques', () => {
-  it('retire les accents et les espaces', () => {
-    expect(nomsTechniques([{ hex: '#000', label: "Vert d'eau" }])).toEqual(['vert-d-eau']);
-    expect(nomsTechniques([{ hex: '#000', label: 'Bleu Pétrole' }])).toEqual(['bleu-petrole']);
-  });
 
-  it('ne perd jamais une couleur à cause d’un nom en double', () => {
-    const noms = nomsTechniques([
-      { hex: '#111', label: 'Gris' },
-      { hex: '#222', label: 'Gris' },
-      { hex: '#333', label: 'Gris' },
-    ]);
-    expect(new Set(noms).size).toBe(3);
-    expect(noms).toEqual(['gris', 'gris-2', 'gris-3']);
-  });
 
-  it('donne un nom de repli à une couleur sans nom utilisable', () => {
-    expect(nomsTechniques([{ hex: '#000', label: '···' }])).toEqual(['couleur-1']);
-  });
-});
-
-describe('export DTCG', () => {
-  const json = JSON.parse(exportDtcg(PALETTE, 'seed-to-bloom')) as Record<string, any>;
-
-  it('respecte la structure du Design Tokens Community Group', () => {
-    const terre = json['seed-to-bloom'].terre;
-    expect(terre.$type).toBe('color');
-    expect(terre.$value).toBe('#412f21');
-    expect(terre.$description).toBe('Terre');
-  });
-
-  it('conserve la valeur OKLCH de travail dans $extensions', () => {
-    const ext = json['seed-to-bloom'].terre.$extensions['com.seedtobloom.nuancier'];
-    expect(ext.oklch).toMatch(/^oklch\(/);
-    expect(ext.hue).toBeGreaterThan(0);
-  });
-
-  it('exporte toutes les couleurs', () => {
-    expect(Object.keys(json['seed-to-bloom'])).toHaveLength(3);
-  });
-});
-
-describe('export SCSS', () => {
-  const scss = exportScss(PALETTE, 'marque');
-
-  it('déclare une variable par couleur, commentée de son nom d’origine', () => {
-    expect(scss).toContain('$terre: #412f21; // Terre');
-    expect(scss).toContain('$glycine: #e4d1fe; // Glycine');
-  });
-
-  it('fournit une map pour boucler dessus', () => {
-    expect(scss).toContain('$marque: (');
-    expect(scss).toContain("  'paille': $paille,");
-  });
-});
 
 describe('export ASE', () => {
   const bytes = exportAse(PALETTE, 'Seed to Bloom');

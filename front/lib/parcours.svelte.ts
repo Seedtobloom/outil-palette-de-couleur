@@ -25,7 +25,7 @@ export type StepDef = {
 };
 
 /** Étapes qui travaillent sur le nuancier, et le supposent donc rempli. */
-const ETAPES_ANALYSE = ['palette', 'harmony', 'roles', 'contrast', 'print', 'social'];
+const ETAPES_ANALYSE = ['palette', 'harmony', 'roles', 'contrast'];
 
 class Parcours {
   index = $state(0);
@@ -43,16 +43,7 @@ class Parcours {
   onEntree: ((id: string) => void) | null = null;
 
   private readonly toutes: StepDef[] = [
-    { id: 'usage', short: 'Projet', sub: 'Écran ou papier', title: 'C’est pour quoi ?' },
     { id: 'start', short: 'Départ', sub: 'Couleur ou image', title: 'D’où on part ?' },
-    { id: 'color', short: 'Couleur', sub: 'La teinte gardée', title: 'Ta couleur' },
-    {
-      id: 'build',
-      short: 'Génération',
-      sub: 'Gammes générées',
-      title: 'Le système se construit.',
-      lead: 'Trois teintes de marque, des gris teintés, quatre couleurs fonctionnelles.',
-    },
     {
       id: 'palette',
       short: 'Nuancier',
@@ -85,23 +76,7 @@ class Parcours {
       title: 'Chaque paire, vérifiée.',
       lead: 'Le spécimen d’abord, le chiffre en preuve. Une décision à la fois.',
     },
-    {
-      id: 'print',
-      short: 'Impression',
-      sub: 'Encres et papier',
-      condition: this.auMoins3(),
-      title: 'Sur le papier, vraiment.',
-      lead: 'Estimation des encres, taux d’encrage, rendu sur le papier choisi.',
-    },
-    {
-      id: 'social',
-      short: 'Réseaux',
-      sub: 'Dans un flux',
-      condition: this.auMoins3(),
-      title: 'En situation.',
-      lead: 'Tes couleurs déclinées en clair et en profond — mêmes teintes.',
-    },
-    { id: 'deliver', short: 'Livraison', sub: 'Exporter, partager', title: 'À toi de jouer.' },
+    { id: 'deliver', short: 'Livraison', sub: 'Exporter', title: 'À toi de jouer.' },
   ];
 
   private auMoins3() {
@@ -111,12 +86,13 @@ class Parcours {
     };
   }
 
-  /** Les étapes réellement au programme : l'impression ne concerne pas
-   *  un projet purement écran. */
+  /**
+   * Les six étapes, toujours les mêmes. Il y en a eu onze, dont deux
+   * conditionnées à la nature du projet (écran ou papier) : le parcours
+   * est revenu à une liste fixe, alignée sur l'outil de référence.
+   */
   get etapes(): StepDef[] {
-    return this.toutes.filter((s) =>
-      s.id === 'print' ? settings.usage === 'print' || settings.usage === 'identity' : true,
-    );
+    return this.toutes;
   }
 
   get courante(): StepDef {

@@ -12,7 +12,6 @@ import type { OklchColor } from '../types';
 import { gamutMap, maxChroma } from '../color/gamut';
 import { oklchToHex, parseToOklch } from '../color/space';
 import { contrastRatio } from './wcag';
-import { apcaLc } from './apca';
 
 export type PairUse = 'texte' | 'titre' | 'composant';
 
@@ -123,7 +122,6 @@ export type PaireEvaluee = {
   fondHex: string;
   usage: PairUse;
   ratio: number;
-  lc: number;
   /** Niveau atteint : 'AAA' | 'AA' | null. */
   niveau: 'AAA' | 'AA' | null;
   /** Ce qui manque pour passer, si ça ne passe pas. */
@@ -169,7 +167,6 @@ export function evaluePaires(
         fondHex: fond.hex,
         usage,
         ratio,
-        lc: apcaLc(avant.hex, fond.hex),
         niveau,
         fix,
         priorite,
@@ -180,11 +177,3 @@ export function evaluePaires(
   return out.sort((a, b) => b.priorite - a.priorite);
 }
 
-/** Repères APCA, présentés comme complément informatif (jamais normatif). */
-export function lectureApca(lc: number, usage: PairUse): string {
-  const abs = Math.abs(lc);
-  const plancher = usage === 'texte' ? 75 : usage === 'titre' ? 45 : 45;
-  if (abs >= plancher + 15) return 'confortable';
-  if (abs >= plancher) return 'juste au niveau attendu';
-  return 'en dessous du niveau attendu';
-}

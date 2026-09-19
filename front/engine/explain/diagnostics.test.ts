@@ -64,11 +64,6 @@ describe('recette : chaque diagnostic est expliqué et corrigeable', () => {
     }
   });
 
-  it('APCA est présenté comme signal, jamais comme conformité', () => {
-    const d = diagnoseContrast({ id: 'texte', hex: '#8a8a8a' }, { id: 'fond', hex: '#2e2e2e' }, 'large-text');
-    expect(d.status).toBe('warn'); // conforme WCAG, faible perceptuellement
-    expect(d.technical).toContain('pas une conformité');
-  });
 });
 
 describe('remèdes de contraste', () => {

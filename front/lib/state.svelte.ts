@@ -4,7 +4,6 @@
  */
 import type { SchemeName, ThemeMode, WheelName } from '../engine';
 
-export type UsageContext = 'web' | 'identity' | 'print' | 'dataviz';
 export type StartMode = 'color' | 'mood' | 'palette' | 'image';
 
 /**
@@ -19,7 +18,6 @@ export type StartMode = 'color' | 'mood' | 'palette' | 'image';
 export type PaletteEntry = { id: string; hex: string; label: string; verrou?: boolean };
 
 export const settings = $state({
-  usage: 'identity' as UsageContext,
   baseColor: '#2563eb',
   scheme: 'split-complementary' as SchemeName,
   wheel: 'ryb' as WheelName,
@@ -30,10 +28,6 @@ export const settings = $state({
   /** Le nuancier de travail : rempli depuis la palette générée, puis
    * librement modifiable (ajout, retrait, renommage). */
   colors: [] as PaletteEntry[],
-  /** Vérification manuelle du critère WCAG de niveau A (SC 1.4.1). */
-  levelAConfirmed: false,
-  printProcess: 'uncoated',
-  substrate: 'uncoated-white',
 });
 
 /** Remplit le nuancier de travail depuis une palette générée. */

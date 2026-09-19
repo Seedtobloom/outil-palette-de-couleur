@@ -19,14 +19,9 @@
   import {
     corrigeTout,
     evaluePaires,
-    lectureApca,
     impactSurPalette,
     proposeCorrections,
     SEUILS,
-    LEVEL_A_CHECK,
-    findSpotCollisions,
-    simulateCvd,
-    toGrayscale,
     type Candidat,
     type Impact,
     type PairUse,
@@ -244,13 +239,6 @@
     return `${avant} → ${apres} : cette correction a créé plus de problèmes qu’elle n’en a réglé.`;
   });
 
-  const spotCollisions = $derived(findSpotCollisions(settings.colors));
-
-  const epreuve = $derived([
-    { label: 'Écran', hexes: settings.colors.map((c) => c.hex) },
-    { label: 'Niveaux de gris', hexes: settings.colors.map((c) => toGrayscale(c.hex)) },
-    { label: 'Deutéranopie', hexes: settings.colors.map((c) => simulateCvd(c.hex, 'deutan', 100)) },
-  ]);
 </script>
 
 <div class="wrap">
@@ -473,12 +461,6 @@
         {/if}
       </div>
 
-      {#if showTechnical}
-        <p class="tech value">
-          APCA Lc {courante.lc.toFixed(0)} — {lectureApca(courante.lc, usage)}. Complément
-          informatif : la référence normative reste WCAG 2.2.
-        </p>
-      {/if}
     </div>
 
     {#if echecs.length > 1}
@@ -541,36 +523,7 @@
         </div>
       </div>
 
-      <div class="bloc">
-        <p class="micro">L’épreuve</p>
-        {#each epreuve as rang (rang.label)}
-          <div class="rang">
-            <span class="rang-label">{rang.label}</span>
-            <span class="rang-bande" aria-hidden="true">
-              {#each rang.hexes as hex, i (i)}<span style="background:{hex}"></span>{/each}
-            </span>
-          </div>
-        {/each}
-      </div>
 
-      {#if spotCollisions.length > 0}
-        <div class="bloc">
-          <p class="micro">En ton direct</p>
-          {#each spotCollisions as c (c.a + c.b)}
-            <p class="note-pied">{c.message}</p>
-          {/each}
-        </div>
-      {/if}
-
-      <div class="bloc">
-        <p class="micro">Le niveau A — à vérifier toi-même</p>
-        <p class="a-question">{LEVEL_A_CHECK.question}</p>
-        <label class="a-check">
-          <input type="checkbox" bind:checked={settings.levelAConfirmed} />
-          Non — chaque information a un second indice (texte, icône, motif).
-        </label>
-        <p class="note-pied">{LEVEL_A_CHECK.why}</p>
-      </div>
     </div>
   </details>
 </div>
@@ -873,11 +826,6 @@
     color: var(--text-muted);
   }
 
-  .tech {
-    margin: 0;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-  }
 
   /* — La liste courte des autres échecs — */
   .reste {
@@ -991,45 +939,11 @@
     background: var(--surface-panel);
   }
 
-  .rang {
-    display: grid;
-    grid-template-columns: 8rem 1fr;
-    align-items: center;
-    gap: 0.7rem;
-  }
 
-  .rang-label {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    text-align: right;
-  }
 
-  .rang-bande {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    block-size: 1.5rem;
-    gap: 2px;
-  }
 
-  .a-question {
-    margin: 0;
-    font-size: 0.9rem;
-  }
 
-  .a-check {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-    font-size: 0.88rem;
-    min-block-size: 44px;
-    padding-block: 0.25rem;
-    cursor: pointer;
-  }
 
-  .a-check input {
-    margin-block-start: 0.2rem;
-  }
 
   @media (max-width: 52rem) {
     .specimens {

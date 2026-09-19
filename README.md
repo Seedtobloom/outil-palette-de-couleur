@@ -6,15 +6,11 @@ responsables, harmonieuses, suffisamment contrastées et suffisamment fournies.
 ## Où est le front, où est le back
 
 ```
-LES DEUX FICHIERS À COPIER-COLLER dans tes Workers « Hello World » :
-  front.js   → à coller dans le Worker du FRONT (sert l'application complète)
-  back.js    → à coller dans le Worker du BACK (l'API de sauvegarde/partage)
-
-Leur code source :
   front/     interface Svelte + moteur colorimétrique (100 % client)
-  back/      logique d'API (validation, sauvegarde, lecture) + enrobages
-  functions/ variante optionnelle : même API intégrée à Cloudflare Pages
-             (ce nom exact est imposé par Cloudflare, sinon il s'appellerait back aussi)
+  back/      le Worker Cloudflare — il ne fait que servir les fichiers
+  front.js   chemin de secours : l'application entière inlinée dans un
+             seul Worker, à coller dans le dashboard si le déploiement
+             automatique est indisponible (npm run build:front)
 
 AUTRES
   index.html, dist/                 page d'entrée et build du front
@@ -23,118 +19,40 @@ AUTRES
 ```
 
 Chaque dossier contient son propre petit README qui rappelle son rôle.
-`front.js` et `back.js` sont régénérés par `npm run build:colle`.
+
+**Rien ne quitte le navigateur.** Tout le calcul est côté client, et il
+n'existe aucune route serveur capable de recevoir des données : l'API de
+partage de palettes a été retirée en même temps que les liens de partage.
 
 ## Commandes
 
 ```bash
 npm install
 npm run dev      # développement front seul (Vite)
-npm run dev:full # front + back ensemble (wrangler dev, KV simulé en local)
-npm test         # recette du moteur + validation du back (Vitest)
-npm run check    # svelte-check + TypeScript strict (front et back)
+npm run dev:full # l'application servie par le Worker (wrangler dev)
+npm test         # recette du moteur (Vitest)
+npm run check    # svelte-check + TypeScript strict
 npm run build    # build de production du front
-npm run deploy   # build + déploiement Cloudflare (front + back)
+npm run deploy   # build + déploiement Cloudflare
+npm run build:front # régénère front.js (le Worker de secours à coller)
 ```
 
-## Déploiement à la main via le dashboard Cloudflare (sans wrangler)
+## Chemin de secours : coller `front.js` dans un Worker
 
-> **Ce n'est plus le mode en service** — voir « Déploiement automatique »
-> plus bas. Depuis que le workflow publie sur le Worker
-> `front-outil-palette-de-couleurs`, celui-ci sert le front **et** l'API :
-> le Worker `nuancier-back` et son service binding `BACK` ne servent plus
-> à rien et peuvent être supprimés. Cette section reste ici comme chemin
-> de secours, pour remettre le site en ligne depuis le dashboard si
-> GitHub Actions ou le jeton Cloudflare font défaut.
+À n'utiliser que si le déploiement automatique est cassé (jeton expiré,
+GitHub Actions indisponible).
 
-Deux Workers créés depuis le template « Hello World » — un **front**, un
-**back** — plus un namespace **KV** pour la base. Tout se fait en
-copiant-collant `front.js` et `back.js` et en cliquant dans le dashboard.
-Le moteur colorimétrique reste entièrement côté client ; le back ne fait
-que la sauvegarde/partage.
+1. Dashboard Cloudflare → **Workers & Pages** → le Worker
+   `front-outil-palette-de-couleurs` → **Edit code**.
+2. Supprimer tout le contenu, coller l'intégralité de
+   [`front.js`](./front.js) (ouvrir le fichier sur GitHub → « Copy raw
+   file ») → **Deploy**.
 
-### 1. Le BACK — Worker + fichier `back.js`
+`front.js` est régénéré par `npm run build:front`. Il contient l'HTML, le
+CSS et le JavaScript inlinés : aucun fichier externe, aucune API.
 
-1. Dashboard Cloudflare → **Workers & Pages** → **Create** → onglet
-   **Workers** → template **Hello World** → nom : `nuancier-back` →
-   **Deploy**.
-2. Sur la page du Worker : **Edit code**.
-3. **Supprimer tout le contenu** du fichier et coller à la place
-   l'intégralité de [`back.js`](./back.js)
-   (ouvrir le fichier sur GitHub → bouton « Copy raw file »).
-4. **Deploy** (en haut à droite de l'éditeur).
-5. Vérifier : `https://nuancier-back.<ton-compte>.workers.dev/api/health`
-   doit répondre `{"ok":true,"service":"nuancier"}`.
-
-### 2. La BASE — namespace KV relié au back
-
-1. Dashboard → **Storage & Databases** → **KV** → **Create a namespace**
-   → nom libre, ex. `nuancier-palettes`.
-2. Worker `nuancier-back` → **Settings** → **Bindings** (ou « Variables »)
-   → **Add** → type **KV namespace** :
-   - **Variable name** : `NUANCIER_KV` (exactement, majuscules comprises)
-   - **KV namespace** : `nuancier-palettes`
-3. **Save**.
-
-### 3. Le FRONT — Worker + fichier `front.js`
-
-1. **Workers & Pages** → **Create** → onglet **Workers** → template
-   **Hello World** → nom : `nuancier` (ce nom sera dans l'adresse du
-   site) → **Deploy**.
-2. **Edit code** → supprimer tout → coller l'intégralité de
-   [`front.js`](./front.js) → **Deploy**.
-3. Relier le back : Worker `nuancier` → **Settings** → **Bindings** →
-   **Add** → type **Service binding** :
-   - **Variable name** : `BACK` (exactement)
-   - **Service** : `nuancier-back`
-4. **Save**.
-
-### 4. Vérifier
-
-1. Ouvre `https://nuancier.<ton-compte>.workers.dev` : l'application
-   complète se charge.
-2. Onglet « Construire une palette » → **Créer un lien de partage** → un
-   lien apparaît ; ouvre-le dans un onglet privé : la palette se recharge.
-3. Curieuse ? **Storage & Databases → KV → nuancier-palettes → View** :
-   une clé `palette:…` par lien créé.
-
-Si le partage répond « Back non relié », c'est le binding `BACK` de
-l'étape 3.3 ; s'il répond « stockage non configuré », c'est le binding
-`NUANCIER_KV` de l'étape 2.
-
-### Mise à jour
-
-Les Workers collés à la main ne se mettent pas à jour tout seuls : quand
-`front.js` ou `back.js` changent dans le dépôt (régénérés par
-`npm run build:colle` à chaque évolution), recoller le contenu dans
-l'éditeur du Worker concerné et **Deploy**. En pratique le front bougera
-à chaque phase du produit ; le back, rarement.
-
-> Alternative sans copier-coller : un projet **Cloudflare Pages** connecté
-> à ce dépôt Git redéploie le front automatiquement à chaque poussée
-> (build `npm run build`, dossier `dist`), et le dossier `functions/` y
-> embarque la même API — il suffit d'ajouter le binding KV `NUANCIER_KV`
-> au projet Pages. Les deux chemins partagent le même code.
-
-### API du back
-
-| Route | Méthode | Rôle |
-|---|---|---|
-| `/api/health` | GET | état du service |
-| `/api/palettes` | POST | sauvegarde une recette de palette → `{ id }` |
-| `/api/palettes/:id` | GET | relit une recette (liens de partage `/?p=id`) |
-
-On ne stocke jamais la palette générée : seulement la **recette** (couleur
-de base + réglages, < 1 Ko, versionnée), validée et bornée côté serveur —
-le front régénère la palette à l'identique à l'ouverture du lien.
-
-### Variante en ligne de commande (optionnelle)
-
-Pour qui préfère wrangler, `back/index.ts` + `wrangler.jsonc` déploient
-front et API en un seul Worker : `npx wrangler kv namespace create
-NUANCIER_KV`, coller l'id dans `wrangler.jsonc`, puis `npm run deploy`.
-La logique d'API est partagée (`back/api.ts`) : tous les modes restent
-identiques.
+⚠ Un Worker modifié à la main sera écrasé au prochain push. C'est voulu :
+le dépôt reste la source de vérité.
 
 ## Déploiement automatique (le mode en service)
 
@@ -165,8 +83,8 @@ Deux secrets de dépôt (*Settings → Secrets and variables → Actions*) :
 | `CLOUDFLARE_API_TOKEN` | Cloudflare → Mon profil → Jetons d'API, permission *Workers Scripts: Edit* |
 | `CLOUDFLARE_ACCOUNT_ID` | Dashboard Cloudflare, page Workers, colonne de droite |
 
-L'identifiant du namespace KV, lui, vit dans `wrangler.jsonc`. Ce n'est
-pas un secret : c'est une référence, pas une clé d'accès.
+Il n'y a rien d'autre à configurer : plus de namespace KV, plus de
+binding, le Worker ne sert que des fichiers.
 
 ### Remplacer le jeton Cloudflare
 
@@ -178,8 +96,8 @@ sinon le déploiement échoue entre les deux étapes.
    est invalidée immédiatement. La nouvelle ne s'affiche qu'une fois.
 2. GitHub → le secret `CLOUDFLARE_API_TOKEN` → **Update secret**.
 
-Rien d'autre ne bouge : ni le Worker, ni le KV, ni le site en ligne. Un
-jeton ne sert qu'à s'authentifier auprès de l'API Cloudflare.
+Rien d'autre ne bouge : ni le Worker, ni le site en ligne. Un jeton ne
+sert qu'à s'authentifier auprès de l'API Cloudflare.
 
 ### Revenir à un déploiement manuel
 
@@ -191,7 +109,21 @@ l'onglet Actions.
 
 `front/engine/` est du TypeScript pur, sans le moindre import d'interface,
 entièrement testé : conversions OKLCH (pivot), gamut mapping CSS Color 4,
-ΔE2000/ΔEOK, contraste WCAG 2.2 (bloquant) + APCA (signal), simulations de
-daltonisme Machado 2009 avec sévérité, et la couche `explain/` qui fait
-produire au moteur des diagnostics rédigés et des remèdes applicables.
+ΔE2000/ΔEOK, contraste WCAG 2.2, et la couche `explain/` qui fait produire
+au moteur des diagnostics rédigés et des remèdes applicables.
 L'interface Svelte (`front/App.svelte`, `front/lib/`) ne fait qu'afficher.
+
+Le parcours compte **six étapes** : Départ, Nuancier, Harmonie, Rôles,
+Contraste, Livraison. Il en a compté onze — un choix de projet, une
+sélection de couleur de base, une génération de rampes, un module
+d'impression (CMJN, taux d'encrage, substrat) et une déclinaison réseaux
+sociaux. Ces étapes ont été retirées, avec la simulation de daltonisme,
+l'APCA, la vérification du SC 1.4.1, les liens de partage et les exports
+Tailwind / DTCG / SCSS, pour ramener l'outil au périmètre de l'outil de
+référence. Le brief (§5 print, §6 éco-conception) décrit donc des modules
+qui ne sont plus implémentés.
+
+Une chose n'a **pas** été alignée sur la référence : celle-ci étiquette
+un contraste de 3:1 « niveau A ». Il n'existe pas de niveau A de
+contraste — c'est le §3.1 du brief. Les verdicts restent AA, AAA et
+« grand texte ».

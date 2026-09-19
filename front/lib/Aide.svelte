@@ -84,16 +84,13 @@
           oublié.
         </li>
         <li>
-          <b>Couleur seule</b> — SC 1.4.1 : aucun seuil chiffré, une vérification à confirmer à
-          la main. L’outil la pose, il ne peut pas la trancher pour toi.
-        </li>
-        <li>
           <b>Écarts perçus</b> — ΔE2000, la mesure du contrôle qualité d’impression, pas la
           distance RVB naïve.
         </li>
       </ul>
       <p class="note-pied">
-        L’APCA est affichée en complément d’information : elle n’est pas normative en WCAG 2.2.
+        Il n’existe pas de « niveau A » de contraste : le seul critère de niveau A lié à la
+        couleur, SC 1.4.1, n’impose aucun ratio. Un outil qui étiquette 3:1 « A » se trompe.
       </p>
     </section>
 

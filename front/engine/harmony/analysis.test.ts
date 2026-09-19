@@ -138,14 +138,21 @@ describe('score de santé (brief §8)', () => {
     { id: '5', hex: '#d97706' },
   ];
 
-  it('les poids sont ceux du brief : 30/20/20/15/15', () => {
+  /**
+   * Le brief §8 prévoyait cinq composantes, 30/20/20/15/15, dont
+   * l'éco-encrage. Celle-ci est tombée avec le module d'impression : ses
+   * 15 points sont allés à l'accessibilité, la seule dont un mauvais
+   * score rend la palette inutilisable. Le total doit rester à 1 —
+   * c'est ce que ce test garde vraiment.
+   */
+  it('les poids couvrent exactement 100 % du score : 45/20/20/15', () => {
     const s = healthScore(good);
     const weights = Object.fromEntries(s.components.map((c) => [c.id, c.weight]));
-    expect(weights.accessibility).toBeCloseTo(0.3, 5);
+    expect(weights.accessibility).toBeCloseTo(0.45, 5);
     expect(weights.harmony).toBeCloseTo(0.2, 5);
     expect(weights.completeness).toBeCloseTo(0.2, 5);
     expect(weights.balance).toBeCloseTo(0.15, 5);
-    expect(weights.ink).toBeCloseTo(0.15, 5);
+    expect(weights.ink).toBeUndefined();
     expect(s.components.reduce((a, c) => a + c.weight, 0)).toBeCloseTo(1, 5);
   });
 

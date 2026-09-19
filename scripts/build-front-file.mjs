@@ -1,11 +1,12 @@
 /**
- * Génère `front.js` : LE fichier à coller dans le Worker « front » créé
- * depuis le template Hello World du dashboard Cloudflare.
+ * Génère `front.js` : le fichier à coller dans un Worker « Hello World »
+ * du dashboard Cloudflare. C'est le chemin de secours, pour remettre le
+ * site en ligne sans GitHub Actions ni wrangler.
  *
  * Principe : on prend le build Vite (dist/) et on inline tout — HTML, CSS,
- * JavaScript — dans un seul Worker qui sert la page. Les routes /api/*
- * sont relayées au Worker « back » via un service binding nommé BACK
- * (à ajouter dans le dashboard : Settings → Bindings → Service binding).
+ * JavaScript — dans un seul Worker qui sert la page. L'outil tourne
+ * entièrement dans le navigateur : il n'y a plus d'API à relayer depuis
+ * que le partage de palette a été retiré.
  *
  * Usage : npm run build:front  (fait le build Vite puis ce script)
  */
@@ -36,24 +37,12 @@ if (html.includes('src="/assets/') || html.includes('href="/assets/')) {
 }
 
 const worker = `// Généré par 'npm run build:front' — ne pas éditer à la main.
-// FRONT de Nuancier : à coller dans un Worker créé depuis le template Hello World.
-// Relier le back : Settings → Bindings → Service binding, nom de variable « BACK »,
-// service = le Worker du back (celui où back.js est collé).
+// Nuancier, page unique : tout est inliné, rien n'est appelé au serveur.
 const PAGE = ${JSON.stringify(html)};
 
 export default {
-  async fetch(request, env) {
+  async fetch(request) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith('/api/')) {
-      if (env.BACK) return env.BACK.fetch(request);
-      return new Response(
-        JSON.stringify({
-          error:
-            'Back non relié : ajouter un binding « Service » nommé BACK vers le Worker du back.',
-        }),
-        { status: 503, headers: { 'content-type': 'application/json; charset=utf-8' } },
-      );
-    }
     if (url.pathname === '/favicon.ico') return new Response(null, { status: 204 });
     return new Response(PAGE, {
       headers: { 'content-type': 'text/html; charset=utf-8' },
