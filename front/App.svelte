@@ -43,16 +43,21 @@
   });
 
   // — Mémoire locale —
-  // Relecture une seule fois au démarrage. Le journal est vidé juste
-  // après : la première chose annulable doit être une action de la
-  // graphiste, pas le rechargement de son propre travail.
-  $effect(() => {
-    const retrouve = restaure();
-    journal.oublie();
-    if (retrouve) {
-      messages.montre('Ton nuancier a été retrouvé, tu reprends où tu t’étais arrêtée.', 'info');
-    }
-  });
+  //
+  // ⚠ HORS de tout $effect, et c'est la raison d'être de ce commentaire.
+  // `restaure()` ÉCRIT dans `settings`, dans le parcours et dans le
+  // thème. Placée dans un effet, elle relançait donc l'effet qui venait
+  // de l'exécuter : boucle infinie, et une pile de messages « ton
+  // nuancier a été retrouvé » qui recouvrait l'écran.
+  //
+  // Ici, le code s'exécute une fois à l'initialisation du composant. Le
+  // journal est vidé juste après : la première chose annulable doit être
+  // une action de la graphiste, pas le rechargement de son travail.
+  const nuancierRetrouve = restaure();
+  journal.oublie();
+  if (nuancierRetrouve) {
+    messages.montre('Ton nuancier a été retrouvé, tu reprends où tu t’étais arrêtée.', 'info');
+  }
 
   // Enregistrement à chaque changement. La lecture de `settings.colors`
   // et de l'étape courante suffit à abonner l'effet ; `sauvegarde()`

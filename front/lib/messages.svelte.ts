@@ -26,14 +26,36 @@ export type Message = {
 
 const DUREES: Record<Ton, number> = { info: 4000, succes: 4000, refus: 8000 };
 
+/**
+ * Nombre de messages affichés en même temps. Au-delà, les plus anciens
+ * sortent. C'est un garde-fou, pas une préférence : un effet réactif mal
+ * fermé a déjà empilé le même message des dizaines de fois jusqu'à
+ * recouvrir l'interface. Une pile bornée transforme ce genre de bug en
+ * désagrément visible plutôt qu'en écran inutilisable.
+ */
+const PILE_MAX = 4;
+
 class Messages {
   liste = $state<Message[]>([]);
   #compteur = 0;
   #minuteries = new Map<number, ReturnType<typeof setTimeout>>();
 
   montre(texte: string, ton: Ton = 'info', action?: Message['action']): number {
+    // Même texte déjà affiché : on relance son compte à rebours au lieu
+    // d'en empiler un second. Répéter un message ne le rend pas plus
+    // lisible.
+    const existant = this.liste.find((m) => m.texte === texte && m.ton === ton);
+    if (existant) {
+      this.relance(existant.id);
+      return existant.id;
+    }
+
     const id = ++this.#compteur;
-    this.liste = [...this.liste, { id, texte, ton, ...(action ? { action } : {}) }];
+    const suite = [...this.liste, { id, texte, ton, ...(action ? { action } : {}) }];
+    for (const trop of suite.slice(0, Math.max(0, suite.length - PILE_MAX))) {
+      this.suspend(trop.id);
+    }
+    this.liste = suite.slice(-PILE_MAX);
     this.relance(id);
     return id;
   }
