@@ -39,6 +39,14 @@ npm run deploy   # build + déploiement Cloudflare (front + back)
 
 ## Déploiement à la main via le dashboard Cloudflare (sans wrangler)
 
+> **Ce n'est plus le mode en service** — voir « Déploiement automatique »
+> plus bas. Depuis que le workflow publie sur le Worker
+> `front-outil-palette-de-couleurs`, celui-ci sert le front **et** l'API :
+> le Worker `nuancier-back` et son service binding `BACK` ne servent plus
+> à rien et peuvent être supprimés. Cette section reste ici comme chemin
+> de secours, pour remettre le site en ligne depuis le dashboard si
+> GitHub Actions ou le jeton Cloudflare font défaut.
+
 Deux Workers créés depuis le template « Hello World » — un **front**, un
 **back** — plus un namespace **KV** pour la base. Tout se fait en
 copiant-collant `front.js` et `back.js` et en cliquant dans le dashboard.
@@ -133,7 +141,16 @@ identiques.
 C'est le mode réellement utilisé aujourd'hui. **Tout commit poussé sur la
 branche par défaut part en ligne**, via `.github/workflows/deploy.yml`.
 
-En ligne : <https://nuancier.seedtobloom.workers.dev>
+En ligne : <https://front-outil-palette-de-couleurs.seedtobloom.workers.dev>
+
+> **Le nom du Worker est l'adresse du site.** Il est fixé par le champ
+> `name` de `wrangler.jsonc`. Il a valu `nuancier` pendant quatre
+> déploiements : chacun a réussi, mais publiait un SECOND Worker à une
+> autre adresse, pendant que l'adresse réellement consultée continuait
+> d'afficher le `front.js` collé à la main. Rien ne signale cette
+> situation — le déploiement est vert des deux côtés. Si un jour le site
+> ne bouge plus malgré des workflows au vert, c'est la première chose à
+> vérifier.
 
 Le workflow enchaîne installation, contrôle de types, tests, construction,
 publication — dans cet ordre. La publication est la dernière étape : si un

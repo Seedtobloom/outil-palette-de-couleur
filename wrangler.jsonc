@@ -3,9 +3,22 @@
   // seul Worker Cloudflare. Le moteur colorimétrique reste côté client :
   // le Worker ne fait que sauvegarder et servir les palettes partagées.
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "nuancier",
+  // ⚠ CE NOM EST L'ADRESSE EN LIGNE, ne pas le changer à la légère :
+  // c'est lui qui donne front-outil-palette-de-couleurs.<compte>.workers.dev.
+  //
+  // Il valait « nuancier » : le déploiement automatique publiait donc un
+  // SECOND Worker, à une autre adresse, pendant que l'adresse réellement
+  // utilisée continuait d'afficher le `front.js` collé à la main. Les
+  // déploiements réussissaient, et personne ne voyait rien changer.
+  //
+  // Ce Worker-ci sert le front ET l'API (/api/*) : le Worker « back »
+  // séparé et son service binding BACK ne servent plus à rien.
+  "name": "front-outil-palette-de-couleurs",
   "main": "back/index.ts",
   "compatibility_date": "2026-07-01",
+  // Explicite plutôt que par défaut : c'est l'adresse workers.dev qui est
+  // en usage, elle ne doit pas dépendre d'un réglage du dashboard.
+  "workers_dev": true,
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
