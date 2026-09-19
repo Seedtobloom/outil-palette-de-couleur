@@ -91,6 +91,9 @@ export { buildTheme, type Theme, type ThemeMode, type AuditedPair } from './sema
 export { generatePalette, type GeneratedPalette, type PaletteOptions } from './palette';
 export { exportCss } from './export/css';
 export { exportTailwind } from './export/tailwind';
+export { exportDtcg, exportScss, nomsTechniques, type EntreeNuancier } from './export/nuancier';
+export { exportAse } from './export/ase';
+export { exportPlancheSvg, type EntreePlanche } from './export/planche';
 
 export {
   analyzeCoverage,

@@ -135,6 +135,33 @@ describe('correction d’ensemble', () => {
     expect(compte(bilan.couleurs)).toBeLessThan(avant);
   });
 
+  /**
+   * Le verrou. Une couleur épinglée — un logo déposé, une teinte imposée
+   * par un client, une couleur déjà imprimée — ne doit JAMAIS bouger,
+   * même si la déplacer réglerait tout. L'ajustement s'appuie dessus et
+   * corrige autour.
+   */
+  it('ne déplace jamais une couleur verrouillée', () => {
+    const bilan = corrigeTout(palette, 'texte', { verrouillees: ['a', 'b'] });
+    const apres = new Map(bilan.couleurs.map((c) => [c.id, c.hex]));
+    expect(apres.get('a')).toBe('#437ffd');
+    expect(apres.get('b')).toBe('#d05219');
+    expect(bilan.changements.every((c) => c.id !== 'a' && c.id !== 'b')).toBe(true);
+  });
+
+  it('corrige quand même le reste autour des couleurs verrouillées', () => {
+    const bilan = corrigeTout(palette, 'texte', { verrouillees: ['a'] });
+    expect(bilan.changements.length).toBeGreaterThan(0);
+  });
+
+  it('tout verrouiller ne change rien, et ne plante pas', () => {
+    const bilan = corrigeTout(palette, 'texte', {
+      verrouillees: palette.map((c) => c.id),
+    });
+    expect(bilan.changements).toHaveLength(0);
+    expect(bilan.couleurs.map((c) => c.hex)).toEqual(palette.map((c) => c.hex));
+  });
+
   it('ne casse jamais plus de paires qu’il n’en répare', () => {
     // Invariant central : chaque déplacement retenu fait strictement
     // baisser le nombre d'échecs, donc le bilan ne peut pas régresser.

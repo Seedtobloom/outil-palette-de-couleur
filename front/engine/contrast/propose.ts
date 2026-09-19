@@ -520,12 +520,17 @@ function compteEchecs(couleurs: Couleur[], seuil: number): number {
 export function corrigeTout(
   couleurs: Couleur[],
   usage: PairUse = 'texte',
-  options: { budget?: number; maxTours?: number } = {},
+  options: { budget?: number; maxTours?: number; verrouillees?: readonly string[] } = {},
 ): Bilan {
   const budget = options.budget ?? MOUVEMENT_DOUX;
   const maxTours = options.maxTours ?? 40;
   const seuil = SEUILS[usage].aa;
   const origines = new Map(couleurs.map((c) => [c.id, c.hex]));
+  // Couleurs épinglées par la graphiste : l'ajustement automatique peut
+  // s'appuyer dessus, jamais les déplacer. C'est ce qui rend le verrou
+  // utile au-delà de l'affichage — un logo déposé, une couleur imposée
+  // par un client, une teinte déjà imprimée ne se « corrigent » pas.
+  const verrouillees = new Set(options.verrouillees ?? []);
 
   let courant = couleurs.map((c) => ({ ...c }));
   const changements: Changement[] = [];
@@ -541,6 +546,7 @@ export function corrigeTout(
         if (i === j) continue;
         const avant = courant[i] as Couleur;
         const fond = courant[j] as Couleur;
+        if (verrouillees.has(avant.id)) continue;
         if (contrastRatio(avant.hex, fond.hex) >= seuil) continue;
 
         const prop = proposeCorrections(avant.hex, fond.hex, usage);
