@@ -71,17 +71,19 @@ describe('contrastes du chrome de l’application', () => {
   });
 
   /**
-   * La conséquence : c'est le tranchant Terre en tête de carte qui porte
-   * l'état. Il doit se détacher DES DEUX fonds qu'il côtoie — celui de la
-   * page et celui de la carte active elle-même.
+   * La conséquence : c'est le Terre qui porte l'état, partout où la
+   * Glycine sert de fond — la pastille pleine du jalon en cours dans le
+   * fil, et le bouton « Continuer » de la carte « prochaine étape ». Il
+   * doit se détacher DES DEUX fonds qu'il côtoie : celui de la page et
+   * la Glycine elle-même.
    */
-  it('le marqueur Terre de l’étape courante se détache du fond et de la carte (SC 1.4.11)', () => {
+  it('le Terre se détache du fond de page et de la Glycine (SC 1.4.11)', () => {
     expect(contrastRatio(terre, token('off-white'))).toBeGreaterThanOrEqual(3);
     expect(contrastRatio(terre, glycine)).toBeGreaterThanOrEqual(3);
   });
 
-  it('la pastille numérotée reste lisible sur l’étape courante', () => {
-    // Chiffre Paille sur pastille Terre, posée sur la carte Glycine.
+  it('la pastille numérotée du jalon en cours reste lisible', () => {
+    // Chiffre Paille sur pastille Terre, posée sur le jalon Glycine.
     expect(contrastRatio(paille, terre)).toBeGreaterThanOrEqual(4.5);
   });
 

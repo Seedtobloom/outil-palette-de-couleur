@@ -1,18 +1,20 @@
 <script lang="ts">
   /**
-   * Panneau latéral droit, persistant — la troisième colonne.
+   * Panneau d'accompagnement, colonne de droite.
    *
-   * Il porte ce qui accompagne la décision en cours : l'assistant de
-   * complétion (étape Nuancier), le guide d'attribution (Rôles), le
-   * rappel de règle (Contraste)… et, en bas, l'aperçu de l'étape
-   * suivante avec sa condition d'accès (brief §7).
+   * Il porte ce qui aide la décision en cours : l'assistant de
+   * complétion (Nuancier), le guide d'attribution (Rôles), le rappel de
+   * règle (Contraste), les repères d'encrage (Impression), l'état de
+   * santé (Livraison) — et, en bas, l'étape suivante avec sa condition.
    *
-   * Chaque carte suit la structure du DS : micro-libellé en capitales,
-   * contenu, phrase d'explication, actions.
+   * Chaque bloc suit la même structure : un intitulé en capitales posé
+   * au-dessus, puis une carte blanche. L'intitulé vit hors de la carte :
+   * c'est ce qui donne au panneau sa lecture en colonne.
    */
   import {
     analyzeCoverage,
     gamutMap,
+    healthScore,
     maxChroma,
     oklchToHex,
     parseToOklch,
@@ -48,6 +50,17 @@
   const couverture = $derived(analyzeCoverage(settings.colors, suggereBande));
   const manques = $derived(couverture.advices.filter((a) => a.kind === 'gap' && a.suggestion));
 
+  /** État de la palette, à l'étape de livraison : ce qui est acquis, ce
+   *  qui reste. Un constat par ligne, le signe avant la couleur. */
+  const sante = $derived(healthScore(settings.colors));
+  const constats = $derived(
+    couverture.advices.map((a) => ({
+      id: a.id,
+      ok: a.kind === 'ok',
+      texte: a.message,
+    })),
+  );
+
   function ajouter(hex: string, nom: string): void {
     settings.colors = [
       ...settings.colors,
@@ -68,87 +81,119 @@
 
 <aside class="panneau" aria-label="Assistance">
   {#if etapeId === 'palette' || etapeId === 'color'}
-    <section class="carte">
-      <p class="micro">Compléter le système</p>
-      {#if manques.length > 0}
-        {#each manques as m (m.id)}
-          {@const hex = autreHex(m.suggestion?.hex ?? '#888888')}
-          <div class="suggestion">
-            <span class="pastille" style="background:{hex}"></span>
-            <span class="hex value">{hex}</span>
-            <p class="explication">{m.why}</p>
-            <div class="sug-actions">
-              <button class="principal" onclick={() => ajouter(hex, m.suggestion?.label ?? 'Couleur')}>
-                Ajouter
-              </button>
-              <button onclick={() => (variante += 1)}>Autre proposition</button>
+    <section class="bloc">
+      <p class="section-titre"><span class="glyphe" aria-hidden="true">✛</span> Compléter le système</p>
+      <div class="carte">
+        {#if manques.length > 0}
+          {#each manques as m (m.id)}
+            {@const hex = autreHex(m.suggestion?.hex ?? '#888888')}
+            <div class="suggestion">
+              <span class="pastille" style="background:{hex}"></span>
+              <span class="hex value">{hex}</span>
+              <p class="explication">{m.why}</p>
+              <div class="sug-actions">
+                <button class="principal" onclick={() => ajouter(hex, m.suggestion?.label ?? 'Couleur')}>
+                  Ajouter
+                </button>
+                <button onclick={() => (variante += 1)}>Autre proposition</button>
+              </div>
             </div>
-          </div>
-        {/each}
-      {:else}
-        <p class="explication">
-          Clair, moyen et foncé sont couverts. Tu as de quoi construire des fonds, des aplats et
-          des textes sans inventer une couleur en cours de route.
-        </p>
-      {/if}
+          {/each}
+        {:else}
+          <p class="explication">
+            Clair, moyen et foncé sont couverts. Tu as de quoi construire des fonds, des aplats et
+            des textes sans inventer une couleur en cours de route.
+          </p>
+        {/if}
+      </div>
     </section>
   {/if}
 
   {#if etapeId === 'contrast'}
-    <section class="carte">
-      <p class="micro">Ce qu’on vérifie</p>
-      <p class="explication">{SEUILS[usageContraste].regle}.</p>
-      <ul class="rappels">
-        <li><span class="value">4,5:1</span> texte courant (AA)</li>
-        <li><span class="value">7:1</span> texte courant (AAA)</li>
-        <li><span class="value">3:1</span> grand texte, icônes, bordures, focus</li>
-      </ul>
-      <p class="explication">
-        Le 3:1 des éléments non textuels est un point de non-conformité fréquent : presque
-        aucun outil ne le vérifie.
-      </p>
+    <section class="bloc">
+      <p class="section-titre"><span class="glyphe" aria-hidden="true">◐</span> Ce qu’on vérifie</p>
+      <div class="carte">
+        <p class="explication">{SEUILS[usageContraste].regle}.</p>
+        <ul class="rappels">
+          <li><span class="value">4,5:1</span> texte courant (AA)</li>
+          <li><span class="value">7:1</span> texte courant (AAA)</li>
+          <li><span class="value">3:1</span> grand texte, icônes, bordures, focus</li>
+        </ul>
+        <p class="explication">
+          Le 3:1 des éléments non textuels est un point de non-conformité fréquent : presque
+          aucun outil ne le vérifie.
+        </p>
+      </div>
     </section>
   {/if}
 
   {#if etapeId === 'roles'}
-    <section class="carte">
-      <p class="micro">Guide d’attribution</p>
-      <dl class="guide">
-        <dt>Dominante</dt>
-        <dd>La couleur qu’on retient de la marque. Une seule, deux au maximum.</dd>
-        <dt>Accent</dt>
-        <dd>Boutons, liens, mises en avant. Elle doit porter du texte lisible.</dd>
-        <dt>Neutres</dt>
-        <dd>Fonds, surfaces et textes — la charpente. Teintés, jamais gris purs.</dd>
-      </dl>
+    <section class="bloc">
+      <p class="section-titre"><span class="glyphe" aria-hidden="true">◎</span> Guide d’attribution</p>
+      <div class="carte">
+        <dl class="guide">
+          <dt>Dominante</dt>
+          <dd>La couleur qu’on retient de la marque. Une seule, deux au maximum.</dd>
+          <dt>Accent</dt>
+          <dd>Boutons, liens, mises en avant. Elle doit porter du texte lisible.</dd>
+          <dt>Neutres</dt>
+          <dd>Fonds, surfaces et textes — la charpente. Teintés, jamais gris purs.</dd>
+        </dl>
+      </div>
     </section>
   {/if}
 
   {#if etapeId === 'print'}
-    <section class="carte">
-      <p class="micro">Repères d’encrage</p>
-      <ul class="rappels">
-        <li><span class="value">200 %</span> face principale</li>
-        <li><span class="value">150 %</span> faces secondaires</li>
-        <li><span class="value">300 %</span> refus probable en offset</li>
-      </ul>
-      <p class="note-pied">
-        Conversion indicative, à vérifier en profil ICC avant BAT.
-      </p>
+    <section class="bloc">
+      <p class="section-titre"><span class="glyphe" aria-hidden="true">▤</span> Repères d’encrage</p>
+      <div class="carte">
+        <ul class="rappels">
+          <li><span class="value">200 %</span> face principale</li>
+          <li><span class="value">150 %</span> faces secondaires</li>
+          <li><span class="value">300 %</span> refus probable en offset</li>
+        </ul>
+        <p class="note-pied">Conversion indicative, à vérifier en profil ICC avant BAT.</p>
+      </div>
     </section>
   {/if}
 
-  <!-- Aperçu de l'étape suivante, en bas à droite (brief §7) -->
+  <!-- État de la palette, à la livraison : le bilan d'un coup d'œil. -->
+  {#if etapeId === 'deliver' && settings.colors.length > 0}
+    <section class="bloc">
+      <p class="section-titre"><span class="glyphe" aria-hidden="true">✛</span> État de la palette</p>
+      <div class="carte">
+        <p class="score-ligne">
+          <span>Score global</span>
+          <span class="score-val value">{sante.total} %</span>
+        </p>
+        <span class="score-barre" aria-hidden="true">
+          <span style="inline-size:{sante.total}%"></span>
+        </span>
+        <ul class="constats">
+          {#each constats as c (c.id)}
+            <li class="pastille-etat" data-ok={c.ok}>
+              <span class="signe" aria-hidden="true">{c.ok ? '✓' : '·'}</span>
+              <span>{c.texte}</span>
+            </li>
+          {/each}
+        </ul>
+      </div>
+    </section>
+  {/if}
+
+  <!-- Aperçu de l'étape suivante (brief §7) -->
   {#if suivante}
-    <section class="carte suivante">
-      <p class="micro">Prochaine étape</p>
-      <p class="suivante-titre">{suivante.titre}</p>
-      {#if conditionSuivante}
-        <p class="condition"><span aria-hidden="true">✕</span> {conditionSuivante}</p>
-      {/if}
-      <button class="principal large" onclick={onContinuer} disabled={!peutContinuer}>
-        Continuer →
-      </button>
+    <section class="bloc">
+      <p class="section-titre"><span class="glyphe" aria-hidden="true">→</span> Prochaine étape</p>
+      <div class="carte suivante">
+        <p class="suivante-titre">{suivante.titre}</p>
+        {#if conditionSuivante}
+          <p class="condition"><span aria-hidden="true">✕</span> {conditionSuivante}</p>
+        {/if}
+        <button class="principal large" onclick={onContinuer} disabled={!peutContinuer}>
+          Continuer →
+        </button>
+      </div>
     </section>
   {/if}
 </aside>
@@ -156,23 +201,23 @@
 <style>
   .panneau {
     display: grid;
-    gap: 0.6rem;
+    gap: 1.1rem;
     align-content: start;
     position: sticky;
-    top: 4.5rem;
+    top: 5.5rem;
+  }
+
+  .bloc {
+    display: grid;
   }
 
   .carte {
     background: var(--surface-canvas);
-    border-radius: var(--radius);
+    border-radius: var(--radius-carte);
     box-shadow: var(--ombre-carte);
-    padding: 1rem 1.1rem;
+    padding: 1.05rem 1.15rem;
     display: grid;
-    gap: 0.5rem;
-  }
-
-  .carte .micro {
-    margin: 0;
+    gap: 0.6rem;
   }
 
   .suggestion {
@@ -182,7 +227,7 @@
 
   .pastille {
     inline-size: 100%;
-    block-size: 2.4rem;
+    block-size: 2.6rem;
     border-radius: var(--radius);
   }
 
@@ -193,10 +238,9 @@
 
   .explication {
     margin: 0;
-    font-size: 0.78rem;
-    line-height: 1.45;
+    font-size: 0.8rem;
+    line-height: 1.5;
     color: var(--text-muted);
-    max-inline-size: var(--mesure);
   }
 
   .sug-actions {
@@ -211,7 +255,6 @@
     min-block-size: 36px;
   }
 
-  /* Le remplissage Terre vient de la feuille globale. */
   button.large {
     inline-size: 100%;
     justify-content: center;
@@ -222,8 +265,8 @@
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 0.25rem;
-    font-size: 0.8rem;
+    gap: 0.3rem;
+    font-size: 0.82rem;
   }
 
   .rappels .value {
@@ -243,27 +286,75 @@
   }
 
   .guide dt {
-    font-size: 0.82rem;
+    font-size: 0.84rem;
     font-weight: 600;
   }
 
   .guide dd {
-    margin: 0 0 0.4rem;
-    font-size: 0.78rem;
+    margin: 0 0 0.5rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
-    line-height: 1.4;
+    line-height: 1.45;
+  }
+
+  /* — État de la palette — */
+  .score-ligne {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 0;
+    font-size: 0.85rem;
+  }
+
+  .score-val {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .score-barre {
+    display: block;
+    block-size: 6px;
+    border-radius: 3px;
+    background: var(--surface-attente);
+    overflow: hidden;
+  }
+
+  .score-barre span {
+    display: block;
+    block-size: 100%;
+    background: var(--surface-chrome);
+  }
+
+  .constats {
+    list-style: none;
+    margin: 0.2rem 0 0;
+    padding: 0;
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  /*
+   * Prochaine étape : la seule carte colorée du panneau, en Glycine.
+   * Le texte y passe en Ébène (13:1). Le bouton, lui, doit se détacher
+   * DE la Glycine : il est en Terre plein, 8,98:1 sur ce fond — les deux
+   * écarts sont verrouillés dans chrome.test.ts.
+   */
+  .carte.suivante {
+    background: var(--etape-active);
+    box-shadow: none;
+    color: var(--ebene);
   }
 
   .suivante-titre {
     margin: 0;
     font-family: var(--font-titre);
-    font-size: 1.05rem;
+    font-size: 1.15rem;
   }
 
   .condition {
     margin: 0;
-    font-size: 0.76rem;
+    font-size: 0.78rem;
     font-style: italic;
-    color: var(--text-muted);
+    color: rgba(28, 18, 5, 0.62);
   }
 </style>

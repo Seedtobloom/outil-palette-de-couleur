@@ -19,20 +19,56 @@
   --mesure: 420px;
 
   /* Formes : arrondis généreux sur les cartes, pilule sur les boutons. */
+  --radius-carte: 16px;
   --radius: 12px;
   --radius-sm: 8px;
   --radius-pill: 999px;
-  --ombre-carte: 0 1px 2px rgba(28, 18, 5, 0.04), 0 1px 3px rgba(28, 18, 5, 0.06);
+  --ombre-carte: 0 1px 2px rgba(28, 18, 5, 0.03), 0 6px 20px rgba(28, 18, 5, 0.05);
   --ombre-flottante: 0 4px 24px rgba(28, 18, 5, 0.12);
   --transition: 240ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Surfaces d'état — teintes pâles dérivées des tokens de verdict, pour
+     ne jamais inventer une couleur à côté du DS. Le verdict se lit
+     d'abord au signe et au mot : ces fonds ne font que renforcer. */
+  --surface-conforme: color-mix(in oklab, var(--conforme) 12%, var(--blanc));
+  --bord-conforme: color-mix(in oklab, var(--conforme) 28%, var(--blanc));
+  --surface-attente: color-mix(in oklab, var(--ink) 5%, var(--blanc));
+  --bord-attente: rgba(28, 18, 5, 0.1);
+
+  /* Filets : un seul gris de trait dans toute l'interface. */
+  --filet: rgba(28, 18, 5, 0.09);
+  --filet-fort: rgba(28, 18, 5, 0.16);
 }
 
 * {
   box-sizing: border-box;
 }
 
+/*
+ * Plan de travail : un dégradé chaud très doux, Paille en haut à gauche,
+ * Glycine en haut à droite, Off-white partout ailleurs. Il n'est là que
+ * pour donner de l'air — les échantillons, eux, sont toujours jugés sur
+ * une carte blanche posée dessus (règle des deux zones, brief §9.1).
+ */
 html {
-  background: var(--surface-panel);
+  background:
+    radial-gradient(
+      1400px 900px at 4% -12%,
+      color-mix(in oklab, var(--paille) 92%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      1100px 700px at 100% -6%,
+      color-mix(in oklab, var(--glycine) 52%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      900px 600px at 50% 110%,
+      color-mix(in oklab, var(--paille) 42%, transparent),
+      transparent 60%
+    ),
+    var(--surface-panel);
+  background-attachment: fixed;
 }
 
 body {
@@ -115,12 +151,62 @@ button.solid:hover {
   color: var(--text-on-chrome);
 }
 
-/* Carte : la brique de base de toute l'interface. */
+/* — Carte : la brique de base de toute l'interface — */
 .carte-blanche {
   background: var(--surface-canvas);
-  border-radius: var(--radius);
+  border-radius: var(--radius-carte);
   box-shadow: var(--ombre-carte);
   padding: 1.4rem 1.5rem;
+}
+
+/* — Intitulé de section : petit glyphe + capitales trackées, posé au-
+     dessus de la carte plutôt que dedans. — */
+.section-titre {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.5rem 0.15rem;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+
+.section-titre .glyphe {
+  font-size: 0.8rem;
+  line-height: 1;
+  opacity: 0.75;
+}
+
+/* — Pastille d'état : un critère rempli, ou en attente. Le signe porte
+     l'information, la couleur ne fait que la renforcer. — */
+.pastille-etat {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  background: var(--surface-attente);
+  border: 1px solid var(--bord-attente);
+  color: var(--text-main);
+}
+
+.pastille-etat[data-ok='true'] {
+  background: var(--surface-conforme);
+  border-color: var(--bord-conforme);
+}
+
+.pastille-etat .signe {
+  flex: none;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.pastille-etat[data-ok='true'] .signe {
+  color: var(--conforme);
 }
 
 button:disabled {
