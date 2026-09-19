@@ -11,12 +11,17 @@
     scorePalette,
     exportCss,
     exportTailwind,
+    exportDtcg,
+    exportScss,
+    exportAse,
+    exportPlancheSvg,
     generatePalette,
     SCHEMES,
     type GeneratedPalette,
   } from '../engine';
   import { settings, MOODS, type StartMode, type UsageContext } from './state.svelte';
   import { parcours } from './parcours.svelte';
+  import { messages } from './messages.svelte';
   import StepPalette from './StepPalette.svelte';
   import StepHarmony from './StepHarmony.svelte';
   import StepContrast from './StepContrast.svelte';
@@ -182,16 +187,109 @@
     return { tested, failures };
   });
 
-  let exportFormat: 'css' | 'tailwind' = $state('css');
+  /**
+   * Deux familles d'export, et la distinction compte :
+   *
+   * - CSS et Tailwind exportent la palette GÉNÉRÉE, rampes et rôles
+   *   compris — c'est ce qui part chez une personne qui intègre ;
+   * - DTCG et SCSS exportent LE NUANCIER, les couleurs qu'elle a
+   *   réellement retenues et nommées elle-même.
+   *
+   * Confondre les deux, c'est livrer 88 variables à quelqu'un qui en
+   * attendait cinq.
+   */
+  type FormatTexte = 'css' | 'tailwind' | 'dtcg' | 'scss';
+
+  const FORMATS: { id: FormatTexte; label: string; fichier: string; type: string }[] = [
+    { id: 'css', label: 'CSS', fichier: 'nuancier.css', type: 'text/css' },
+    { id: 'tailwind', label: 'Tailwind', fichier: 'tailwind.config.js', type: 'text/javascript' },
+    { id: 'dtcg', label: 'Tokens', fichier: 'nuancier.tokens.json', type: 'application/json' },
+    { id: 'scss', label: 'SCSS', fichier: '_nuancier.scss', type: 'text/x-scss' },
+  ];
+
+  let exportFormat: FormatTexte = $state('css');
   let copied = $state(false);
-  const exportText = $derived(
-    palette ? (exportFormat === 'css' ? exportCss(palette) : exportTailwind(palette)) : '',
-  );
+
+  const formatCourant = $derived(FORMATS.find((f) => f.id === exportFormat) as (typeof FORMATS)[0]);
+
+  const exportText = $derived.by(() => {
+    if (exportFormat === 'dtcg') return exportDtcg(settings.colors);
+    if (exportFormat === 'scss') return exportScss(settings.colors);
+    if (!palette) return '';
+    return exportFormat === 'css' ? exportCss(palette) : exportTailwind(palette);
+  });
 
   async function copyExport(): Promise<void> {
     await navigator.clipboard.writeText(exportText);
     copied = true;
     setTimeout(() => (copied = false), 1600);
+  }
+
+  /** Déclenche un téléchargement à partir d'un contenu en mémoire. */
+  function telecharge(contenu: BlobPart, nom: string, type: string): void {
+    const url = URL.createObjectURL(new Blob([contenu], { type }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nom;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function telechargeTexte(): void {
+    telecharge(exportText, formatCourant.fichier, `${formatCourant.type};charset=utf-8`);
+    messages.succes(`${formatCourant.fichier} téléchargé.`);
+  }
+
+  function telechargeAse(): void {
+    const octets = exportAse(settings.colors, 'Nuancier');
+    telecharge(octets, 'nuancier.ase', 'application/octet-stream');
+    messages.succes('nuancier.ase téléchargé — à ouvrir dans le panneau Nuancier d’Illustrator.');
+  }
+
+  const plancheSvg = $derived(exportPlancheSvg(settings.colors));
+
+  function telechargePlancheSvg(): void {
+    telecharge(plancheSvg, 'planche-nuancier.svg', 'image/svg+xml;charset=utf-8');
+    messages.succes('planche-nuancier.svg téléchargée.');
+  }
+
+  /**
+   * La même planche en PNG, pour les envois où un SVG n'est pas lisible
+   * (messageries, présentations). Rasterisée à 2× via un canvas : le
+   * dessin reste défini par la fonction pure du moteur, l'interface ne
+   * fait que le mettre en pixels.
+   */
+  function telechargePlanchePng(): void {
+    const echelle = 2;
+    const image = new Image();
+    const url = URL.createObjectURL(new Blob([plancheSvg], { type: 'image/svg+xml;charset=utf-8' }));
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = image.width * echelle;
+      canvas.height = image.height * echelle;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        messages.refus('Le navigateur n’a pas pu produire le PNG. Le SVG, lui, fonctionne.');
+        return;
+      }
+      ctx.scale(echelle, echelle);
+      ctx.drawImage(image, 0, 0);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          messages.refus('Le navigateur n’a pas pu produire le PNG. Le SVG, lui, fonctionne.');
+          return;
+        }
+        telecharge(blob, 'planche-nuancier.png', 'image/png');
+        messages.succes('planche-nuancier.png téléchargée.');
+      }, 'image/png');
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      messages.refus('Le navigateur n’a pas pu produire le PNG. Le SVG, lui, fonctionne.');
+    };
+    image.src = url;
   }
 
   const BRAND_RAMPS = [
@@ -213,7 +311,7 @@
 
 <div class="flow">
   {#key current.id}
-    <section class="stage">
+    <section class="stage zone-evaluation">
       <header class="stage-head">
         <p class="etape-num">Étape {parcours.index + 1}</p>
         <h2>{@html current.title.replace(/(\w+)\.$/, '<i>$1</i>.')}</h2>
@@ -470,22 +568,65 @@
               </div>
             {/each}
           </div>
-          <div class="deliver-row">
-            <div class="seg" role="group" aria-label="Format">
-              <button aria-pressed={exportFormat === 'css'} onclick={() => (exportFormat = 'css')}
-                >CSS</button
-              >
-              <button
-                aria-pressed={exportFormat === 'tailwind'}
-                onclick={() => (exportFormat = 'tailwind')}>Tailwind</button
-              >
+          <div class="panel">
+            <p class="panel-tete">
+              Pour l’intégration
+              <span class="panel-compte">{formatCourant.fichier}</span>
+            </p>
+            <div class="deliver-row">
+              <div class="seg" role="group" aria-label="Format">
+                {#each FORMATS as f (f.id)}
+                  <button aria-pressed={exportFormat === f.id} onclick={() => (exportFormat = f.id)}>
+                    {f.label}
+                  </button>
+                {/each}
+              </div>
+              <button class="solid" onclick={copyExport}>
+                {copied ? 'Copié ✓' : 'Copier le code'}
+              </button>
+              <button onclick={telechargeTexte}>Télécharger</button>
             </div>
-            <button class="solid" onclick={copyExport}>{copied ? 'Copié ✓' : 'Copier le code'}</button>
+            <p class="note-pied">
+              {#if exportFormat === 'dtcg' || exportFormat === 'scss'}
+                Tes couleurs, avec les noms que tu leur as donnés.
+              {:else}
+                Le système complet généré à l’étape 4 : rampes, rôles, thèmes clair et sombre.
+              {/if}
+            </p>
+            <details class="why">
+              <summary>Voir le code</summary>
+              <textarea readonly rows="8" value={exportText} aria-label="Code exporté"></textarea>
+            </details>
           </div>
-          <details class="why">
-            <summary>Voir le code</summary>
-            <textarea readonly rows="8" value={exportText} aria-label="Code exporté"></textarea>
-          </details>
+
+          <!--
+            Les deux livrables qui n'ont rien à voir avec du code : le
+            nuancier qui s'ouvre dans Illustrator, et la planche qu'on
+            envoie au client. Ce sont ceux qu'une graphiste utilise le
+            plus souvent, donc ils ont leur propre bloc.
+          -->
+          <div class="panel">
+            <p class="panel-tete">
+              Pour la création
+              <span class="panel-compte">{settings.colors.length} couleurs</span>
+            </p>
+            <div class="deliver-row">
+              <button class="solid" onclick={telechargeAse} disabled={settings.colors.length === 0}>
+                Nuancier .ase
+              </button>
+              <button onclick={telechargePlanchePng} disabled={settings.colors.length === 0}>
+                Planche PNG
+              </button>
+              <button onclick={telechargePlancheSvg} disabled={settings.colors.length === 0}>
+                Planche SVG
+              </button>
+            </div>
+            <p class="note-pied">
+              Le .ase s’ouvre dans Illustrator, InDesign et Photoshop, avec tes noms. La planche
+              porte les deux contrastes de référence de chaque couleur, sur blanc et sur noir.
+            </p>
+          </div>
+
           <ShareLink />
         {/if}
       {/if}
@@ -516,14 +657,23 @@
    */
   .flow {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 19rem;
-    gap: 1.5rem;
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    gap: 1.6rem;
     align-items: start;
-    max-inline-size: 78rem;
+    max-inline-size: var(--largeur-max);
     margin: 0 auto;
   }
 
-  /* — Scène : carte blanche posée sur le fond doux — */
+  /*
+   * — Scène : carte BLANCHE OPAQUE posée sur le fond doux —
+   *
+   * Le reste du chrome est en verre dépoli. Pas ici : c'est la zone
+   * d'évaluation. Une carte translucide laisserait le dégradé passer
+   * derrière les échantillons, et la règle des deux zones (brief §9.1)
+   * tomberait — l'outil jugerait des couleurs sur un fond qui n'est pas
+   * celui qu'il annonce. `zone-evaluation` rétablit aussi les tokens
+   * clairs quand l'interface est en thème sombre.
+   */
   .stage {
     inline-size: 100%;
     background: var(--surface-canvas);
@@ -559,12 +709,16 @@
     border-block-end: 1px solid var(--filet);
   }
 
+  /* Sur-titre : c'est la seule marque de couleur de la tête de scène,
+     en Terre. Il donne le repère de progression sans concurrencer le
+     titre, qui reste en Ébène. */
   .etape-num {
     margin: 0 0 0.1rem;
     font-size: 0.6875rem;
+    font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.14em;
-    color: var(--text-muted);
+    color: var(--surface-chrome);
   }
 
   .stage-head h2 {

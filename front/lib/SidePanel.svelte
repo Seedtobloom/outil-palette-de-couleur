@@ -22,6 +22,7 @@
     type PairUse,
   } from '../engine';
   import { settings } from './state.svelte';
+  import { journal } from './journal.svelte';
 
   let {
     etapeId,
@@ -62,10 +63,12 @@
   );
 
   function ajouter(hex: string, nom: string): void {
-    settings.colors = [
-      ...settings.colors,
-      { id: `s${settings.colors.length}${Date.now().toString(36)}`, hex, label: nom },
-    ];
+    journal.agis(`Ajout de ${nom}`, () => {
+      settings.colors = [
+        ...settings.colors,
+        { id: `s${settings.colors.length}${Date.now().toString(36)}`, hex, label: nom },
+      ];
+    });
   }
 
   /** « Autre proposition » : on décale la clarté sans changer la famille. */
@@ -83,7 +86,9 @@
   {#if etapeId === 'palette' || etapeId === 'color'}
     <section class="bloc">
       <p class="section-titre"><span class="glyphe" aria-hidden="true">✛</span> Compléter le système</p>
-      <div class="carte">
+      <!-- Seule carte opaque du panneau : elle montre des couleurs à
+           juger, pas seulement du texte d'accompagnement. -->
+      <div class="carte opaque zone-evaluation">
         {#if manques.length > 0}
           {#each manques as m (m.id)}
             {@const hex = autreHex(m.suggestion?.hex ?? '#888888')}
@@ -185,7 +190,7 @@
   {#if suivante}
     <section class="bloc">
       <p class="section-titre"><span class="glyphe" aria-hidden="true">→</span> Prochaine étape</p>
-      <div class="carte suivante">
+      <div class="carte suivante sur-glycine">
         <p class="suivante-titre">{suivante.titre}</p>
         {#if conditionSuivante}
           <p class="condition"><span aria-hidden="true">✕</span> {conditionSuivante}</p>
@@ -211,10 +216,18 @@
     display: grid;
   }
 
+  /*
+   * Verre dépoli : le panneau accompagne, il ne juge pas. C'est du
+   * chrome, il peut donc laisser passer le fond. Les échantillons de
+   * suggestion, eux, restent posés sur un fond blanc opaque juste en
+   * dessous (`.pastille`), pour ne pas juger une couleur au travers du
+   * dégradé (brief §9.1).
+   */
   .carte {
-    background: var(--surface-canvas);
+    background: var(--verre);
+    backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid var(--verre-bord);
     border-radius: var(--radius-carte);
-    box-shadow: var(--ombre-carte);
     padding: 1.05rem 1.15rem;
     display: grid;
     gap: 0.6rem;
@@ -225,10 +238,19 @@
     gap: 0.35rem;
   }
 
+  .carte.opaque {
+    background: var(--surface-canvas);
+    backdrop-filter: none;
+    border-color: transparent;
+    box-shadow: var(--ombre-carte);
+  }
+
   .pastille {
+    display: block;
     inline-size: 100%;
     block-size: 2.6rem;
     border-radius: var(--radius);
+    box-shadow: inset 0 0 0 1px var(--filet-fort);
   }
 
   .hex {

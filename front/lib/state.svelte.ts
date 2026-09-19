@@ -7,8 +7,16 @@ import type { SchemeName, ThemeMode, WheelName } from '../engine';
 export type UsageContext = 'web' | 'identity' | 'print' | 'dataviz';
 export type StartMode = 'color' | 'mood' | 'palette' | 'image';
 
-/** Une couleur du nuancier de travail (éditable par la graphiste). */
-export type PaletteEntry = { id: string; hex: string; label: string };
+/**
+ * Une couleur du nuancier de travail (éditable par la graphiste).
+ *
+ * `verrou` n'est pas qu'un cadenas d'affichage : une couleur verrouillée
+ * est exclue de l'ajustement automatique des contrastes (voir
+ * `corrigeTout`). C'est ce qui permet de figer une couleur imposée — un
+ * logo déposé, une teinte déjà imprimée — et de laisser l'outil corriger
+ * tout le reste autour d'elle.
+ */
+export type PaletteEntry = { id: string; hex: string; label: string; verrou?: boolean };
 
 export const settings = $state({
   usage: 'identity' as UsageContext,

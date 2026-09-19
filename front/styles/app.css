@@ -17,9 +17,12 @@
   --gap-bloc: 2.25rem;
   --pad-lat: 2rem;
   --mesure: 420px;
+  /* Largeur du plan de travail. 86rem ≈ 1376 px : deux colonnes
+     confortables sur un 15 pouces, sans ligne de lecture interminable. */
+  --largeur-max: 86rem;
 
   /* Formes : arrondis généreux sur les cartes, pilule sur les boutons. */
-  --radius-carte: 16px;
+  --radius-carte: 18px;
   --radius: 12px;
   --radius-sm: 8px;
   --radius-pill: 999px;
@@ -38,6 +41,84 @@
   /* Filets : un seul gris de trait dans toute l'interface. */
   --filet: rgba(28, 18, 5, 0.09);
   --filet-fort: rgba(28, 18, 5, 0.16);
+
+  /* Verre dépoli du chrome : translucide + flou, jamais d'ombre. Il
+     n'habille QUE le chrome — barre, panneaux, sous-cartes. Les zones
+     d'évaluation restent opaques (voir `.zone-evaluation`). */
+  --verre: color-mix(in oklab, var(--blanc) 74%, transparent);
+  --verre-bord: rgba(255, 255, 255, 0.55);
+}
+
+/*
+ * — Thème sombre —
+ *
+ * Il assombrit le chrome, pas la scène. Le Terre plein perdrait son
+ * détachement sur un fond presque noir : les surfaces d'action passent
+ * donc en Paille avec du texte Terre, couple déjà verrouillé en AAA.
+ * Tout est vérifié dans `chrome.test.ts`.
+ */
+:root[data-theme='sombre'] {
+  --surface-panel: #15100a;
+  --surface-canvas: #221a10;
+  --surface-chrome: var(--paille);
+  --text-on-chrome: var(--terre);
+  --text-main: var(--paille);
+  --text-muted: rgba(242, 229, 194, 0.66);
+
+  --surface-conforme: color-mix(in oklab, var(--conforme) 26%, #15100a);
+  --bord-conforme: color-mix(in oklab, var(--conforme) 46%, #15100a);
+  --surface-attente: rgba(242, 229, 194, 0.08);
+  --bord-attente: rgba(242, 229, 194, 0.16);
+  --filet: rgba(242, 229, 194, 0.12);
+  --filet-fort: rgba(242, 229, 194, 0.22);
+
+  --verre: color-mix(in oklab, #221a10 76%, transparent);
+  --verre-bord: rgba(242, 229, 194, 0.12);
+  --ombre-carte: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 26px rgba(0, 0, 0, 0.35);
+  --ombre-flottante: 0 6px 28px rgba(0, 0, 0, 0.5);
+}
+
+/*
+ * — Surface Glycine —
+ *
+ * La Glycine est une teinte claire, dans les deux thèmes : elle ne
+ * s'assombrit jamais. Tout ce qui se pose dessus doit donc rester en
+ * encre foncée, y compris quand l'interface est en sombre — sinon
+ * --text-main vaut Paille, et Paille sur Glycine est illisible. À
+ * appliquer sur TOUT bloc dont le fond est la Glycine.
+ */
+.sur-glycine {
+  --surface-chrome: var(--terre);
+  --text-on-chrome: var(--paille);
+  --text-main: var(--ebene);
+  --text-muted: rgba(28, 18, 5, 0.62);
+  color: var(--ebene);
+}
+
+/*
+ * — Zone d'évaluation —
+ *
+ * Partout où une couleur est JUGÉE, on rétablit les tokens clairs, quel
+ * que soit le thème de l'interface. Un échantillon clair paraît plus
+ * lumineux sur fond noir, un foncé s'y noie : un thème sombre appliqué
+ * à la scène ferait mentir l'outil sur ce qu'il mesure (brief §9.1).
+ * C'est la même raison qui garde le plan de travail d'Illustrator blanc
+ * dans une interface sombre.
+ */
+.zone-evaluation {
+  --surface-canvas: var(--blanc);
+  --surface-panel: var(--off-white);
+  --surface-chrome: var(--terre);
+  --text-on-chrome: var(--paille);
+  --text-main: var(--ink);
+  --text-muted: var(--ink-muted);
+  --surface-conforme: color-mix(in oklab, var(--conforme) 12%, var(--blanc));
+  --bord-conforme: color-mix(in oklab, var(--conforme) 28%, var(--blanc));
+  --surface-attente: color-mix(in oklab, var(--ink) 5%, var(--blanc));
+  --bord-attente: rgba(28, 18, 5, 0.1);
+  --filet: rgba(28, 18, 5, 0.09);
+  --filet-fort: rgba(28, 18, 5, 0.16);
+  color: var(--text-main);
 }
 
 * {
@@ -45,27 +126,60 @@
 }
 
 /*
- * Plan de travail : un dégradé chaud très doux, Paille en haut à gauche,
- * Glycine en haut à droite, Off-white partout ailleurs. Il n'est là que
- * pour donner de l'air — les échantillons, eux, sont toujours jugés sur
- * une carte blanche posée dessus (règle des deux zones, brief §9.1).
+ * Plan de travail : quatre halos très doux, un par coin, dont les
+ * centres sont posés HORS du cadre. C'est ce qui donne une lumière de
+ * bord plutôt que quatre taches : on ne voit jamais le cœur du dégradé,
+ * seulement sa retombée.
+ *
+ * Deux teintes seulement, les siennes — Paille en chaud, Glycine en
+ * froid — sur l'Off-white. Il n'est là que pour donner de l'air : les
+ * échantillons, eux, sont toujours jugés sur une carte blanche opaque
+ * posée dessus (règle des deux zones, brief §9.1).
  */
 html {
   background:
     radial-gradient(
-      1400px 900px at 4% -12%,
-      color-mix(in oklab, var(--paille) 92%, transparent),
+      1100px 760px at -4% -10%,
+      color-mix(in oklab, var(--paille) 100%, transparent),
+      transparent 66%
+    ),
+    radial-gradient(
+      980px 680px at 104% -8%,
+      color-mix(in oklab, var(--glycine) 76%, transparent),
+      transparent 64%
+    ),
+    radial-gradient(
+      900px 660px at -6% 104%,
+      color-mix(in oklab, var(--glycine) 46%, transparent),
       transparent 62%
     ),
     radial-gradient(
-      1100px 700px at 100% -6%,
-      color-mix(in oklab, var(--glycine) 52%, transparent),
+      1020px 720px at 105% 106%,
+      color-mix(in oklab, var(--paille) 72%, transparent),
+      transparent 64%
+    ),
+    var(--surface-panel);
+  background-attachment: fixed;
+}
+
+/* En sombre, les mêmes halos existent mais très assourdis : à pleine
+   force sur un fond presque noir, ils deviendraient deux auréoles. */
+:root[data-theme='sombre'] {
+  background:
+    radial-gradient(
+      1200px 820px at -6% -14%,
+      color-mix(in oklab, var(--terre) 62%, transparent),
       transparent 58%
     ),
     radial-gradient(
-      900px 600px at 50% 110%,
-      color-mix(in oklab, var(--paille) 42%, transparent),
-      transparent 60%
+      1050px 720px at 106% -10%,
+      color-mix(in oklab, var(--glycine) 12%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      1100px 760px at 108% 112%,
+      color-mix(in oklab, var(--terre) 44%, transparent),
+      transparent 58%
     ),
     var(--surface-panel);
   background-attachment: fixed;
@@ -157,6 +271,52 @@ button.solid:hover {
   border-radius: var(--radius-carte);
   box-shadow: var(--ombre-carte);
   padding: 1.4rem 1.5rem;
+}
+
+/* — Carte de chrome en verre dépoli : translucide, floutée, cerclée
+     d'un filet clair, SANS ombre. L'ombre et le verre font double
+     emploi — c'est l'un ou l'autre, jamais les deux. — */
+.carte-verre {
+  background: var(--verre);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid var(--verre-bord);
+  border-radius: var(--radius-carte);
+  box-shadow: none;
+}
+
+/* — Sous-carte : un bloc à l'intérieur d'une carte. Un intitulé à
+     gauche, un compte à droite ; le compte est une pastille pour qu'on
+     le lise d'un coup d'œil sans le confondre avec le titre. — */
+.panel {
+  border: 1px solid var(--filet);
+  border-radius: var(--radius);
+  padding: 0.85rem 0.95rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.panel-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin: 0;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+
+.panel-compte {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-size: 0.72rem;
+  padding: 0.08rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-attente);
+  border: 1px solid var(--bord-attente);
+  color: var(--text-main);
 }
 
 /* — Intitulé de section : petit glyphe + capitales trackées, posé au-

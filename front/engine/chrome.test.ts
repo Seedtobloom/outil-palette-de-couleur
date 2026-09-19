@@ -12,6 +12,9 @@ import { contrastRatio } from './contrast/wcag';
 // Les tokens sont lus depuis le fichier du DS lui-même : si le bundle
 // change une valeur, ces tests le signalent immédiatement.
 const css = readFileSync(new URL('../styles/colors_and_type.css', import.meta.url), 'utf8');
+/** La feuille de l'application : c'est elle qui porte le thème sombre,
+ *  le bundle DS n'en définit pas. */
+const app = readFileSync(new URL('../styles/app.css', import.meta.url), 'utf8');
 
 /** Lit une variable CSS du fichier de tokens (valeurs littérales seulement). */
 function token(name: string): string {
@@ -157,5 +160,94 @@ describe('contrastes du chrome de l’application', () => {
     // Faible, comme attendu sur un couple vert/rouge : d'où la règle
     // « le signe porte l'information, la couleur ne fait que renforcer ».
     expect(sim).toBeLessThan(deltaE00(token('conforme'), token('non-conforme')));
+  });
+});
+
+/**
+ * Le thème sombre passe les mêmes tests que le thème clair.
+ *
+ * C'est le point où la plupart des outils lâchent : la bascule sombre
+ * est traitée comme une préférence esthétique, et plus personne ne
+ * mesure les contrastes obtenus. Ici, les valeurs sont lues directement
+ * dans `app.css` — si quelqu'un retouche une teinte, ces tests le
+ * signalent.
+ */
+describe('contrastes du chrome en thème sombre', () => {
+  /**
+   * Lit une variable dans le bloc `[data-theme='sombre']` d'app.css.
+   * Un `var(--paille)` est résolu jusqu'à sa valeur littérale dans le
+   * fichier de tokens : c'est ainsi que le thème sombre est écrit, et le
+   * test doit mesurer ce qui sera réellement peint.
+   */
+  function tokenSombre(name: string): string {
+    const bloc = app.match(/:root\[data-theme='sombre'\]\s*\{([\s\S]*?)\n\}/);
+    if (!bloc) throw new Error('Bloc de thème sombre introuvable dans app.css');
+    const match = (bloc[1] as string).match(new RegExp(`--${name}\\s*:\\s*([^;]+);`));
+    if (!match) throw new Error(`Token sombre --${name} absent`);
+    const valeur = (match[1] as string).trim();
+    const reference = valeur.match(/^var\(--([a-z0-9-]+)\)$/);
+    return reference ? token(reference[1] as string) : valeur;
+  }
+
+  const paille = token('paille');
+  const terre = token('terre');
+  const fondPage = tokenSombre('surface-panel');
+  const fondCarte = tokenSombre('surface-canvas');
+
+  it('le texte principal sur le fond de page : AAA', () => {
+    expect(contrastRatio(paille, fondPage)).toBeGreaterThanOrEqual(7);
+  });
+
+  it('le texte principal sur une carte de chrome : AAA', () => {
+    expect(contrastRatio(paille, fondCarte)).toBeGreaterThanOrEqual(7);
+  });
+
+  it('le texte secondaire atteint AA — contrairement au token clair', () => {
+    // --text-muted du DS ne donne que 3,71:1 sur blanc, et l'usage est
+    // restreint en conséquence. Le token sombre, lui, n'est pas imposé
+    // par le DS : on le choisit ici, donc on le choisit conforme.
+    const muted = flatten(tokenSombre('text-muted'), fondCarte);
+    expect(contrastRatio(muted, fondCarte)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  /**
+   * ⚠ MESURE QUI A CHANGÉ LA COULEUR DES BOUTONS EN SOMBRE.
+   * Le Terre plein ne donne que 1,4:1 sur un fond presque noir : un
+   * bouton principal en Terre y serait invisible en tant que surface
+   * (SC 1.4.11). Les surfaces d'action passent donc en Paille, avec du
+   * texte Terre — couple déjà AAA.
+   */
+  it('le Terre ne peut pas servir de surface d’action sur fond sombre', () => {
+    expect(contrastRatio(terre, fondPage)).toBeLessThan(3);
+  });
+
+  it('la surface d’action retenue se détache du fond de page (SC 1.4.11)', () => {
+    expect(contrastRatio(tokenSombre('surface-chrome'), fondPage)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('le texte posé sur la surface d’action reste AAA', () => {
+    expect(
+      contrastRatio(tokenSombre('text-on-chrome'), tokenSombre('surface-chrome')),
+    ).toBeGreaterThanOrEqual(7);
+  });
+
+  it('l’étape en cours reste lisible : Ébène sur Glycine, et Glycine sur le fond sombre', () => {
+    expect(contrastRatio(token('ebene'), token('glycine'))).toBeGreaterThanOrEqual(7);
+    expect(contrastRatio(token('glycine'), fondPage)).toBeGreaterThanOrEqual(3);
+  });
+
+  /**
+   * L'invariant de cet outil : quel que soit le thème, la scène où l'on
+   * JUGE une couleur reste blanche. Un aplat clair paraît plus lumineux
+   * sur fond noir — évaluer dans une interface sombre fausserait la
+   * lecture de ce que l'outil est précisément censé mesurer.
+   */
+  it('la zone d’évaluation rétablit le blanc et l’encre, quel que soit le thème', () => {
+    const bloc = app.match(/\.zone-evaluation\s*\{([\s\S]*?)\n\}/);
+    expect(bloc).not.toBeNull();
+    const regles = bloc![1] as string;
+    expect(regles).toMatch(/--surface-canvas:\s*var\(--blanc\)/);
+    expect(regles).toMatch(/--text-main:\s*var\(--ink\)/);
+    expect(regles).toMatch(/--surface-chrome:\s*var\(--terre\)/);
   });
 });

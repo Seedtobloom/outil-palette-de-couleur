@@ -73,14 +73,23 @@
     flex-wrap: wrap;
   }
 
-  /* Cases accolées, gap 2px, sans arrondi — gamme de contrôle imprimeur. */
-  /* Filet neutre autour de la bande : sans lui, une couleur identique au
-     fond de la barre disparaîtrait purement et simplement. */
+  /*
+   * Cases accolées, gap 2px, sans arrondi — gamme de contrôle imprimeur.
+   *
+   * ⚠ LE CADRE EST BLANC, DANS LES DEUX THÈMES.
+   * Il l'était en gris sombre, ce qui suffisait sur une barre claire.
+   * En thème sombre, la case la plus foncée de la palette se confondait
+   * avec lui et disparaissait — exactement ce que le cadre est censé
+   * empêcher. C'est aussi la règle des deux zones (brief §9.1) : cette
+   * bande est une zone d'évaluation, elle se lit sur blanc, comme une
+   * gamme de contrôle se lit sur le papier.
+   */
   .strip {
     display: flex;
     gap: 2px;
-    padding: 2px;
-    background: rgba(28, 18, 5, 0.16);
+    padding: 3px;
+    background: var(--blanc);
+    box-shadow: inset 0 0 0 1px rgba(28, 18, 5, 0.22);
     border-radius: 3px;
   }
 
@@ -119,10 +128,14 @@
     color: var(--text-main);
   }
 
+  /* Sur la Glycine, le texte est TOUJOURS en Ébène, jamais en
+     --text-main : en thème sombre ce token vaut Paille, et Paille sur
+     Glycine est illisible. Le couple Ébène/Glycine est verrouillé en
+     AAA dans chrome.test.ts. */
   .lens[aria-pressed='true'] {
     background: var(--etape-active);
     border-color: var(--etape-active);
-    color: var(--text-main);
+    color: var(--ebene);
   }
 
   .hint {

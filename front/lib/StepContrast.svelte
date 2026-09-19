@@ -32,6 +32,7 @@
     type PairUse,
   } from '../engine';
   import { settings } from './state.svelte';
+  import { journal } from './journal.svelte';
 
   let { showTechnical }: { showTechnical: boolean } = $props();
 
@@ -53,17 +54,21 @@
   /** Piste survolée ou sélectionnée, pour l'aperçu « après ». */
   let pisteVisee = $state(0);
   /**
-   * Pile d'annulation. Un seul niveau ne suffisait pas : on enchaîne les
-   * corrections, et il faut pouvoir défaire les trois dernières quand on
-   * s'aperçoit qu'on est parti dans le mauvais sens.
+   * L'annulation n'est plus locale à cette étape : elle passe par le
+   * journal global (`journal.svelte.ts`). On enchaîne les corrections
+   * ici, puis on va retoucher le nuancier — et le Ctrl+Z continue de
+   * remonter la même pile, dans l'ordre réel des actions.
    */
-  let historique: (typeof settings.colors)[] = $state([]);
   let resume = $state('');
   /** Ce que la dernière action a changé, pour l'afficher noir sur blanc. */
   let dernierBilan: { avant: number; apres: number } | null = $state(null);
 
   const seuil = $derived(SEUILS[usage]);
   const paires = $derived(evaluePaires(settings.colors, usage));
+
+  /** Les couleurs que la graphiste a épinglées : ni proposées à la
+   *  correction, ni déplacées par l'ajustement automatique. */
+  const verrouillees = $derived(settings.colors.filter((c) => c.verrou).map((c) => c.id));
 
   /**
    * Les échecs, dédoublonnés : « A sur B » et « B sur A » ont le même
@@ -99,6 +104,13 @@
   const pistes = $derived.by(() => {
     if (!proposition || !courante) return [];
     return proposition.candidats
+      // Une couleur verrouillée ne se propose pas : la graphiste a
+      // décidé qu'elle ne bougeait plus. On ne montre donc que les
+      // pistes qui déplacent l'autre membre de la paire.
+      .filter(
+        (c) =>
+          !verrouillees.includes(c.cible === 'avant' ? courante.avantId : courante.fondId),
+      )
       .map((c) => ({
         c,
         impact: impactSurPalette(
@@ -168,7 +180,7 @@
   }
 
   /** Ce que l'ajustement automatique réglerait, sans rien appliquer. */
-  const simulation = $derived(corrigeTout(settings.colors, usage));
+  const simulation = $derived(corrigeTout(settings.colors, usage, { verrouillees }));
 
   function nomDe(id: string): string {
     return settings.colors.find((c) => c.id === id)?.label ?? id;
@@ -178,22 +190,19 @@
     return (Math.floor(r * 100) / 100).toFixed(2).replace('.', ',');
   }
 
-  function memorise(): number {
-    historique = [...historique, settings.colors.map((c) => ({ ...c }))].slice(-10);
-    return echecs.length;
-  }
-
   function ajusteTout(): void {
-    const bilan = corrigeTout(settings.colors, usage);
+    const bilan = corrigeTout(settings.colors, usage, { verrouillees });
     if (bilan.changements.length === 0) return;
-    const avant = memorise();
-    // Le moteur rend des couleurs au label facultatif ; le nuancier, lui,
-    // en exige un — on repart des entrées d'origine pour le conserver.
-    settings.colors = settings.colors.map((c) => ({
-      ...c,
-      hex: bilan.couleurs.find((n) => n.id === c.id)?.hex ?? c.hex,
-    }));
+    const avant = echecs.length;
     const n = bilan.changements.length;
+    journal.agis(`Ajustement de ${n} couleur${n > 1 ? 's' : ''}`, () => {
+      // Le moteur rend des couleurs au label facultatif ; le nuancier, lui,
+      // en exige un — on repart des entrées d'origine pour le conserver.
+      settings.colors = settings.colors.map((c) => ({
+        ...c,
+        hex: bilan.couleurs.find((n2) => n2.id === c.id)?.hex ?? c.hex,
+      }));
+    });
     resume = `${n} couleur${n > 1 ? 's' : ''} ajustée${n > 1 ? 's' : ''}.`;
     dernierBilan = { avant, apres: echecs.length };
     curseur = 0;
@@ -201,10 +210,7 @@
   }
 
   function annule(): void {
-    const precedent = historique.at(-1);
-    if (!precedent) return;
-    historique = historique.slice(0, -1);
-    settings.colors = precedent;
+    if (!journal.annule()) return;
     resume = 'Retour en arrière.';
     dernierBilan = null;
   }
@@ -218,8 +224,10 @@
   function appliquePiste(candidat: Candidat): void {
     if (!courante) return;
     const id = candidat.cible === 'avant' ? courante.avantId : courante.fondId;
-    const avant = memorise();
-    settings.colors = settings.colors.map((c) => (c.id === id ? { ...c, hex: candidat.hex } : c));
+    const avant = echecs.length;
+    journal.agis(`Ajustement de ${nomDe(id)}`, () => {
+      settings.colors = settings.colors.map((c) => (c.id === id ? { ...c, hex: candidat.hex } : c));
+    });
     resume = `« ${nomDe(id)} » ajustée.`;
     dernierBilan = { avant, apres: echecs.length };
     pisteVisee = 0;
@@ -300,7 +308,7 @@
         {#if phraseProgression}
           <span class="resume-progres">{phraseProgression}</span>
         {/if}
-        {#if historique.length > 0}
+        {#if journal.peutAnnuler}
           <button class="lien" onclick={annule}>Annuler</button>
         {/if}
       </p>
@@ -425,6 +433,14 @@
         </ul>
         <p class="aide">
           Survole une piste pour la voir dans le spécimen, clique pour l’appliquer.
+        </p>
+      {:else if verrouillees.includes(courante.avantId) && verrouillees.includes(courante.fondId)}
+        <!-- Cas distinct de « rien ne marche » : ici l'outil trouverait
+             quelque chose, c'est la graphiste qui a fermé les deux
+             portes. Le dire, plutôt que d'afficher une liste vide. -->
+        <p class="note-pied">
+          Ces deux couleurs sont verrouillées : l’outil n’a plus rien à déplacer. Déverrouille
+          l’une des deux au nuancier, ou sépare-les dans la maquette.
         </p>
       {:else}
         <p class="note-pied">

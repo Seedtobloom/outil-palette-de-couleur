@@ -7,12 +7,24 @@
   } from './engine';
   import { settings } from './lib/state.svelte';
   import { parcours } from './lib/parcours.svelte';
+  import { journal } from './lib/journal.svelte';
+  import { messages } from './lib/messages.svelte';
+  import { theme } from './lib/theme.svelte';
+  import { restaure, sauvegarde } from './lib/persistance.svelte';
   import Flow from './lib/Flow.svelte';
   import HealthBadge from './lib/HealthBadge.svelte';
   import WitnessStrip from './lib/WitnessStrip.svelte';
+  import Messages from './lib/Messages.svelte';
+  import Aide from './lib/Aide.svelte';
 
   let showTechnical = $state(false);
   let loadNotice = $state('');
+  let aideOuverte = $state(false);
+
+  /** Un lien de partage l'emporte sur la mémoire locale : celui qui
+   *  ouvre le lien veut voir CETTE palette, pas la sienne. */
+  const lienPartage =
+    typeof location !== 'undefined' && new URLSearchParams(location.search).has('p');
 
   const API_BASE: string = ((import.meta.env.VITE_API_BASE as string | undefined) ?? '').replace(
     /\/$/,
@@ -39,6 +51,89 @@
     parcours.paletteDisponible = palette !== null;
   });
 
+  // — Thème : écoute du réglage système, application sur <html> —
+  $effect(() => theme.ecoute());
+
+  $effect(() => {
+    document.documentElement.dataset.theme = theme.effectif;
+  });
+
+  // — Mémoire locale —
+  // Relecture une seule fois au démarrage. Le journal est vidé juste
+  // après : la première chose annulable doit être une action de la
+  // graphiste, pas le rechargement de son propre travail.
+  $effect(() => {
+    if (lienPartage) return;
+    const retrouve = restaure();
+    journal.oublie();
+    if (retrouve) {
+      messages.montre('Ton nuancier a été retrouvé, tu reprends où tu t’étais arrêtée.', 'info');
+    }
+  });
+
+  // Enregistrement à chaque changement. La lecture de `settings.colors`
+  // et de l'étape courante suffit à abonner l'effet ; `sauvegarde()`
+  // prend l'instantané complet.
+  $effect(() => {
+    if (lienPartage) return;
+    void settings.colors;
+    void settings.baseColor;
+    void settings.usage;
+    void parcours.index;
+    void theme.mode;
+    sauvegarde();
+  });
+
+  // — Raccourcis clavier —
+  function estChampDeSaisie(cible: EventTarget | null): boolean {
+    if (!(cible instanceof HTMLElement)) return false;
+    return (
+      cible.isContentEditable ||
+      ['INPUT', 'TEXTAREA', 'SELECT'].includes(cible.tagName)
+    );
+  }
+
+  function auClavier(e: KeyboardEvent): void {
+    const mod = e.metaKey || e.ctrlKey;
+
+    if (mod && e.key.toLowerCase() === 'z') {
+      // Dans un champ de texte, on laisse l'annulation native du
+      // navigateur faire son travail sur la frappe en cours.
+      if (estChampDeSaisie(e.target)) return;
+      e.preventDefault();
+      const refaire = e.shiftKey;
+      const label = refaire ? journal.refais() : journal.annule();
+      if (label) messages.montre(`${refaire ? 'Rétabli' : 'Annulé'} : ${label}.`, 'info');
+      else messages.montre(refaire ? 'Rien à rétablir.' : 'Rien à annuler.', 'info');
+      return;
+    }
+
+    if (mod && e.key.toLowerCase() === 'y' && !e.shiftKey) {
+      if (estChampDeSaisie(e.target)) return;
+      e.preventDefault();
+      const label = journal.refais();
+      if (label) messages.montre(`Rétabli : ${label}.`, 'info');
+      return;
+    }
+
+    if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      if (e.key === 'ArrowLeft') parcours.precedent();
+      else if (parcours.peutContinuer) parcours.suivant();
+      return;
+    }
+
+    if (e.key === '?' && !estChampDeSaisie(e.target)) {
+      e.preventDefault();
+      aideOuverte = true;
+    }
+  }
+
+  function annuleDepuisBarre(refaire: boolean): void {
+    const label = refaire ? journal.refais() : journal.annule();
+    if (label) messages.montre(`${refaire ? 'Rétabli' : 'Annulé'} : ${label}.`, 'info');
+  }
+
   // Ouverture d'un lien de partage (?p=identifiant) : la recette est
   // rechargée dans l'état partagé et on ouvre directement l'atelier.
   $effect(() => {
@@ -64,6 +159,9 @@
         settings.intensity = stored.options.intensity;
         settings.neutralInfluence = Math.round(stored.options.neutralInfluence * 100);
         settings.hueTorsion = stored.options.hueTorsion;
+        // La pile d'avant ne veut plus rien dire une fois qu'on a chargé
+        // la palette de quelqu'un d'autre.
+        journal.oublie();
         loadNotice = 'Palette partagée chargée.';
       } catch {
         loadNotice =
@@ -72,6 +170,23 @@
     })();
   });
 </script>
+
+<svelte:window onkeydown={auClavier} />
+
+<!--
+  Grain. Une turbulence fractale en superposition douce, fixée à l'écran :
+  elle casse le lissé du dégradé sans rien coûter en réseau ni ajouter de
+  couleur. `pointer-events: none` et `aria-hidden` : elle n'existe que
+  pour l'œil. Elle disparaît en contraste élevé forcé (voir app.css), où
+  elle ne ferait que brouiller.
+-->
+<svg class="grain" aria-hidden="true" focusable="false">
+  <filter id="grain-nuancier">
+    <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="3" stitchTiles="stitch" />
+    <feColorMatrix type="saturate" values="0" />
+  </filter>
+  <rect width="100%" height="100%" filter="url(#grain-nuancier)" />
+</svg>
 
 <div class="shell">
   <header class="barre">
@@ -96,6 +211,7 @@
             <li>
               <button
                 class="jalon"
+                class:sur-glycine={active}
                 class:active
                 class:faite
                 disabled={!ouverte}
@@ -113,6 +229,46 @@
 
       <div class="meta">
         <HealthBadge onGoToStep={(id) => parcours.versId(id)} />
+
+        <!-- Historique, thème, aide : trois outils, jamais du contenu.
+             Ils restent en icônes pour ne pas concurrencer le fil. -->
+        <div class="outils">
+          <button
+            class="outil"
+            disabled={!journal.peutAnnuler}
+            title={journal.prochaineAnnulation
+              ? `Annuler : ${journal.prochaineAnnulation}`
+              : 'Rien à annuler'}
+            aria-label={journal.prochaineAnnulation
+              ? `Annuler : ${journal.prochaineAnnulation}`
+              : 'Rien à annuler'}
+            onclick={() => annuleDepuisBarre(false)}>↶</button
+          >
+          <button
+            class="outil"
+            disabled={!journal.peutRefaire}
+            title={journal.prochaineReprise
+              ? `Rétablir : ${journal.prochaineReprise}`
+              : 'Rien à rétablir'}
+            aria-label={journal.prochaineReprise
+              ? `Rétablir : ${journal.prochaineReprise}`
+              : 'Rien à rétablir'}
+            onclick={() => annuleDepuisBarre(true)}>↷</button
+          >
+          <button
+            class="outil"
+            title={theme.effectif === 'sombre' ? 'Passer en clair' : 'Passer en sombre'}
+            aria-label={theme.effectif === 'sombre' ? 'Passer en clair' : 'Passer en sombre'}
+            onclick={() => theme.bascule()}>{theme.effectif === 'sombre' ? '☀' : '☾'}</button
+          >
+          <button
+            class="outil"
+            title="Aide et raccourcis"
+            aria-label="Aide et raccourcis"
+            onclick={() => (aideOuverte = true)}>?</button
+          >
+        </div>
+
         <label class="tech-toggle">
           <input type="checkbox" bind:checked={showTechnical} />
           Détails techniques
@@ -140,16 +296,41 @@
   </footer>
 </div>
 
+<Messages />
+<Aide bind:ouvert={aideOuverte} />
+
 <style>
+  /* — Grain — posé sur toute la fenêtre, sous l'interface. */
+  .grain {
+    position: fixed;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.32;
+    mix-blend-mode: soft-light;
+  }
+
+  /* En contraste élevé forcé, le grain ne ferait que salir. */
+  @media (forced-colors: active), (prefers-contrast: more) {
+    .grain {
+      display: none;
+    }
+  }
+
   .shell {
     display: grid;
     grid-template-rows: auto 1fr auto;
     min-block-size: 100vh;
+    /* Au-dessus du grain. */
+    position: relative;
+    z-index: 1;
   }
 
   /* — Barre de tête : claire et translucide, posée sur le dégradé. — */
   .barre {
-    background: color-mix(in oklab, var(--blanc) 78%, transparent);
+    background: var(--verre);
     backdrop-filter: blur(14px);
     border-block-end: 1px solid var(--filet);
     padding: 0.6rem var(--pad-lat) 0.55rem;
@@ -259,10 +440,15 @@
     padding-inline-end: 0.8rem;
   }
 
+  /* L'étape en cours change aussi de FORME : le rond devient un carré
+     arrondi. Une différence de forme reste lisible sans la couleur, et
+     tient en contraste élevé forcé — ce que la Glycine seule ne fait
+     pas (1,31:1, voir chrome.test.ts). */
   .jalon.active .pastille {
     background: var(--surface-chrome);
     border-color: var(--surface-chrome);
     color: var(--text-on-chrome);
+    border-radius: 9px;
   }
 
   .jalon-nom {
@@ -276,7 +462,34 @@
     justify-self: end;
     display: flex;
     align-items: center;
-    gap: 1.1rem;
+    gap: 0.9rem;
+  }
+
+  /* — Outils : historique, thème, aide — */
+  .outils {
+    display: flex;
+    gap: 0.15rem;
+  }
+
+  .outil {
+    inline-size: 2rem;
+    block-size: 2rem;
+    min-block-size: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    border-color: transparent;
+    background: none;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1;
+  }
+
+  .outil:hover:not(:disabled) {
+    background: var(--surface-panel);
+    border-color: var(--filet);
+    color: var(--text-main);
   }
 
   .tech-toggle {
@@ -296,7 +509,7 @@
 
   .notice {
     margin: 0 auto var(--gap-bloc);
-    max-inline-size: 78rem;
+    max-inline-size: var(--largeur-max);
     font-style: italic;
     color: var(--text-muted);
     font-size: 0.85rem;
@@ -311,7 +524,7 @@
 
   footer p {
     margin: 0 auto;
-    max-inline-size: 78rem;
+    max-inline-size: var(--largeur-max);
   }
 
   /* Sous 64rem, le fil déborderait : il défile horizontalement plutôt
