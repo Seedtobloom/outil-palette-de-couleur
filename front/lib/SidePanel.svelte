@@ -18,8 +18,6 @@
     maxChroma,
     oklchToHex,
     parseToOklch,
-    SEUILS,
-    type PairUse,
   } from '../engine';
   import { settings } from './state.svelte';
   import { journal } from './journal.svelte';
@@ -30,14 +28,12 @@
     peutContinuer,
     conditionSuivante,
     onContinuer,
-    usageContraste = 'texte',
   }: {
     etapeId: string;
     suivante: { titre: string; court: string } | null;
     peutContinuer: boolean;
     conditionSuivante: string | null;
     onContinuer: () => void;
-    usageContraste?: PairUse;
   } = $props();
 
   /** Suggestions de complétion — la carte la plus vue de l'application. */
@@ -116,17 +112,20 @@
 
   {#if etapeId === 'contrast'}
     <section class="bloc">
-      <p class="section-titre"><span class="glyphe" aria-hidden="true">◐</span> Ce qu’on vérifie</p>
+      <p class="section-titre"><span class="glyphe" aria-hidden="true">◐</span> Les seuils</p>
       <div class="carte">
-        <p class="explication">{SEUILS[usageContraste].regle}.</p>
         <ul class="rappels">
-          <li><span class="value">4,5:1</span> texte courant (AA)</li>
-          <li><span class="value">7:1</span> texte courant (AAA)</li>
+          <li><span class="value">7:1</span> texte courant — AAA</li>
+          <li><span class="value">4,5:1</span> texte courant — AA</li>
           <li><span class="value">3:1</span> grand texte, icônes, bordures, focus</li>
         </ul>
         <p class="explication">
-          Le 3:1 des éléments non textuels est un point de non-conformité fréquent : presque
-          aucun outil ne le vérifie.
+          Le 3:1 des éléments non textuels (SC 1.4.11) est un point de non-conformité fréquent :
+          presque aucun outil ne le vérifie.
+        </p>
+        <p class="explication">
+          Il n’existe pas de « niveau A » de contraste. Le seul critère de niveau A lié à la
+          couleur, SC 1.4.1, n’impose aucun ratio : 3:1 est un seuil AA.
         </p>
       </div>
     </section>

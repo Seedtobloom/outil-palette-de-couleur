@@ -1,629 +1,149 @@
 <script lang="ts">
   /**
-   * Étape « Contraste » — refondue autour d'une règle : à tout moment,
-   * une seule chose à faire, et elle est écrite en toutes lettres.
+   * Étape « Tester le contraste », calquée sur l'outil de référence.
    *
-   * L'ancienne version affichait tout en même temps (la paire, la liste,
-   * la matrice, l'épreuve, les tons directs, le niveau A) et laissait
-   * corriger couleur par couleur. On s'y perdait, et le travail était
-   * manuel de bout en bout.
+   * Un seul objet : la liste de TOUTES les associations possibles,
+   * rendues en conditions réelles, avec leur ratio et leur niveau — et
+   * une case pour retenir celles qu'on compte utiliser.
    *
-   * Maintenant :
-   * - l'outil annonce ce qu'il peut régler seul, et le règle sur un clic ;
-   * - pour ce qui reste, il PROPOSE des couleurs classées par coût, au
-   *   lieu d'imposer une correction unique ;
-   * - quand une association n'est pas rattrapable, il le dit et indique
-   *   ce que la paire sait faire, plutôt que d'inventer un compromis ;
-   * - tous les contrôles de vérification sont repliés dans un seul bloc.
+   * Cette étape portait aussi un correcteur guidé : une décision à la
+   * fois, des pistes de correction classées par coût, un ajustement
+   * automatique de toute la palette. Il a été retiré d'ici pour revenir
+   * au périmètre de la référence. La correction automatique n'a pas
+   * disparu de l'outil : elle vit à l'étape Harmonie, sous « Tout
+   * corriger » et sous les réglages d'ensemble.
+   *
+   * ⚠ IL N'Y A PAS D'ONGLET « A ».
+   * La référence en propose un et étiquette 3:1 « niveau A ». Il
+   * n'existe pas de niveau A de contraste : le seul critère de niveau A
+   * lié à la couleur, SC 1.4.1, n'impose aucun ratio. 3:1 est un seuil
+   * AA — celui du grand texte (SC 1.4.3) et des éléments non textuels
+   * (SC 1.4.11). L'onglet porte donc son vrai nom. C'est le §3.1 du
+   * brief, et le §9.8 impose que l'outil passe les tests qu'il fait
+   * passer aux autres.
    */
-  import {
-    corrigeTout,
-    evaluePaires,
-    impactSurPalette,
-    proposeCorrections,
-    SEUILS,
-    type Candidat,
-    type Impact,
-    type PairUse,
-  } from '../engine';
+  import { contrastRatio, parseToOklch } from '../engine';
   import { settings } from './state.svelte';
   import { journal } from './journal.svelte';
+  import { PAIRINGS_REQUIS } from './parcours.svelte';
 
-  const USAGES: { id: PairUse; label: string }[] = [
-    { id: 'texte', label: 'Texte courant' },
-    { id: 'titre', label: 'Grand texte' },
-    { id: 'composant', label: 'Icône, bordure, focus' },
-  ];
-
-  const NOM_USAGE: Record<PairUse, string> = {
-    texte: 'du texte courant',
-    titre: 'un grand titre',
-    composant: 'une icône ou une bordure',
+  type Paire = {
+    id: string;
+    fond: { id: string; hex: string; label: string };
+    texte: { id: string; hex: string; label: string };
+    ratio: number;
+    niveau: 'AAA' | 'AA' | 'grand-texte' | 'echec';
   };
 
-  let usage: PairUse = $state('texte');
-  let controlesOuverts = $state(false);
-  let curseur = $state(0);
-  /** Piste survolée ou sélectionnée, pour l'aperçu « après ». */
-  let pisteVisee = $state(0);
-  /**
-   * L'annulation n'est plus locale à cette étape : elle passe par le
-   * journal global (`journal.svelte.ts`). On enchaîne les corrections
-   * ici, puis on va retoucher le nuancier — et le Ctrl+Z continue de
-   * remonter la même pile, dans l'ordre réel des actions.
-   */
-  let resume = $state('');
-  /** Ce que la dernière action a changé, pour l'afficher noir sur blanc. */
-  let dernierBilan: { avant: number; apres: number } | null = $state(null);
+  const NIVEAUX: Record<Paire['niveau'], string> = {
+    AAA: 'AAA',
+    AA: 'AA',
+    'grand-texte': 'Grand texte',
+    echec: 'Échec',
+  };
 
-  const seuil = $derived(SEUILS[usage]);
-  const paires = $derived(evaluePaires(settings.colors, usage));
-
-  /** Les couleurs que la graphiste a épinglées : ni proposées à la
-   *  correction, ni déplacées par l'ajustement automatique. */
-  const verrouillees = $derived(settings.colors.filter((c) => c.verrou).map((c) => c.id));
-
-  /**
-   * Les échecs, dédoublonnés : « A sur B » et « B sur A » ont le même
-   * ratio et se corrigent ensemble. En afficher deux revenait à doubler
-   * la liste sans rien ajouter à la décision.
-   */
-  const echecs = $derived.by(() => {
-    const vus = new Set<string>();
-    return paires.filter((p) => {
-      if (p.niveau !== null) return false;
-      const cle = [p.avantId, p.fondId].sort().join('|');
-      if (vus.has(cle)) return false;
-      vus.add(cle);
-      return true;
-    });
-  });
-
-  const courante = $derived(echecs[Math.min(curseur, Math.max(0, echecs.length - 1))]);
-
-  // — Le testeur : toutes les paires, filtrables, et celles qu'on retient —
-
-  type Onglet = 'tout' | 'grand-texte' | 'aa' | 'aaa';
-
-  /**
-   * ⚠ PAS D'ONGLET « A ».
-   * L'outil de référence propose Tout / A / AA / AAA et étiquette 3:1
-   * « niveau A ». Il n'existe pas de niveau A de contraste : le seul
-   * critère de niveau A lié à la couleur, SC 1.4.1, n'impose aucun
-   * ratio. Le seuil de 3:1 est un seuil AA — celui du grand texte
-   * (SC 1.4.3) et des éléments non textuels (SC 1.4.11). L'onglet porte
-   * donc son vrai nom.
-   */
-  const ONGLETS: { id: Onglet; label: string; seuil: number }[] = [
+  const ONGLETS: { id: 'tout' | 'grand-texte' | 'aa' | 'aaa'; label: string; seuil: number }[] = [
     { id: 'tout', label: 'Tout', seuil: 0 },
     { id: 'grand-texte', label: 'Grand texte', seuil: 3 },
     { id: 'aa', label: 'AA', seuil: 4.5 },
     { id: 'aaa', label: 'AAA', seuil: 7 },
   ];
 
-  let onglet: Onglet = $state('tout');
+  let onglet: (typeof ONGLETS)[number]['id'] = $state('tout');
 
-  /** Toutes les paires possibles, dédoublonnées, la plus claire en fond. */
-  const toutesPaires = $derived.by(() => {
-    const vus = new Set<string>();
-    return paires.filter((p) => {
-      const cle = [p.avantId, p.fondId].sort().join('|');
-      if (vus.has(cle)) return false;
-      vus.add(cle);
-      return true;
-    });
+  function niveauDe(ratio: number): Paire['niveau'] {
+    if (ratio >= 7) return 'AAA';
+    if (ratio >= 4.5) return 'AA';
+    if (ratio >= 3) return 'grand-texte';
+    return 'echec';
+  }
+
+  /** Clarté OKLCH : c'est elle qui décide qui sert de fond. */
+  function clarte(hex: string): number {
+    return parseToOklch(hex)?.l ?? 0.5;
+  }
+
+  /**
+   * Toutes les combinaisons, chacune une seule fois. La plus claire des
+   * deux sert de fond, l'autre de texte : c'est l'usage réel, et
+   * afficher les deux sens doublerait la liste sans rien ajouter — le
+   * ratio est le même dans les deux sens.
+   */
+  const paires = $derived.by(() => {
+    const out: Paire[] = [];
+    const cs = settings.colors;
+    for (let i = 0; i < cs.length; i++) {
+      for (let j = i + 1; j < cs.length; j++) {
+        const a = cs[i]!;
+        const b = cs[j]!;
+        const [fond, texte] = clarte(a.hex) >= clarte(b.hex) ? [a, b] : [b, a];
+        const ratio = contrastRatio(texte.hex, fond.hex);
+        out.push({
+          id: `${texte.id}|${fond.id}`,
+          fond,
+          texte,
+          ratio,
+          niveau: niveauDe(ratio),
+        });
+      }
+    }
+    return out.sort((x, y) => y.ratio - x.ratio);
   });
 
-  const seuilOnglet = $derived(ONGLETS.find((o) => o.id === onglet)?.seuil ?? 0);
-  const pairesVisibles = $derived(toutesPaires.filter((p) => p.ratio >= seuilOnglet));
+  const seuilCourant = $derived(ONGLETS.find((o) => o.id === onglet)?.seuil ?? 0);
+  const visibles = $derived(paires.filter((p) => p.ratio >= seuilCourant));
 
-  function compte(seuil: number): number {
-    return toutesPaires.filter((p) => p.ratio >= seuil).length;
+  const compte = (seuil: number) => paires.filter((p) => p.ratio >= seuil).length;
+
+  /** Tronqué vers le bas : 4,497 n'est pas 4,50 et ne passe donc pas AA. */
+  function fmt(r: number): string {
+    return (Math.floor(r * 100) / 100).toFixed(2).replace('.', ',');
   }
 
-  const cle = (p: { avantId: string; fondId: string }) => `${p.avantId}|${p.fondId}`;
+  const retenue = (p: Paire) => settings.pairings.includes(p.id);
 
-  function retenue(p: { avantId: string; fondId: string }): boolean {
-    return settings.pairings.includes(cle(p));
-  }
-
-  function basculeRetenue(p: { avantId: string; fondId: string }): void {
-    const k = cle(p);
-    journal.agis(retenue(p) ? 'Retrait d’une association' : 'Association retenue', () => {
-      settings.pairings = retenue(p)
-        ? settings.pairings.filter((x) => x !== k)
-        : [...settings.pairings, k];
+  function bascule(p: Paire): void {
+    const deja = retenue(p);
+    journal.agis(deja ? 'Association retirée' : 'Association retenue', () => {
+      settings.pairings = deja
+        ? settings.pairings.filter((x) => x !== p.id)
+        : [...settings.pairings, p.id];
     });
   }
 
-  /** Bascule d'un coup toutes les paires de l'onglet courant. */
-  const toutesRetenues = $derived(
-    pairesVisibles.length > 0 && pairesVisibles.every((p) => retenue(p)),
-  );
+  const toutesRetenues = $derived(visibles.length > 0 && visibles.every(retenue));
 
   function basculeToutes(): void {
-    const cles = pairesVisibles.map(cle);
-    journal.agis(toutesRetenues ? 'Retrait des associations' : 'Associations retenues', () => {
-      settings.pairings = toutesRetenues
+    const cles = visibles.map((p) => p.id);
+    const retirer = toutesRetenues;
+    journal.agis(retirer ? 'Associations retirées' : 'Associations retenues', () => {
+      settings.pairings = retirer
         ? settings.pairings.filter((x) => !cles.includes(x))
         : [...new Set([...settings.pairings, ...cles])];
     });
   }
 
-  /** Une couleur « couverte » a au moins un partenaire lisible en AA. */
+  /** Une couleur est « couverte » si elle a au moins un partenaire en AA. */
   const couvertes = $derived(
     settings.colors.filter((c) =>
-      settings.colors.some((autre) => autre.id !== c.id && contrasteEntre(c.id, autre.id) >= 4.5),
+      paires.some((p) => p.ratio >= 4.5 && (p.fond.id === c.id || p.texte.id === c.id)),
     ).length,
   );
 
-  function contrasteEntre(a: string, b: string): number {
-    const p = paires.find(
-      (x) => (x.avantId === a && x.fondId === b) || (x.avantId === b && x.fondId === a),
-    );
-    return p?.ratio ?? 0;
-  }
-
-  const proposition = $derived(
-    courante ? proposeCorrections(courante.avantHex, courante.fondHex, usage) : null,
-  );
-
-  /**
-   * Chaque piste est mesurée sur TOUTE la palette, pas seulement sur la
-   * paire en cours — c'est ce qui manquait : on corrigeait une paire, une
-   * autre tombait, le compteur ne descendait pas et on avait le sentiment
-   * de cliquer dans le vide.
-   *
-   * Le classement suit le gain net : une piste qui règle trois paires
-   * passe devant une piste indolore qui n'en règle qu'une.
-   */
-  const pistes = $derived.by(() => {
-    if (!proposition || !courante) return [];
-    return proposition.candidats
-      // Une couleur verrouillée ne se propose pas : la graphiste a
-      // décidé qu'elle ne bougeait plus. On ne montre donc que les
-      // pistes qui déplacent l'autre membre de la paire.
-      .filter(
-        (c) =>
-          !verrouillees.includes(c.cible === 'avant' ? courante.avantId : courante.fondId),
-      )
-      .map((c) => ({
-        c,
-        impact: impactSurPalette(
-          settings.colors,
-          c.cible === 'avant' ? courante.avantId : courante.fondId,
-          c.hex,
-          usage,
-        ),
-      }))
-      .sort((a, b) => {
-        // Une piste qui vide une bande de clarté passe toujours en
-        // dernier, quel que soit son gain en contraste : elle règle des
-        // paires en cassant le système.
-        const videA = a.impact.bandeVidee !== null;
-        const videB = b.impact.bandeVidee !== null;
-        if (videA !== videB) return videA ? 1 : -1;
-        const gainA = a.impact.resolues - a.impact.cassees;
-        const gainB = b.impact.resolues - b.impact.cassees;
-        if (gainA !== gainB) return gainB - gainA;
-        if (a.c.douce !== b.c.douce) return a.c.douce ? -1 : 1;
-        return a.c.deltaL - b.c.deltaL;
-      })
-      .slice(0, 3);
-  });
-
-  const pisteActive = $derived(pistes[Math.min(pisteVisee, Math.max(0, pistes.length - 1))] ?? null);
-
-  /** Le libellé d'impact, en français, jamais un chiffre nu. */
-  function libelleImpact(i: Impact): string {
-    if (i.cassees === 0) {
-      return i.resolues > 1 ? `règle ${i.resolues} associations` : 'règle celle-ci';
-    }
-    const reglees = i.resolues > 1 ? `en règle ${i.resolues}` : 'en règle une';
-    const cassees = i.cassees > 1 ? `en casse ${i.cassees}` : 'en casse une';
-    return `${reglees}, ${cassees}`;
-  }
-
-  /**
-   * Gain net de la meilleure piste disponible. S'il est nul ou négatif,
-   * c'est un renseignement en soi : aucune retouche de CETTE paire ne
-   * fait avancer l'ensemble, donc le problème est ailleurs — dans la
-   * structure de la palette, pas dans cette association.
-   */
-  const meilleurGain = $derived(
-    pistes.length > 0
-      ? Math.max(...pistes.map((p) => p.impact.resolues - p.impact.cassees))
-      : 0,
-  );
-
-  const impasse = $derived(pistes.length > 0 && meilleurGain <= 0);
-
-  /** Une piste qui dégrade l'accord des couleurs doit le dire. */
-  function alerteHarmonie(i: Impact): string {
-    const perte = i.harmonieAvant - i.harmonieApres;
-    return perte >= 8 ? `harmonie ${i.harmonieAvant} → ${i.harmonieApres}` : '';
-  }
-
-  const NOM_BANDE: Record<string, string> = {
-    light: 'claire',
-    mid: 'moyenne',
-    dark: 'foncée',
-  };
-
-  /** L'alerte de structure : celle qu'aucun compte de paires ne donne. */
-  function alerteBande(i: Impact): string {
-    return i.bandeVidee ? `plus aucune couleur ${NOM_BANDE[i.bandeVidee]}` : '';
-  }
-
-  /** Ce que l'ajustement automatique réglerait, sans rien appliquer. */
-  const simulation = $derived(corrigeTout(settings.colors, usage, { verrouillees }));
-
-  function nomDe(id: string): string {
-    return settings.colors.find((c) => c.id === id)?.label ?? id;
-  }
-
-  function fmt(r: number): string {
-    return (Math.floor(r * 100) / 100).toFixed(2).replace('.', ',');
-  }
-
-  function ajusteTout(): void {
-    const bilan = corrigeTout(settings.colors, usage, { verrouillees });
-    if (bilan.changements.length === 0) return;
-    const avant = echecs.length;
-    const n = bilan.changements.length;
-    journal.agis(`Ajustement de ${n} couleur${n > 1 ? 's' : ''}`, () => {
-      // Le moteur rend des couleurs au label facultatif ; le nuancier, lui,
-      // en exige un — on repart des entrées d'origine pour le conserver.
-      settings.colors = settings.colors.map((c) => ({
-        ...c,
-        hex: bilan.couleurs.find((n2) => n2.id === c.id)?.hex ?? c.hex,
-      }));
-    });
-    resume = `${n} couleur${n > 1 ? 's' : ''} ajustée${n > 1 ? 's' : ''}.`;
-    dernierBilan = { avant, apres: echecs.length };
-    curseur = 0;
-    pisteVisee = 0;
-  }
-
-  function annule(): void {
-    if (!journal.annule()) return;
-    resume = 'Retour en arrière.';
-    dernierBilan = null;
-  }
-
-  /**
-   * Applique une piste et RESTE dans le fil : le curseur n'est pas remis
-   * à zéro. La paire réglée disparaît de la liste, donc le même index
-   * pointe déjà sur la suivante — c'est ce qui fait la différence entre
-   * avancer et avoir l'impression de recliquer sur la même chose.
-   */
-  function appliquePiste(candidat: Candidat): void {
-    if (!courante) return;
-    const id = candidat.cible === 'avant' ? courante.avantId : courante.fondId;
-    const avant = echecs.length;
-    journal.agis(`Ajustement de ${nomDe(id)}`, () => {
-      settings.colors = settings.colors.map((c) => (c.id === id ? { ...c, hex: candidat.hex } : c));
-    });
-    resume = `« ${nomDe(id)} » ajustée.`;
-    dernierBilan = { avant, apres: echecs.length };
-    pisteVisee = 0;
-    if (curseur > echecs.length - 1) curseur = 0;
-  }
-
-  /** La phrase de progression, celle qui dit si on avance ou non. */
-  const phraseProgression = $derived.by(() => {
-    if (!dernierBilan) return '';
-    const { avant, apres } = dernierBilan;
-    if (apres === 0) return `${avant} → 0 : tout passe.`;
-    if (apres < avant) return `${avant} → ${apres} associations en échec.`;
-    if (apres === avant) return `Toujours ${apres} associations en échec : cette correction en a réglé une et cassé une autre.`;
-    return `${avant} → ${apres} : cette correction a créé plus de problèmes qu’elle n’en a réglé.`;
-  });
-
+  const retenues = $derived(settings.pairings.length);
+  const debloque = $derived(retenues >= PAIRINGS_REQUIS);
 </script>
 
 <div class="wrap">
-  <!-- 1. Ce qu'on vérifie -->
-  <div class="entete">
-    <div class="usages" role="group" aria-label="Usage évalué">
-      {#each USAGES as u (u.id)}
-        <button
-          aria-pressed={usage === u.id}
-          onclick={() => {
-            usage = u.id;
-            curseur = 0;
-            pisteVisee = 0;
-          }}>{u.label}</button
-        >
-      {/each}
-    </div>
-    <p class="regle">{seuil.regle} — il faut {fmt(seuil.aa)}:1</p>
-  </div>
-
-  <!-- 2. L'action du moment, écrite en toutes lettres -->
-  {#if echecs.length === 0}
-    <p class="tout-passe">
-      <span class="signe" aria-hidden="true">✓</span>
-      Les {paires.length} associations passent le seuil. Rien à corriger sur cet usage.
-    </p>
-  {:else}
-    <div class="barre-action">
-      <div class="barre-texte">
-        <p class="barre-titre">
-          {echecs.length} association{echecs.length > 1 ? 's' : ''} ne passe{echecs.length > 1
-            ? 'nt'
-            : ''} pas.
-        </p>
-        <p class="barre-detail">
-          {#if simulation.changements.length > 0}
-            L’outil peut en régler {simulation.changements.length} tout seul, en ne déplaçant que
-            la clarté — teintes et intensités conservées.
-          {:else}
-            Aucune ne se règle automatiquement sans toucher à tes teintes : elles se décident une
-            par une, ci-dessous.
-          {/if}
-        </p>
-      </div>
-      {#if simulation.changements.length > 0}
-        <button class="principal" onclick={ajusteTout}>
-          Ajuster automatiquement
-        </button>
-      {/if}
-    </div>
-
-    {#if resume}
-      <p class="resume" data-recul={dernierBilan !== null && dernierBilan.apres >= dernierBilan.avant} role="status">
-        <span class="resume-fait">{resume}</span>
-        {#if phraseProgression}
-          <span class="resume-progres">{phraseProgression}</span>
-        {/if}
-        {#if journal.peutAnnuler}
-          <button class="lien" onclick={annule}>Annuler</button>
-        {/if}
-      </p>
-    {/if}
-  {/if}
-
-  <!-- 3. La décision en cours : le spécimen, puis les pistes -->
-  {#if courante && proposition}
-    <div class="decision">
-      <p class="micro">
-        À décider — {curseur + 1} sur {echecs.length}
-      </p>
-      <h3 class="titre-decision">
-        « {nomDe(courante.avantId)} » sur « {nomDe(courante.fondId)} », <i>illisible</i>.
-      </h3>
-      <p class="diagnostic">{proposition.diagnostic}</p>
-
-      <div class="specimens">
-        <div class="specimen">
-          <div class="page" style="background:{courante.fondHex};color:{courante.avantHex}">
-            <p class="page-titre">Un titre de section</p>
-            <p class="page-texte">
-              Le texte courant d’un paragraphe, à la taille où on le lit vraiment. C’est ici que
-              se juge la lisibilité, pas dans un chiffre.
-            </p>
-          </div>
-          <p class="mesure">
-            <span class="ratio value">{fmt(courante.ratio)}:1</span>
-            <span class="verdict" data-ok="false"><span aria-hidden="true">✕</span> aujourd’hui</span>
-          </p>
-        </div>
-
-        {#if pisteActive}
-          {@const fond = pisteActive.c.cible === 'fond' ? pisteActive.c.hex : courante.fondHex}
-          {@const texte = pisteActive.c.cible === 'avant' ? pisteActive.c.hex : courante.avantHex}
-          <div class="specimen">
-            <div class="page" style="background:{fond};color:{texte}">
-              <p class="page-titre">Un titre de section</p>
-              <p class="page-texte">
-                Le texte courant d’un paragraphe, à la taille où on le lit vraiment. C’est ici que
-                se juge la lisibilité, pas dans un chiffre.
-              </p>
-            </div>
-            <p class="mesure">
-              <span class="ratio value">{fmt(pisteActive.c.ratio)}:1</span>
-              <span class="verdict" data-ok="true"><span aria-hidden="true">✓</span> avec la piste choisie</span>
-            </p>
-          </div>
-        {/if}
-      </div>
-
-      <!-- Les pistes : on choisit, on ne subit pas -->
-      {#if impasse}
-        <!--
-          Le renseignement le plus utile de toute l'étape : continuer à
-          retoucher ici ferait tourner en rond. On le dit AVANT le clic,
-          et on renvoie là où le problème se règle vraiment.
-        -->
-        <p class="impasse">
-          Aucune retouche de cette paire ne fait baisser le total : chaque correction possible
-          en casse autant qu’elle en règle. Le problème n’est pas cette association, c’est
-          l’écart de clarté dans la palette — il se règle à l’étape Nuancier, en ajoutant une
-          couleur franchement plus claire ou plus foncée.
-        </p>
-      {/if}
-
-      {#if pistes.length > 0}
-        <p class="micro">{impasse ? 'Malgré tout, si tu veux forcer' : 'Ce que je te propose'}</p>
-        <!--
-          role="radio" et non aria-pressed : ce sont des options
-          exclusives, pas des interrupteurs. La distinction n'est pas
-          cosmétique — le style global d'un bouton « enfoncé » repeint le
-          fond en Terre avec du texte Paille, ce qui rendait le libellé de
-          la piste sélectionnée illisible sur la carte claire.
-        -->
-        <ul class="pistes" role="radiogroup" aria-label="Pistes de correction">
-          {#each pistes as { c: piste, impact }, i (piste.cible + piste.hex)}
-            <li>
-              <button
-                class="piste"
-                class:visee={i === pisteVisee}
-                role="radio"
-                aria-checked={i === pisteVisee}
-                onmouseenter={() => (pisteVisee = i)}
-                onfocus={() => (pisteVisee = i)}
-                onclick={() => (pisteVisee === i ? appliquePiste(piste) : (pisteVisee = i))}
-              >
-                <span class="piste-duo" aria-hidden="true">
-                  <span
-                    style="background:{piste.cible === 'avant' ? courante.avantHex : courante.fondHex}"
-                  ></span>
-                  <span class="fleche">→</span>
-                  <span style="background:{piste.hex}"></span>
-                </span>
-                <span class="piste-corps">
-                  <span class="piste-tete">
-                    <strong>{piste.cible === 'avant' ? 'Changer le texte' : 'Changer le fond'}</strong>
-                    <!-- L'effet sur l'ENSEMBLE, avant de cliquer. -->
-                    <span class="piste-badge" data-net={impact.cassees === 0}>
-                      {libelleImpact(impact)}
-                    </span>
-                    {#if !piste.douce}
-                      <span class="piste-badge">
-                        {piste.memeFamille ? 'gros écart' : 'change la couleur'}
-                      </span>
-                    {/if}
-                    {#if alerteBande(impact)}
-                      <span class="piste-badge" data-net={false}>{alerteBande(impact)}</span>
-                    {/if}
-                    {#if alerteHarmonie(impact)}
-                      <span class="piste-badge" data-net={false}>{alerteHarmonie(impact)}</span>
-                    {/if}
-                  </span>
-                  <span class="piste-phrase">{piste.phrase}</span>
-                  <span class="piste-chiffres value">
-                    {piste.hex} · {fmt(piste.ratio)}:1 · {piste.deltaL} points de clarté
-                  </span>
-                </span>
-              </button>
-            </li>
-          {/each}
-        </ul>
-        <p class="aide">
-          Survole une piste pour la voir dans le spécimen, clique pour l’appliquer.
-        </p>
-      {:else if verrouillees.includes(courante.avantId) && verrouillees.includes(courante.fondId)}
-        <!-- Cas distinct de « rien ne marche » : ici l'outil trouverait
-             quelque chose, c'est la graphiste qui a fermé les deux
-             portes. Le dire, plutôt que d'afficher une liste vide. -->
-        <p class="note-pied">
-          Ces deux couleurs sont verrouillées : l’outil n’a plus rien à déplacer. Déverrouille
-          l’une des deux au nuancier, ou sépare-les dans la maquette.
-        </p>
-      {:else}
-        <p class="note-pied">
-          Aucune variante de ces deux couleurs n’atteint le seuil : elles ne peuvent pas se porter
-          l’une l’autre. Sépare-les dans la maquette.
-        </p>
-      {/if}
-
-      <div class="actions">
-        {#if pisteActive}
-          <!-- En impasse, l'action n'est plus l'action principale : la
-               mettre en avant serait pousser vers un clic inutile. -->
-          <button class:principal={!impasse} onclick={() => appliquePiste(pisteActive.c)}>
-            {impasse ? 'Appliquer quand même' : 'Appliquer et passer à la suivante'}
-          </button>
-        {/if}
-        {#if proposition.usageTenable && proposition.usageTenable !== usage}
-          <button onclick={() => { usage = proposition.usageTenable as PairUse; curseur = 0; }}>
-            La garder pour {NOM_USAGE[proposition.usageTenable]}
-          </button>
-        {/if}
-        {#if echecs.length > 1}
-          <button
-            class="ghost"
-            onclick={() => {
-              curseur = (curseur + 1) % echecs.length;
-              pisteVisee = 0;
-            }}>Passer</button
-          >
-        {/if}
-      </div>
-
-    </div>
-
-    {#if echecs.length > 1}
-      <ul class="reste">
-        {#each echecs as e, i (e.avantId + e.fondId)}
-          {#if i !== curseur}
-            <li>
-              <button onclick={() => { curseur = i; pisteVisee = 0; }}>
-                <span class="puce" style="background:{e.fondHex};color:{e.avantHex}">Aa</span>
-                <span>{nomDe(e.avantId)} sur {nomDe(e.fondId)}</span>
-                <span class="value">{fmt(e.ratio)}:1</span>
-              </button>
-            </li>
-          {/if}
-        {/each}
-      </ul>
-    {/if}
-  {/if}
-
-  <!-- 4. Tout le reste, replié : ce sont des contrôles, pas des décisions -->
-  <details class="controles" bind:open={controlesOuverts}>
-    <summary>Contrôles de vérification</summary>
-
-    <div class="controles-corps">
-      <div class="bloc">
-        <p class="micro">Toutes les associations</p>
-        <div class="matrice-scroll">
-          <table>
-            <caption class="vh">Matrice de toutes les associations</caption>
-            <thead>
-              <tr>
-                <th scope="col"><span class="vh">Sur</span></th>
-                {#each settings.colors as c (c.id)}
-                  <th scope="col"><span class="tete" style="background:{c.hex}"></span>{c.label}</th>
-                {/each}
-              </tr>
-            </thead>
-            <tbody>
-              {#each settings.colors as ligne (ligne.id)}
-                <tr>
-                  <th scope="row"><span class="tete" style="background:{ligne.hex}"></span>{ligne.label}</th>
-                  {#each settings.colors as colonne (colonne.id)}
-                    {#if ligne.id === colonne.id}
-                      <td class="diag" aria-hidden="true"></td>
-                    {:else}
-                      {@const p = paires.find((x) => x.avantId === ligne.id && x.fondId === colonne.id)}
-                      <td>
-                        {#if p}
-                          <span class="signe" aria-hidden="true">{p.niveau ? '✓' : '✕'}</span>
-                          <span class="value">{fmt(p.ratio)}</span>
-                          <span class="niveau">{p.niveau ?? '—'}</span>
-                        {/if}
-                      </td>
-                    {/if}
-                  {/each}
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-
-    </div>
-  </details>
-
-  <!--
-    Le testeur. Toutes les paires possibles, rendues en conditions
-    réelles, et celles qu'on retient pour la suite. Retenir n'est pas
-    décoratif : c'est ce qui ouvre les étapes Rôles, Convertir et
-    Exporter — on ne distribue pas des rôles avant d'avoir décidé quelles
-    associations on va réellement employer.
-  -->
   <section class="testeur">
     <div class="testeur-tete">
-      <p class="section-titre">
-        <span class="glyphe" aria-hidden="true">◐</span> Testeur de palette
+      <p class="panel-tete">
+        Testeur de palette
+        <span class="panel-compte">
+          {visibles.length} paire{visibles.length > 1 ? 's' : ''}
+        </span>
       </p>
-      <span class="panel-compte">
-        {pairesVisibles.length} paire{pairesVisibles.length > 1 ? 's' : ''}
-      </span>
-      {#if pairesVisibles.length > 0}
+      {#if visibles.length > 0}
         <button class="lien" onclick={basculeToutes}>
           {toutesRetenues ? 'Tout désélectionner' : 'Tout sélectionner'}
         </button>
@@ -640,49 +160,81 @@
 
     {#if settings.colors.length < 2}
       <p class="note-pied">Ajoute au moins 2 couleurs pour générer les combinaisons.</p>
-    {:else if pairesVisibles.length === 0}
+    {:else if visibles.length === 0}
       <p class="note-pied">Aucune paire n’atteint ce niveau.</p>
     {:else}
       <ul class="paires">
-        {#each pairesVisibles as p (p.avantId + p.fondId)}
+        {#each visibles as p (p.id)}
           <li class="paire" class:retenue={retenue(p)}>
-            <div class="apercu" style="background:{p.fondHex};color:{p.avantHex}">
+            <div class="apercu" style="background:{p.fond.hex};color:{p.texte.hex}">
               <span class="apercu-titre">Titre lisible</span>
               <span class="apercu-corps">Exemple de texte courant sur ce fond.</span>
             </div>
+
             <div class="mesure">
-              <span class="ratio value">{fmt(p.ratio)}:1</span>
-              <span class="niveau-badge" data-ok={p.niveau !== null}>
-                {p.niveau ?? 'Échec'}
-              </span>
+              <span class="ratio value">{fmt(p.ratio)}</span>
+              <span class="niveau-badge" data-niveau={p.niveau}>{NIVEAUX[p.niveau]}</span>
             </div>
+
             <label class="retenir">
-              <input type="checkbox" checked={retenue(p)} onchange={() => basculeRetenue(p)} />
-              Retenir
+              <input type="checkbox" checked={retenue(p)} onchange={() => bascule(p)} />
+              <span class="retenir-texte">Retenir</span>
+              <span class="vh">
+                {p.texte.label} sur {p.fond.label}, {fmt(p.ratio)} pour un, {NIVEAUX[p.niveau]}
+              </span>
             </label>
           </li>
         {/each}
       </ul>
     {/if}
+  </section>
 
-    <p class="couverture">
-      <span class="value">{couvertes}</span> couleur{couvertes > 1 ? 's' : ''} sur
-      <span class="value">{settings.colors.length}</span>
-      {couvertes > 1 ? 'ont' : 'a'} au moins une association lisible en AA.
-      {#if couvertes < settings.colors.length}
-        Il en manque : ajoute une neutre claire ou foncée pour améliorer la couverture.
+  <!--
+    Le compteur de déverrouillage. Retenir des associations n'est pas
+    décoratif : c'est ce qui ouvre les étapes Rôles, Convertir et
+    Exporter. On ne distribue pas des rôles avant d'avoir décidé quelles
+    paires on va réellement employer.
+  -->
+  <section class="bilan">
+    <div class="bilan-ligne">
+      <span class="bilan-label">Couleurs ayant au moins une association AA</span>
+      <span class="value">{couvertes} / {settings.colors.length}</span>
+    </div>
+    <span class="barre" aria-hidden="true">
+      <span
+        style="inline-size:{settings.colors.length
+          ? Math.round((couvertes / settings.colors.length) * 100)
+          : 0}%"
+      ></span>
+    </span>
+    <p class="note-pied">
+      {#if settings.colors.length > 0 && couvertes === settings.colors.length}
+        Chaque couleur a au moins un duo lisible. C’est la bonne nouvelle.
+      {:else}
+        Certaines couleurs n’ont pas encore de duo lisible : ajoute une neutre claire ou foncée
+        pour améliorer la couverture.
       {/if}
     </p>
+
+    <div class="verrou" data-ok={debloque}>
+      <span class="signe" aria-hidden="true">{debloque ? '✓' : '🔒'}</span>
+      <span>
+        <span class="value">{retenues}</span> / {PAIRINGS_REQUIS} associations retenues —
+        {debloque ? 'la suite est ouverte.' : 'la suite s’ouvre à partir de là.'}
+      </span>
+    </div>
   </section>
 </div>
 
 <style>
-  /* — Le testeur de paires — */
+  .wrap {
+    display: grid;
+    gap: 1.4rem;
+  }
+
   .testeur {
     display: grid;
     gap: 0.7rem;
-    padding-block-start: 1.2rem;
-    border-block-start: 1px solid var(--filet);
   }
 
   .testeur-tete {
@@ -691,31 +243,60 @@
     gap: 0.7rem;
   }
 
-  .testeur-tete .section-titre {
-    margin: 0;
+  .testeur-tete .panel-tete {
     flex: 1;
   }
 
+  .lien {
+    border: none;
+    background: none;
+    padding: 0.2rem 0.4rem;
+    min-block-size: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-decoration: underline;
+  }
+
+  .lien:hover {
+    background: none;
+    color: var(--text-main);
+  }
+
+  /* Onglets : l'actif est un aplat plein, pas un soulignement. */
   .onglets {
     display: flex;
-    gap: 0.3rem;
+    gap: 6px;
     flex-wrap: wrap;
+    margin-block-end: 0.2rem;
   }
 
   .onglets button {
-    font-size: 0.8rem;
-    padding: 0.25rem 0.8rem;
-    min-block-size: 36px;
+    padding: 7px 14px;
+    border-radius: 10px;
+    border-color: transparent;
+    background: var(--surface-attente);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    min-block-size: 0;
+  }
+
+  .onglets button:hover {
+    background: var(--surface-panel);
+    border-color: var(--filet);
+  }
+
+  .onglets button[aria-pressed='true'] {
+    background: var(--surface-chrome);
+    border-color: var(--surface-chrome);
+    color: var(--text-on-chrome);
   }
 
   .onglets .cc {
-    color: var(--text-muted);
-    margin-inline-start: 0.25rem;
-  }
-
-  .onglets button[aria-pressed='true'] .cc {
-    color: var(--text-on-chrome);
-    opacity: 0.8;
+    margin-inline-start: 5px;
+    font-weight: 700;
+    opacity: 0.7;
   }
 
   .paires {
@@ -723,505 +304,170 @@
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 0.4rem;
+    gap: 6px;
   }
 
   .paire {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
-    gap: 0.9rem;
-    padding: 0.45rem 0.6rem;
+    gap: 14px;
+    padding: 6px;
     border: 1px solid var(--filet);
-    border-radius: var(--radius);
+    border-radius: 14px;
+    transition: border-color 150ms ease, background-color 150ms ease;
   }
 
-  /* Retenue : un filet plein, pas seulement une teinte — la case cochée
-     porte déjà l'information, la bordure ne fait que la renforcer. */
+  /* Retenue : la case cochée porte déjà l'information ; le fond et la
+     bordure ne font que la renforcer, et restent lisibles sans couleur. */
   .paire.retenue {
     border-color: var(--surface-chrome);
     background: var(--surface-conforme);
   }
 
+  /*
+   * L'aperçu est le cœur de l'écran : les deux couleurs en conditions
+   * réelles, un titre et une ligne de texte courant. C'est ce qui permet
+   * de juger autre chose que le chiffre — un ratio conforme peut rester
+   * pénible à lire en petit corps.
+   */
   .apercu {
     display: grid;
-    gap: 0.1rem;
-    padding: 0.6rem 0.8rem;
-    border-radius: var(--radius-sm);
+    gap: 2px;
+    padding: 14px 18px;
+    border-radius: 10px;
     min-inline-size: 0;
   }
 
   .apercu-titre {
-    font-size: 1.05rem;
-    font-weight: 600;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.2;
   }
 
   .apercu-corps {
-    font-size: 0.82rem;
+    font-size: 13px;
+    line-height: 1.4;
   }
 
   .mesure {
     display: grid;
     justify-items: end;
-    gap: 0.15rem;
+    gap: 3px;
     white-space: nowrap;
   }
 
   .ratio {
-    font-size: 0.9rem;
-    font-weight: 500;
+    font-size: 20px;
+    font-weight: 750;
+    line-height: 1;
   }
 
   .niveau-badge {
-    font-size: 0.7rem;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 0.05rem 0.4rem;
+    padding: 2px 8px;
     border-radius: var(--radius-pill);
     background: var(--surface-attente);
     color: var(--text-muted);
   }
 
-  .niveau-badge[data-ok='true'] {
+  .niveau-badge[data-niveau='AAA'],
+  .niveau-badge[data-niveau='AA'] {
     background: var(--surface-conforme);
     color: var(--conforme);
+  }
+
+  .niveau-badge[data-niveau='echec'] {
+    background: color-mix(in oklab, var(--non-conforme) 12%, var(--blanc));
+    color: var(--non-conforme);
   }
 
   .retenir {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
-    font-size: 0.8rem;
+    gap: 0.4rem;
+    padding-inline-end: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-muted);
     white-space: nowrap;
     min-block-size: 44px;
-  }
-
-  .couverture {
-    margin: 0;
-    font-size: 0.82rem;
-    color: var(--text-muted);
-    max-inline-size: var(--mesure);
-  }
-
-  .wrap {
-    display: grid;
-    gap: 1.2rem;
-  }
-
-  .entete {
-    display: grid;
-    gap: 0.35rem;
-  }
-
-  .usages {
-    display: flex;
-    gap: 0.35rem;
-    flex-wrap: wrap;
-  }
-
-  .usages button {
-    font-size: 0.85rem;
-    padding: 0.3rem 0.9rem;
-  }
-
-  .regle {
-    margin: 0;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-  }
-
-  .tout-passe {
-    margin: 0;
-    font-size: 0.95rem;
-  }
-
-  .tout-passe .signe {
-    color: var(--conforme);
-    font-weight: 600;
-  }
-
-  /* — La barre d'action : ce qu'il y a à faire, et le bouton pour le faire — */
-  .barre-action {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1.2rem;
-    flex-wrap: wrap;
-    background: var(--surface-panel);
-    border-radius: var(--radius);
-    padding: 0.9rem 1.1rem;
-  }
-
-  .barre-texte {
-    display: grid;
-    gap: 0.15rem;
-    min-inline-size: 0;
-  }
-
-  .barre-titre {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 500;
-  }
-
-  .barre-detail {
-    margin: 0;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    max-inline-size: 34rem;
-  }
-
-  /* Le bilan d'une action : ce qui a été fait, puis l'effet chiffré sur
-     l'ensemble. C'est la ligne qui manquait pour savoir si on avance. */
-  .resume {
-    margin: 0;
-    font-size: 0.85rem;
-    display: flex;
-    align-items: baseline;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-    background: var(--surface-panel);
-    border-inline-start: 3px solid var(--conforme);
-    border-radius: var(--radius-sm);
-    padding: 0.5rem 0.8rem;
-  }
-
-  /* Le mot « recul » est porté par le texte ; le filet ne fait que
-     renforcer, il ne porte jamais seul l'information. */
-  .resume[data-recul='true'] {
-    border-inline-start-color: var(--non-conforme);
-  }
-
-  .resume-fait {
-    font-weight: 500;
-  }
-
-  .resume-progres {
-    color: var(--text-muted);
-  }
-
-  button.lien {
-    border: none;
-    background: none;
-    padding: 0;
-    min-block-size: 0;
-    text-decoration: underline;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-  }
-
-  /* — La décision — */
-  .decision {
-    display: grid;
-    gap: 0.7rem;
-  }
-
-  .decision .micro {
-    margin: 0;
-  }
-
-  .titre-decision {
-    margin: 0;
-    font-size: 1.3rem;
-  }
-
-  .diagnostic {
-    margin: 0;
-    font-size: 0.88rem;
-    max-inline-size: 44rem;
-  }
-
-  .specimens {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.9rem;
-  }
-
-  .page {
-    padding: 1.1rem 1.2rem;
-    border-radius: var(--radius);
-  }
-
-  .page-titre {
-    margin: 0 0 0.4rem;
-    font-family: var(--font-titre);
-    font-size: 1.15rem;
-  }
-
-  .page-texte {
-    margin: 0;
-    font-size: 0.95rem;
-    line-height: 1.5;
-  }
-
-  .mesure {
-    display: flex;
-    align-items: baseline;
-    gap: 0.6rem;
-    margin: 0.4rem 0 0;
-  }
-
-  .ratio {
-    font-size: 1.35rem;
-  }
-
-  .verdict {
-    font-size: 0.82rem;
-    font-weight: 500;
-  }
-
-  .verdict[data-ok='true'] {
-    color: var(--conforme);
-  }
-
-  .verdict[data-ok='false'] {
-    color: var(--non-conforme);
-  }
-
-  /* — Les pistes proposées — */
-  .pistes {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: 0.4rem;
-  }
-
-  .piste {
-    inline-size: 100%;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.8rem;
-    text-align: left;
-    padding: 0.7rem 0.9rem;
-    border-radius: var(--radius);
-    border: 1px solid rgba(28, 18, 5, 0.12);
-    background: var(--surface-canvas);
-  }
-
-  /* Couleur de texte réaffirmée : sans elle, la piste sélectionnée
-     hériterait du style de bouton actif et deviendrait illisible. */
-  .piste.visee {
-    border-color: var(--text-main);
-    background: var(--surface-panel);
-    color: var(--text-main);
-  }
-
-  .piste-duo {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    flex-shrink: 0;
-    margin-block-start: 0.15rem;
-  }
-
-  .piste-duo > span:not(.fleche) {
-    inline-size: 1.5rem;
-    block-size: 1.5rem;
-    border-radius: 4px;
-    box-shadow: inset 0 0 0 1px rgba(28, 18, 5, 0.14);
-  }
-
-  .fleche {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-  }
-
-  .piste-corps {
-    display: grid;
-    gap: 0.15rem;
-    min-inline-size: 0;
-  }
-
-  .piste-tete {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    font-size: 0.9rem;
-  }
-
-  /* Le badge dit le coût ; il ne se lit pas à la couleur seule, le mot
-     porte l'information. */
-  .piste-badge {
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 0.1rem 0.45rem;
-    border-radius: var(--radius-pill);
-    background: rgba(28, 18, 5, 0.07);
-    color: var(--text-muted);
-  }
-
-  /* Gain net : mis en avant. Effet de bord : laissé neutre, le libellé
-     (« en casse une ») porte l'alerte — pas la couleur seule. */
-  .piste-badge[data-net='true'] {
-    background: var(--etape-active);
-    color: var(--ebene);
-  }
-
-  .piste-phrase {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    line-height: 1.4;
-  }
-
-  .piste-chiffres {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-  }
-
-  .impasse {
-    margin: 0;
-    font-size: 0.85rem;
-    line-height: 1.5;
-    max-inline-size: 44rem;
-    background: var(--surface-panel);
-    border-inline-start: 3px solid var(--non-conforme);
-    border-radius: var(--radius-sm);
-    padding: 0.7rem 0.9rem;
-  }
-
-  .aide {
-    margin: 0;
-    font-size: 0.75rem;
-    font-style: italic;
-    color: var(--text-muted);
-  }
-
-  .actions {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  button.ghost {
-    border-color: transparent;
-    color: var(--text-muted);
-  }
-
-
-  /* — La liste courte des autres échecs — */
-  .reste {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: 0.15rem;
-  }
-
-  .reste button {
-    inline-size: 100%;
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    border: none;
-    background: none;
-    padding: 0.3rem 0.4rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.85rem;
-    min-block-size: 38px;
-  }
-
-  .reste button:hover {
-    background: var(--surface-panel);
-  }
-
-  .reste .value {
-    margin-inline-start: auto;
-    color: var(--text-muted);
-  }
-
-  .puce {
-    inline-size: 1.6rem;
-    block-size: 1.6rem;
-    display: grid;
-    place-items: center;
-    border-radius: 4px;
-    font-size: 0.72rem;
-    flex-shrink: 0;
-  }
-
-  /* — Les contrôles, repliés — */
-  .controles {
-    border-block-start: 1px solid rgba(28, 18, 5, 0.09);
-    padding-block-start: 0.9rem;
-  }
-
-  .controles summary {
     cursor: pointer;
-    font-size: 0.85rem;
+  }
+
+  .paire.retenue .retenir {
     color: var(--text-main);
   }
 
-  .controles-corps {
+  /* — Bilan et verrou — */
+  .bilan {
     display: grid;
-    gap: 1.4rem;
-    margin-block-start: 1rem;
+    gap: 0.45rem;
+    padding-block-start: 1.2rem;
+    border-block-start: 1px solid var(--filet);
   }
 
-  .bloc {
-    display: grid;
-    gap: 0.4rem;
+  .bilan-ligne {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 13px;
   }
 
-  .bloc .micro {
-    margin: 0;
-  }
-
-  .matrice-scroll {
-    overflow-x: auto;
-  }
-
-  table {
-    border-collapse: collapse;
-    font-size: 0.78rem;
-  }
-
-  th,
-  td {
-    padding: 0.3rem 0.5rem;
-    border-bottom: 1px solid rgba(28, 18, 5, 0.09);
-    text-align: left;
-    white-space: nowrap;
-  }
-
-  thead th {
-    font-weight: 400;
+  .bilan-label {
     color: var(--text-muted);
   }
 
-  .tete {
-    display: inline-block;
-    inline-size: 0.8rem;
-    block-size: 0.8rem;
-    border-radius: 2px;
-    margin-inline-end: 0.35rem;
-    vertical-align: -1px;
+  .barre {
+    display: block;
+    block-size: 7px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-attente);
+    overflow: hidden;
   }
 
-  td .signe {
-    margin-inline-end: 0.3rem;
+  .barre span {
+    display: block;
+    block-size: 100%;
+    background: var(--conforme);
+    transition: inline-size 500ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .niveau {
-    color: var(--text-muted);
-    margin-inline-start: 0.3rem;
+  .verrou {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    background: var(--surface-attente);
+    border: 1px solid var(--bord-attente);
+    font-size: 13px;
   }
 
-  .diag {
-    background: var(--surface-panel);
+  .verrou[data-ok='true'] {
+    background: var(--surface-conforme);
+    border-color: var(--bord-conforme);
   }
 
+  .verrou .signe {
+    line-height: 1;
+  }
 
-
-
-
-
-
-  @media (max-width: 52rem) {
-    .specimens {
+  @media (max-width: 46rem) {
+    .paire {
       grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .mesure {
+      justify-items: start;
+      grid-auto-flow: column;
+      align-items: center;
+      gap: 0.6rem;
     }
   }
 </style>
