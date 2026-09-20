@@ -9,20 +9,18 @@
    */
   import {
     analyzeHarmony,
-    appliqueReglages,
     libelleForce,
     libelleLuminosite,
     libelleSaturation,
     libelleTemperature,
-    reglagesNeutres,
     AXIS_LABELS,
     FORCE_AMORCEE,
     LIBELLES_SCHEMA,
     SCHEME_LABELS,
     type SchemaVise,
-    type SchemeGuess,
   } from '../engine';
   import { settings } from './state.svelte';
+  import { harmonie } from './harmonie.svelte';
   import { journal } from './journal.svelte';
   import { messages } from './messages.svelte';
 
@@ -83,16 +81,6 @@
 
   // — Réglages d'ensemble —
 
-  /** Le schéma détecté, traduit vers celui que comprennent les réglages. */
-  const SCHEMA_DEPUIS_ANALYSE: Record<SchemeGuess, Exclude<SchemaVise, 'auto'> | null> = {
-    monochrome: 'mono',
-    analogous: 'analogue',
-    complementary: 'complementaire',
-    'split-complementary': 'split',
-    triadic: 'triadique',
-    libre: null,
-  };
-
   const SCHEMAS: SchemaVise[] = ['auto', 'analogue', 'complementaire', 'split', 'triadique', 'mono'];
 
   const CURSEURS = [
@@ -103,21 +91,14 @@
   ] as const;
 
   /**
-   * L'aperçu est CALCULÉ, jamais écrit dans l'état : bouger un curseur
-   * ne touche pas au nuancier. C'est « Appliquer » qui décide, en une
-   * seule entrée d'historique. Écrire à chaque pixel de glissement
-   * remplirait la pile d'annulation et — le piège classique — ferait
-   * se recomposer les réglages sur eux-mêmes.
+   * L'aperçu vient du module partagé `harmonie.svelte.ts` : c'est le
+   * même calcul que celui affiché sur la grille, à gauche. Une seconde
+   * implémentation ici finirait par diverger de celle-là.
+   *
+   * Il est CALCULÉ, jamais écrit : bouger un curseur ne touche pas au
+   * nuancier. C'est « Appliquer » qui décide, en une seule entrée
+   * d'historique.
    */
-  const apercu = $derived(
-    appliqueReglages(settings.colors, settings.harmonie, SCHEMA_DEPUIS_ANALYSE[analysis.scheme]),
-  );
-
-  const reglagesActifs = $derived(!reglagesNeutres(settings.harmonie));
-
-  const nbModifiees = $derived(
-    apercu.filter((hex, i) => hex !== settings.colors[i]?.hex).length,
-  );
 
   function choisitSchema(schema: SchemaVise): void {
     settings.harmonie.schema = schema;
@@ -129,15 +110,12 @@
 
   function reinitialise(): void {
     settings.harmonie.schema = 'auto';
-    settings.harmonie.force = 0;
-    settings.harmonie.temperature = 0;
-    settings.harmonie.saturation = 0;
-    settings.harmonie.luminosite = 0;
+    harmonie.reinitialise();
   }
 
   function appliqueLesReglages(): void {
-    const cible = apercu;
-    const n = nbModifiees;
+    const cible = harmonie.apercu;
+    const n = harmonie.nbModifiees;
     if (n === 0) return;
     journal.agis(`Réglage de ${n} couleur${n > 1 ? 's' : ''}`, () => {
       settings.colors = settings.colors.map((c, i) => ({ ...c, hex: cible[i] as string }));
@@ -231,24 +209,15 @@
       {/each}
     </div>
 
-    {#if reglagesActifs}
-      <div class="apercu-bande">
-        <span class="micro">Avant</span>
-        <span class="bande" aria-hidden="true">
-          {#each settings.colors as c (c.id)}<span style="background:{c.hex}"></span>{/each}
-        </span>
-        <span class="micro">Après</span>
-        <span class="bande" aria-hidden="true">
-          {#each apercu as hex, i (settings.colors[i]?.id ?? i)}
-            <span style="background:{hex}"></span>
-          {/each}
-        </span>
-      </div>
+    {#if harmonie.actif}
+      <p class="rappel-apercu">
+        L’effet se voit sur le nuancier, à gauche. Rien n’est écrit tant que tu n’as pas validé.
+      </p>
 
-      <button class="solid large" onclick={appliqueLesReglages} disabled={nbModifiees === 0}>
-        {nbModifiees === 0
+      <button class="solid large" onclick={appliqueLesReglages} disabled={harmonie.nbModifiees === 0}>
+        {harmonie.nbModifiees === 0
           ? 'Rien à appliquer'
-          : `Appliquer à ${nbModifiees} couleur${nbModifiees > 1 ? 's' : ''}`}
+          : `Appliquer à ${harmonie.nbModifiees} couleur${harmonie.nbModifiees > 1 ? 's' : ''}`}
       </button>
       <button class="large" onclick={reinitialise}>Réinitialiser les réglages</button>
     {/if}
@@ -420,21 +389,13 @@
     font-size: 11px;
   }
 
-  .apercu-bande {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: center;
-    gap: 0.3rem 0.55rem;
+  .rappel-apercu {
+    margin: 0;
+    font-size: 11.5px;
+    line-height: 1.45;
+    color: var(--text-muted);
   }
 
-  .bande {
-    display: flex;
-    gap: 2px;
-    block-size: 1.5rem;
-  }
 
-  .bande span {
-    flex: 1;
-    border-radius: 2px;
-  }
+
 </style>

@@ -34,7 +34,24 @@
     /** Identifiants des couleurs signalées par une analyse : elles
      *  portent une pastille « ! » sur leur aplat. */
     marques = [] as readonly string[],
-  }: { conseils?: boolean; marques?: readonly string[] } = $props();
+    /**
+     * Aperçu d'un réglage en cours : la grille affiche CES couleurs au
+     * lieu de celles du nuancier, sans rien y écrire. L'édition est
+     * suspendue pendant ce temps — cliquer un aplat qui montre un
+     * aperçu ouvrirait un sélecteur sur une valeur qui n'existe pas
+     * encore.
+     */
+    apercu = null as readonly string[] | null,
+  }: {
+    conseils?: boolean;
+    marques?: readonly string[];
+    apercu?: readonly string[] | null;
+  } = $props();
+
+  /** La couleur à AFFICHER : l'aperçu s'il y en a un, sinon la vraie. */
+  function affiche(color: PaletteEntry, i: number): string {
+    return apercu?.[i] ?? color.hex;
+  }
 
   /** Génère une couleur de remplacement dans la bande manquante, en
    * restant dans la famille de la marque. */
@@ -184,11 +201,11 @@
           cible = null;
         }}
       >
-        <label class="swatch" style="background:{color.hex}">
+        <label class="swatch" class:apercu={apercu !== null} style="background:{affiche(color, i)}">
           <input
             type="color"
-            value={color.hex}
-            disabled={color.verrou}
+            value={affiche(color, i)}
+            disabled={color.verrou || apercu !== null}
             oninput={(e) => update(color, e.currentTarget.value)}
             aria-label={`Modifier ${color.label}`}
           />
@@ -210,8 +227,8 @@
           aria-label="Nom de la couleur"
         />
         <div class="meta">
-          <span class="hex value">{color.hex}</span>
-          <span class="band">{BAND_LABELS[bandOfHex(color.hex)].replace(/s$/, '')}</span>
+          <span class="hex value">{affiche(color, i)}</span>
+          <span class="band">{BAND_LABELS[bandOfHex(affiche(color, i))].replace(/s$/, '')}</span>
         </div>
 
         <!--
@@ -396,6 +413,12 @@
 
   .swatch:active {
     cursor: grabbing;
+  }
+
+  /* Pendant un aperçu, l'aplat n'est plus cliquable : ce qu'il montre
+     n'est pas encore dans le nuancier. */
+  .swatch.apercu {
+    cursor: default;
   }
 
   .swatch input {

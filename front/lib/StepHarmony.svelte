@@ -12,6 +12,7 @@
   import { analyzeHarmony, AXIS_LABELS, SCHEME_LABELS } from '../engine';
   import { settings } from './state.svelte';
   import StepPalette from './StepPalette.svelte';
+  import { harmonie } from './harmonie.svelte';
 
   const analysis = $derived(analyzeHarmony(settings.colors));
   const marques = $derived(analysis.offNotes.map((n) => n.id));
@@ -41,9 +42,22 @@
     {/each}
   </div>
 
+  {#if harmonie.actif}
+    <p class="en-apercu">
+      <span aria-hidden="true">≋</span>
+      Aperçu des réglages — {harmonie.nbModifiees} couleur{harmonie.nbModifiees > 1 ? 's' : ''}
+      changerai{harmonie.nbModifiees > 1 ? 'ent' : 't'}. Rien n’est encore écrit : valide à droite.
+    </p>
+  {/if}
+
   <!-- Le même nuancier qu'à l'étape 1, entièrement éditable : corriger
-       une harmonie, c'est souvent changer une couleur à la main. -->
-  <StepPalette conseils={false} {marques} />
+       une harmonie, c'est souvent changer une couleur à la main. Les
+       curseurs de droite s'y voient EN DIRECT, sans rien y écrire. -->
+  <StepPalette
+    conseils={false}
+    {marques}
+    apercu={harmonie.actif ? harmonie.apercu : null}
+  />
 </div>
 
 <style>
@@ -100,6 +114,21 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-muted);
+  }
+
+  /* Bandeau d'aperçu : il dit en toutes lettres que ce qu'on voit n'est
+     pas encore enregistré. Sans lui, on croirait la palette déjà
+     modifiée et on partirait à l'étape suivante. */
+  .en-apercu {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0.6rem 0.85rem;
+    border-radius: var(--radius);
+    background: var(--etape-active);
+    color: var(--ebene);
+    font-size: 12.5px;
   }
 
   .regularity {
