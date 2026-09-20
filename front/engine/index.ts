@@ -94,7 +94,14 @@ export {
   type TokenRef,
 } from './semantic/roles';
 export { buildTheme, type Theme, type ThemeMode, type AuditedPair } from './semantic/theme';
-export { composeApercu, type Apercu, type CouleurApercu } from './semantic/apercu';
+export {
+  composeApercu,
+  type Apercu,
+  type CouleurApercu,
+  type EntreeApercu,
+  type DuoValide,
+  type RoleNuancier,
+} from './semantic/apercu';
 
 export { generatePalette, type GeneratedPalette, type PaletteOptions } from './palette';
 export { exportCss } from './export/css';

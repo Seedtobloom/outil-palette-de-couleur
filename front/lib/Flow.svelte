@@ -255,24 +255,29 @@
   );
 
   /**
-   * Les deux aperçus, montés avec les couleurs du nuancier.
+   * Les deux aperçus, montés avec le travail des étapes 3 et 4.
    *
-   * La dominante de l'étape 4 sert de couleur de bouton quand elle a été
-   * attribuée : c'est précisément ce que ce rôle veut dire, et ça
-   * referme la boucle entre l'étape Rôles et le livrable.
+   * On passe les couleurs AVEC leur rôle et la liste des associations
+   * retenues : l'aperçu ne compose que des duos déjà vérifiés, et prend
+   * les fonds et le bouton là où les rôles les désignent. Sans ça, il
+   * classait les couleurs par clarté et posait, par exemple, un rouge de
+   * marque sur un gris moyen — un duo que personne n'avait validé, dans
+   * la vignette censée montrer le résultat.
    */
   const apercus = $derived.by(() => {
-    const entrees = settings.colors.map((c) => ({ hex: c.hex, label: c.label }));
-    const idDominante = settings.colors.find((c) => settings.roles[c.id] === 'hero');
-    const dominante = idDominante
-      ? { hex: idDominante.hex, label: idDominante.label }
-      : undefined;
+    const entrees = settings.colors.map((c) => ({
+      hex: c.hex,
+      label: c.label,
+      role: settings.roles[c.id],
+    }));
     return (['clair', 'sombre'] as const)
-      .map((mode) => ({ mode, vue: composeApercu(entrees, mode, dominante) }))
+      .map((mode) => ({ mode, vue: composeApercu(entrees, mode, associationsRetenues) }))
       .filter((a): a is { mode: 'clair' | 'sombre'; vue: Apercu } => a.vue !== null);
   });
 
   const apercuFaible = $derived(apercus.some((a) => a.vue.ratioTexte < 4.5));
+  /** Au moins un aperçu a dû composer hors des associations retenues. */
+  const apercuNonValide = $derived(apercus.some((a) => !a.vue.valide));
 
   /** Tronqué vers le bas : 4,497 n'est pas 4,5, et ne passe donc pas AA. */
   function fmtRatio(valeur: number): string {
@@ -459,12 +464,26 @@
                     </span>
                   </p>
                   <p class="preview-pied" style="color:{vue.detail.hex}">
-                    {vue.carte.label} · texte {vue.texte.label} · {fmtRatio(vue.ratioTexte)}:1
+                    {vue.carte.label} · texte {vue.texte.label} · {fmtRatio(vue.ratioTexte)}:1{vue.valide
+                      ? ' ✓ retenue'
+                      : ''}
                   </p>
                 </div>
               </div>
             {/each}
           </div>
+          <p class="note-pied alerte-apercu">
+            Ces deux vignettes ne montent que des duos que tu as retenus à l’étape Contraste,
+            et prennent leurs fonds et leur bouton dans les rôles de l’étape Rôles.
+          </p>
+          {#if apercuNonValide}
+            <p class="note-pied alerte-apercu">
+              Sur au moins un des deux modes, tes associations retenues ne couvrent pas ce
+              fond : l’aperçu a dû choisir seul, et son pied ne porte pas la mention
+              « retenue ». Retiens une association sur ce fond à l’étape Contraste pour que
+              la vignette dise quelque chose de vérifié.
+            </p>
+          {/if}
           {#if apercuFaible}
             <p class="note-pied alerte-apercu">
               Sur au moins un des deux fonds, la couleur la plus lisible de ton nuancier
