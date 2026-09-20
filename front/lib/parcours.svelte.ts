@@ -24,9 +24,6 @@ export type StepDef = {
   condition?: { met: () => boolean; texte: string };
 };
 
-/** Étapes qui travaillent sur le nuancier, et le supposent donc rempli. */
-const ETAPES_ANALYSE = ['palette', 'harmony', 'contrast', 'roles', 'convert'];
-
 /**
  * Nombre d'associations de contraste à retenir avant d'ouvrir la suite
  * du parcours. C'est le verrou de la référence : on ne distribue pas des
@@ -37,18 +34,6 @@ export const PAIRINGS_REQUIS = 4;
 class Parcours {
   index = $state(0);
   maxAtteint = $state(0);
-  /**
-   * Une palette a été calculée depuis la couleur de départ. Elle sera
-   * versée dans le nuancier à l'entrée des étapes d'analyse : la
-   * condition d'accès doit donc en tenir compte, sinon l'étape
-   * Génération se retrouve sans issue — le nuancier est encore vide et
-   * « Continuer » reste désactivé alors même que le clic le remplirait.
-   */
-  paletteDisponible = $state(false);
-
-  /** Appelé à l'entrée d'une étape, pour laisser Flow amorcer le nuancier. */
-  onEntree: ((id: string) => void) | null = null;
-
   /**
    * Les six étapes, calquées sur celles de l'outil de référence — y
    * compris l'ordre : le contraste se teste AVANT d'attribuer les rôles,
@@ -107,9 +92,22 @@ class Parcours {
     },
   ];
 
+  /**
+   * ⚠ Ce verrou ne verrouillait rien.
+   *
+   * Il disait « au moins 3 couleurs OU une palette disponible », et
+   * `paletteDisponible` était vrai en permanence : elle venait de
+   * `generatePalette(settings.baseColor)`, qui réussit toujours. On
+   * pouvait donc entrer dans l'étape Harmonie avec un nuancier vide, et
+   * Flow amorçait alors le nuancier avec cinq couleurs dérivées de cette
+   * couleur de base fantôme — le bleu par défaut, dans le nuancier de
+   * quelqu'un qui travaille sur du brun.
+   *
+   * La condition dit maintenant ce qu'elle annonce.
+   */
   private auMoins3() {
     return {
-      met: () => settings.colors.length >= 3 || this.paletteDisponible,
+      met: () => settings.colors.length >= 3,
       texte: 'Il faut au moins 3 couleurs',
     };
   }
@@ -164,8 +162,6 @@ class Parcours {
   }
 
   private entre(i: number): void {
-    const cible = this.etapes[i];
-    if (cible && ETAPES_ANALYSE.includes(cible.id)) this.onEntree?.(cible.id);
     this.index = i;
     this.maxAtteint = Math.max(this.maxAtteint, i);
   }

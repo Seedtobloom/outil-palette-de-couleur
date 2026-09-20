@@ -94,9 +94,18 @@ export {
   type TokenRef,
 } from './semantic/roles';
 export { buildTheme, type Theme, type ThemeMode, type AuditedPair } from './semantic/theme';
+export { composeApercu, type Apercu, type CouleurApercu } from './semantic/apercu';
 
 export { generatePalette, type GeneratedPalette, type PaletteOptions } from './palette';
 export { exportCss } from './export/css';
+export {
+  exportNuancierCss,
+  enIdentifiant,
+  VARIABLE_ROLE,
+  type EntreeCss,
+  type AssociationCss,
+  type RoleCss,
+} from './export/nuancier-css';
 export { exportAse } from './export/ase';
 export {
   exportPlancheSvg,

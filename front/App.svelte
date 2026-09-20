@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { generatePalette, type GeneratedPalette } from './engine';
   import { settings } from './lib/state.svelte';
   import { parcours } from './lib/parcours.svelte';
   import { journal } from './lib/journal.svelte';
@@ -16,26 +15,6 @@
 
   let aideOuverte = $state(false);
   let versionsOuvertes = $state(false);
-
-  const palette: GeneratedPalette | null = $derived.by(() => {
-    try {
-      return generatePalette(settings.baseColor, {
-        scheme: settings.scheme,
-        wheel: settings.wheel,
-        intensity: settings.intensity,
-        neutralInfluence: settings.neutralInfluence / 100,
-        hueTorsion: settings.hueTorsion,
-      });
-    } catch {
-      return null;
-    }
-  });
-
-  // Le parcours a besoin de savoir qu'une palette existe : c'est ce qui
-  // déverrouille les étapes d'analyse avant que le nuancier soit rempli.
-  $effect(() => {
-    parcours.paletteDisponible = palette !== null;
-  });
 
   // Le fond se teinte de la palette en cours. L'effet LIT l'état et
   // n'écrit que dans le DOM : il ne peut donc pas se relancer lui-même.
@@ -260,7 +239,7 @@
   </header>
 
   <main>
-    <Flow {palette} />
+    <Flow />
   </main>
 
   <footer>

@@ -37,10 +37,25 @@
     marques = [] as readonly string[],
   }: { conseils?: boolean; marques?: readonly string[] } = $props();
 
-  /** Génère une couleur de remplacement dans la bande manquante, en
-   * restant dans la famille de la marque. */
+  /**
+   * Génère une couleur de remplacement dans la bande manquante, en
+   * restant dans la famille de la marque.
+   *
+   * ⚠ La teinte vient du NUANCIER, pas de `settings.baseColor`.
+   * `baseColor` est le reste d'une étape supprimée, que plus rien ne
+   * renseigne de façon fiable ; elle vaut le bleu par défaut après un
+   * Smart Builder. La suggestion proposait donc du bleu dans une palette
+   * brune. On prend la couleur la plus franche du nuancier — celle qui
+   * porte l'identité — et `baseColor` ne sert plus que de dernier repli,
+   * quand il n'y a encore rien à lire.
+   */
   function suggestFor(band: 'light' | 'mid' | 'dark'): string {
-    const base = parseToOklch(settings.baseColor) ?? { l: 0.6, c: 0.1, h: 260 };
+    const franches = settings.colors
+      .map((c) => parseToOklch(c.hex))
+      .filter((o): o is NonNullable<typeof o> => o !== null)
+      .sort((a, b) => b.c - a.c);
+    const base =
+      franches[0] ?? parseToOklch(settings.baseColor) ?? { l: 0.6, c: 0.1, h: 260 };
     const l = band === 'light' ? 0.93 : band === 'dark' ? 0.28 : 0.6;
     const ratio = band === 'mid' ? 0.85 : 0.45;
     return oklchToHex(gamutMap({ l, c: ratio * maxChroma(l, base.h, 'srgb'), h: base.h }, 'srgb'));

@@ -18,11 +18,11 @@
     messageTri,
     nommePalette,
     type SensTri,
-    exportCss,
+    exportNuancierCss,
+    composeApercu,
+    type Apercu,
     exportAse,
     exportPlancheSvg,
-    generatePalette,
-    type GeneratedPalette,
   } from '../engine';
   import { settings } from './state.svelte';
   import { journal } from './journal.svelte';
@@ -35,8 +35,6 @@
   import StepConvert from './StepConvert.svelte';
   import SidePanel from './SidePanel.svelte';
   import ImportImage from './ImportImage.svelte';
-
-  let { palette }: { palette: GeneratedPalette | null } = $props();
 
   /**
    * Panneau d'entrée ouvert sous la barre d'outils. « Coller » est
@@ -116,31 +114,25 @@
 
   const current = $derived(parcours.courante);
 
-  /**
-   * Verse la palette générée dans le nuancier si la graphiste n'y a pas
-   * encore touché.
+  /*
+   * ⚠ ICI SE TROUVAIT `seedColors`, ET IL FAUT DIRE POURQUOI IL EST PARTI.
    *
-   * Branché sur le parcours plutôt que sur un seul bouton : quel que soit
-   * le chemin d'entrée — « Continuer », clic dans le fil, saut depuis le
-   * score de santé — l'étape s'ouvre avec de la matière à analyser.
+   * À l'entrée d'une étape d'analyse, si le nuancier était vide, il le
+   * remplissait de cinq couleurs tirées de `generatePalette(baseColor)` :
+   * « Principale », « Secondaire », « Accent », « Gris clair », « Gris
+   * foncé ». Comme `baseColor` n'est plus renseignée par rien depuis la
+   * suppression de l'étape « couleur de base », ces cinq couleurs
+   * venaient du bleu par défaut. Le nuancier se remplissait donc tout
+   * seul de couleurs que personne n'avait choisies.
+   *
+   * C'était un pansement sur le verrou d'étape, qui laissait passer un
+   * nuancier vide (voir `auMoins3` dans parcours.svelte.ts). Le verrou
+   * compte maintenant vraiment les couleurs, et il n'y a plus rien à
+   * amorcer : on entre dans l'étape Harmonie avec ses propres couleurs,
+   * ou on n'y entre pas.
    */
-  parcours.onEntree = () => {
-    if (settings.colors.length === 0 && palette) seedColors(palette);
-  };
-
   function next(): void {
     parcours.suivant();
-  }
-
-  function seedColors(p: GeneratedPalette): void {
-    const t = p.themes.light.tokens;
-    settings.colors = [
-      { id: 'g1', hex: t.primary.hex, label: 'Principale' },
-      { id: 'g2', hex: t.secondary.hex, label: 'Secondaire' },
-      { id: 'g3', hex: t.accent.hex, label: 'Accent' },
-      { id: 'g4', hex: p.ramps.neutral.steps[1]!.hex, label: 'Gris clair' },
-      { id: 'g5', hex: p.ramps.neutral.steps[9]!.hex, label: 'Gris foncé' },
-    ];
   }
 
   // Import d'une palette existante (le point d'entrée le plus fréquent :
@@ -167,38 +159,24 @@
     panneau = null;
   }
 
-  // Pipette écran : API EyeDropper, avec repli explicite quand elle
-  // n'est pas exposée (Firefox, Safari).
-  const pipetteDisponible =
-    typeof window !== 'undefined' && 'EyeDropper' in window;
-
-  async function pipette(): Promise<void> {
-    try {
-      const Outil = (window as unknown as {
-        EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> };
-      }).EyeDropper;
-      const { sRGBHex } = await new Outil().open();
-      settings.baseColor = sRGBHex;
-    } catch {
-      // Annulation par la personne : rien à signaler.
-    }
-  }
-
-  const baseValid = $derived(parseToOklch(settings.baseColor) !== null);
-
+  /*
+   * Ici vivaient une pipette écran et un `baseValid` : du code défini,
+   * jamais affiché — la barre d'outils qui les portait est tombée avec
+   * l'étape « couleur de base ». Ils continuaient d'écrire dans
+   * `settings.baseColor`, ce qui achevait de brouiller la piste quand
+   * l'export sortait du bleu.
+   */
   const etapeSuivante = $derived(parcours.suivante);
   const conditionSuivante = $derived(parcours.conditionSuivante);
   const peutContinuer = $derived(parcours.peutContinuer);
 
   /**
-   * Un seul export de code : les variables CSS du système généré.
-   * Tailwind, DTCG et SCSS sont tombés avec le reste — la référence ne
-   * sort que du CSS, du SVG, du PNG, du PDF, de l'ASE et du JSON.
+   * Un seul export de code : les variables CSS du nuancier. Tailwind,
+   * DTCG et SCSS sont tombés avec le reste — la référence ne sort que du
+   * CSS, du SVG, du PNG, du PDF, de l'ASE et du JSON.
    */
   const FICHIER_CSS = 'nuancier.css';
   let copied = $state(false);
-
-  const exportText = $derived(palette ? exportCss(palette) : '');
 
   async function copyExport(): Promise<void> {
     await navigator.clipboard.writeText(exportText);
@@ -251,6 +229,56 @@
       .filter((a): a is NonNullable<typeof a> => a !== null),
   );
 
+  /**
+   * ⚠ LE DÉFAUT QUE CET EXPORT RÉPARE.
+   *
+   * `exportText` descendait de `palette`, c'est-à-dire d'un thème
+   * fabriqué par `generatePalette(settings.baseColor)`. Or `baseColor`
+   * est le reste d'une étape « choisis ta couleur de base » supprimée
+   * depuis, que plus rien ne renseigne sauf « Coller » et l'import
+   * photo — pas le Smart Builder. Le fichier téléchargé descendait donc
+   * du bleu par défaut (#2563eb) : on pouvait travailler une heure sur
+   * Terre, Paille et Glycine et repartir avec un CSS bleu.
+   *
+   * La source est maintenant le nuancier, ses rôles et les associations
+   * retenues. Ce qu'on télécharge est ce qu'on a sous les yeux.
+   */
+  const exportText = $derived(
+    exportNuancierCss(
+      settings.colors.map((c) => ({ hex: c.hex, label: c.label, tonDirect: c.reference })),
+      {
+        ids: settings.colors.map((c) => c.id),
+        roles: settings.roles,
+        associations: associationsRetenues,
+      },
+    ),
+  );
+
+  /**
+   * Les deux aperçus, montés avec les couleurs du nuancier.
+   *
+   * La dominante de l'étape 4 sert de couleur de bouton quand elle a été
+   * attribuée : c'est précisément ce que ce rôle veut dire, et ça
+   * referme la boucle entre l'étape Rôles et le livrable.
+   */
+  const apercus = $derived.by(() => {
+    const entrees = settings.colors.map((c) => ({ hex: c.hex, label: c.label }));
+    const idDominante = settings.colors.find((c) => settings.roles[c.id] === 'hero');
+    const dominante = idDominante
+      ? { hex: idDominante.hex, label: idDominante.label }
+      : undefined;
+    return (['clair', 'sombre'] as const)
+      .map((mode) => ({ mode, vue: composeApercu(entrees, mode, dominante) }))
+      .filter((a): a is { mode: 'clair' | 'sombre'; vue: Apercu } => a.vue !== null);
+  });
+
+  const apercuFaible = $derived(apercus.some((a) => a.vue.ratioTexte < 4.5));
+
+  /** Tronqué vers le bas : 4,497 n'est pas 4,5, et ne passe donc pas AA. */
+  function fmtRatio(valeur: number): string {
+    return (Math.floor(valeur * 100) / 100).toFixed(2).replace('.', ',');
+  }
+
   const plancheSvg = $derived(
     exportPlancheSvg(settings.colors, { associations: associationsRetenues }),
   );
@@ -299,21 +327,14 @@
     image.src = url;
   }
 
-  const BRAND_RAMPS = [
-    ['primary', 'Principale'],
-    ['secondary', 'Secondaire'],
-    ['accent', 'Accent'],
-    ['neutral', 'Gris'],
-  ] as const;
-
-  const SEM_RAMPS = [
-    ['success', 'Succès'],
-    ['warning', 'Attention'],
-    ['error', 'Erreur'],
-    ['info', 'Info'],
-  ] as const;
-
-  void generatePalette; // (le calcul vit dans App, qui passe `palette`)
+  /*
+   * Deux tables de rampes (« Principale / Secondaire / Accent / Gris »,
+   * « Succès / Attention / Erreur / Info ») vivaient ici, plus un
+   * `void generatePalette` qui empêchait le compilateur de signaler
+   * l'import devenu inutile. Tout cela décrivait l'étape « rampes »
+   * supprimée depuis, et c'est ce silence forcé qui a permis au bleu de
+   * rester branché aussi longtemps sans que rien ne proteste.
+   */
 </script>
 
 <div class="flow">
@@ -405,36 +426,53 @@
       {:else if current.id === 'convert'}
         <StepConvert />
       {:else if current.id === 'deliver'}
-        {#if palette}
+        {#if settings.colors.length > 0}
+          <!--
+            Tes couleurs en situation, par les deux bouts : la plus
+            claire en fond d'un côté, la plus foncée de l'autre. Rien
+            n'est fabriqué ici, tout est choisi dans le nuancier — et
+            chaque zone dit quelle couleur elle porte, sinon l'aperçu
+            n'est qu'une image de plus.
+
+            Sous deux couleurs il n'y a pas d'interface à montrer : la
+            liste est vide et le bloc disparaît, sans masquer les
+            livrables qui suivent.
+          -->
+          {#if apercus.length > 0}
           <div class="previews">
-            {#each ['light', 'dark'] as const as mode (mode)}
-              {@const t = palette.themes[mode].tokens}
-              <div class="preview" style="background:{t.background.hex}">
+            {#each apercus as { mode, vue } (mode)}
+              <div class="preview" style="background:{vue.fond.hex}">
                 <div
                   class="preview-card"
-                  style="background:{t.surface.hex};border-color:{t['border-default'].hex}"
+                  style="background:{vue.carte.hex};border-color:{vue.detail.hex}"
                 >
-                  <p class="preview-title" style="color:{t['text-primary'].hex}">
-                    {mode === 'light' ? 'Clair' : 'Sombre'}
+                  <p class="preview-title" style="color:{vue.texte.hex}">
+                    {mode === 'clair' ? 'Clair' : 'Sombre'}
                   </p>
-                  <p class="preview-body" style="color:{t['text-secondary'].hex}">
-                    Un texte, un <span style="color:{t['text-muted'].hex}">détail</span>.
+                  <p class="preview-body" style="color:{vue.texte.hex}">
+                    Un texte courant, et un
+                    <span style="color:{vue.detail.hex}">détail plus discret</span>.
                   </p>
                   <p class="preview-actions">
-                    <span style="background:{t.primary.hex};color:{t['on-primary'].hex}">Action</span>
-                    <span
-                      style="background:{t['success-surface'].hex};color:{t['success-content']
-                        .hex};border:1px solid {t['success-border'].hex}">✓</span
-                    >
-                    <span
-                      style="background:{t['error-surface'].hex};color:{t['error-content']
-                        .hex};border:1px solid {t['error-border'].hex}">✗</span
-                    >
+                    <span style="background:{vue.action.hex};color:{vue.surAction.hex}">
+                      Action
+                    </span>
+                  </p>
+                  <p class="preview-pied" style="color:{vue.detail.hex}">
+                    {vue.carte.label} · texte {vue.texte.label} · {fmtRatio(vue.ratioTexte)}:1
                   </p>
                 </div>
               </div>
             {/each}
           </div>
+          {#if apercuFaible}
+            <p class="note-pied alerte-apercu">
+              Sur au moins un des deux fonds, la couleur la plus lisible de ton nuancier
+              n’atteint pas 4,5:1. Il te manque une couleur de texte — c’est ce que l’aperçu
+              montre, ce n’est pas un défaut d’affichage.
+            </p>
+          {/if}
+          {/if}
           <div class="panel">
             <p class="panel-tete">
               Pour l’intégration
@@ -447,7 +485,9 @@
               <button onclick={telechargeTexte}>Télécharger</button>
             </div>
             <p class="note-pied">
-              Variables CSS : rampes, rôles, thèmes clair et sombre, prêtes à coller.
+              Une variable par couleur, sous son nom, puis les rôles de l’étape 4 qui pointent
+              dessus. Les associations que tu as retenues suivent en commentaire, avec leur
+              ratio — de quoi intégrer sans avoir à redemander quoi poser sur quoi.
             </p>
             <details class="why">
               <summary>Voir le code</summary>
@@ -743,6 +783,21 @@
   .preview-actions span {
     padding: 0.2rem 0.7rem;
     border-radius: 100px;
+  }
+
+  /* La légende de l'aperçu : quelle couleur porte quoi, et le contraste
+     obtenu. Sans elle, on regarde une vignette jolie sans savoir ce
+     qu'elle dit — et c'est précisément ce qu'on reprochait à l'ancien
+     aperçu. Elle prend la couleur du détail, donc une couleur du
+     nuancier : elle fait partie de la démonstration. */
+  .preview-pied {
+    margin: 0.7rem 0 0;
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .alerte-apercu {
+    margin-top: 0.6rem;
   }
 
   .deliver-row {
