@@ -93,7 +93,7 @@
     messages.succes(
       avant === 0
         ? `Palette construite — ${settings.colors.length} couleurs.`
-        : `Nouvelle palette — ${settings.colors.length} couleurs.`,
+        : `Nouvelle palette générée — ${settings.colors.length} couleurs.`,
       { libelle: 'Annuler', faire: () => journal.annule() },
     );
   }
@@ -314,7 +314,16 @@
           <button class:actif={panneau === 'image'} onclick={() => ouvre('image')}>
             Importer une photo
           </button>
-          <button class="solid" onclick={construit}>Construire</button>
+          <!--
+            Le bouton « magique » de la référence : une baguette, un
+            libellé court, un résultat immédiat et différent à chaque
+            clic. C'est ce qui donne l'impression que quelque chose de
+            malin travaille — alors que c'est de la géométrie sur le
+            cercle des teintes, déterministe et testée.
+          -->
+          <button class="solid magique" onclick={construit}>
+            <span class="baguette" aria-hidden="true">✦</span> Smart Builder
+          </button>
           {#if settings.colors.length >= 2}
             <button onclick={trie} title={libelleTri(sensTri)}>Trier</button>
           {/if}
@@ -497,7 +506,8 @@
   .stage {
     inline-size: 100%;
     background: var(--surface-canvas);
-    border-radius: var(--radius-carte);
+    border: 1px solid var(--filet);
+    border-radius: var(--radius-lg);
     box-shadow: var(--ombre-carte);
     padding: 1.9rem 2rem 1.6rem;
     display: grid;
@@ -567,6 +577,28 @@
     font-size: 0.85rem;
     padding: 0.35rem 0.95rem;
     min-block-size: 40px;
+  }
+
+  .barre-outils button.magique {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .baguette {
+    font-size: 0.95rem;
+    line-height: 1;
+  }
+
+  /* La baguette tourne légèrement au survol : le seul mouvement
+     décoratif de l'interface, et il annonce « quelque chose va être
+     inventé ». Supprimé si le mouvement est refusé. */
+  @media (prefers-reduced-motion: no-preference) {
+    .barre-outils button.magique:hover .baguette {
+      transform: rotate(-18deg) scale(1.15);
+      transition: transform var(--transition);
+      display: inline-block;
+    }
   }
 
   .barre-outils button.actif {

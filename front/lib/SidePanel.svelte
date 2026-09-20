@@ -85,7 +85,7 @@
 <aside class="panneau" aria-label="Assistance">
   {#if etapeId === 'palette'}
     <section class="bloc">
-      <p class="section-titre"><span class="glyphe" aria-hidden="true">✛</span> Compléter le système</p>
+      <p class="section-titre"><span class="glyphe" aria-hidden="true">✦</span> Suggestions intelligentes</p>
       <!-- Seule carte opaque du panneau : elle montre des couleurs à
            juger, pas seulement du texte d'accompagnement. -->
       <div class="carte opaque zone-evaluation">
@@ -227,7 +227,7 @@
   .carte.opaque {
     background: var(--surface-canvas);
     backdrop-filter: none;
-    border-color: transparent;
+    border-color: var(--filet);
     box-shadow: var(--ombre-carte);
   }
 
