@@ -176,10 +176,13 @@
   {#if suivante}
     <section class="bloc">
       <p class="section-titre"><span class="glyphe" aria-hidden="true">→</span> Prochaine étape</p>
-      <div class="carte suivante sur-glycine">
+      <div class="carte suivante" class:sur-glycine={peutContinuer} class:fermee={!peutContinuer}>
         <p class="suivante-titre">{suivante.titre}</p>
         {#if conditionSuivante}
-          <p class="condition"><span aria-hidden="true">✕</span> {conditionSuivante}</p>
+          <p class="condition">
+            <span aria-hidden="true">{peutContinuer ? '✓' : '🔒'}</span>
+            {conditionSuivante}
+          </p>
         {/if}
         <button class="principal large" onclick={onContinuer} disabled={!peutContinuer}>
           Continuer →
@@ -342,15 +345,39 @@
   }
 
   /*
-   * Prochaine étape : la seule carte colorée du panneau, en Glycine.
-   * Le texte y passe en Ébène (13:1). Le bouton, lui, doit se détacher
-   * DE la Glycine : il est en Terre plein, 8,98:1 sur ce fond — les deux
-   * écarts sont verrouillés dans chrome.test.ts.
+   * Prochaine étape : le seul bloc en couleur pleine de la page, et donc
+   * son aimant visuel. Dégradé à 135°, halo coloré — la seule chose qui
+   * « flotte » vraiment ici.
+   *
+   * Le texte y passe en Ébène (13:1 sur Glycine). Le bouton doit se
+   * détacher DE la Glycine : Terre plein, 8,98:1 — les deux écarts sont
+   * verrouillés dans chrome.test.ts.
    */
   .carte.suivante {
-    background: var(--etape-active);
-    box-shadow: none;
+    background: linear-gradient(
+      135deg,
+      var(--glycine),
+      color-mix(in oklab, var(--glycine) 78%, var(--paille)) 58%,
+      color-mix(in oklab, var(--glycine) 62%, var(--blanc))
+    );
+    border-color: transparent;
+    backdrop-filter: none;
+    box-shadow: 0 12px 28px color-mix(in oklab, var(--glycine) 46%, transparent);
     color: var(--ebene);
+  }
+
+  /*
+   * Verrouillée, elle se VIDE : plus de dégradé, plus de halo, plus de
+   * couleur — une surface de verre banale. Le contraste entre les deux
+   * états est volontairement brutal : la carte s'allume quand l'étape
+   * se débloque, et c'est ce qui fait comprendre qu'il reste quelque
+   * chose à faire avant.
+   */
+  .carte.suivante.fermee {
+    background: var(--verre);
+    backdrop-filter: blur(10px);
+    border-color: var(--filet);
+    box-shadow: none;
   }
 
   .suivante-titre {
@@ -359,10 +386,24 @@
     font-size: 1.15rem;
   }
 
+  /* La condition est un « verre dans le verre » : un bloc translucide
+     posé sur la carte colorée, qui reste lisible dans les deux états. */
   .condition {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
     margin: 0;
     font-size: 0.78rem;
-    font-style: italic;
-    color: rgba(28, 18, 5, 0.62);
+    padding: 9px 11px;
+    border-radius: 10px;
+    background: var(--surface-attente);
+    border: 1px solid var(--bord-attente);
+    color: var(--text-main);
+  }
+
+  .carte.suivante:not(.fermee) .condition {
+    background: rgba(255, 255, 255, 0.42);
+    border-color: rgba(255, 255, 255, 0.6);
+    color: var(--ebene);
   }
 </style>

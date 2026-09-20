@@ -6,6 +6,7 @@
   import { messages } from './lib/messages.svelte';
   import { theme } from './lib/theme.svelte';
   import { restaure, sauvegarde } from './lib/persistance.svelte';
+  import { appliqueAmbiance } from './lib/ambiance.svelte';
   import Flow from './lib/Flow.svelte';
   import HealthBadge from './lib/HealthBadge.svelte';
   import Messages from './lib/Messages.svelte';
@@ -31,6 +32,13 @@
   // déverrouille les étapes d'analyse avant que le nuancier soit rempli.
   $effect(() => {
     parcours.paletteDisponible = palette !== null;
+  });
+
+  // Le fond se teinte de la palette en cours. L'effet LIT l'état et
+  // n'écrit que dans le DOM : il ne peut donc pas se relancer lui-même.
+  $effect(() => {
+    void settings.colors;
+    appliqueAmbiance();
   });
 
   // — Thème : écoute du réglage système, application sur <html> —
@@ -240,14 +248,18 @@
 
 <style>
   /* — Grain — posé sur toute la fenêtre, sous l'interface. */
+  /* Le grain : un bruit fractal fixe, en superposition douce à 50 %.
+     C'est lui qui donne la matière « papier » et empêche les dégradés
+     de bander. Il se pose SOUS l'interface (z-index négatif) pour ne
+     jamais grisailler un échantillon. */
   .grain {
     position: fixed;
     inset: 0;
     inline-size: 100%;
     block-size: 100%;
-    z-index: 0;
+    z-index: -1;
     pointer-events: none;
-    opacity: 0.32;
+    opacity: 0.5;
     mix-blend-mode: soft-light;
   }
 
@@ -268,11 +280,14 @@
   }
 
   /* — Barre de tête : claire et translucide, posée sur le dégradé. — */
+  /* La barre : verre dépoli au flou le plus fort de l'interface — c'est
+     ce qui la pose au-dessus de tout le reste, puisqu'il n'y a pas
+     d'ombre. Une simple bordure basse, jamais d'ombre portée. */
   .barre {
     background: var(--verre);
-    backdrop-filter: blur(14px);
+    backdrop-filter: blur(18px) saturate(1.2);
     border-block-end: 1px solid var(--filet);
-    padding: 0.6rem var(--pad-lat) 0.55rem;
+    padding: 12px var(--pad-lat);
     position: sticky;
     top: 0;
     z-index: 30;
@@ -284,7 +299,10 @@
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    gap: 1.5rem;
+    gap: 16px;
+    inline-size: 100%;
+    max-inline-size: var(--largeur-max);
+    margin: 0 auto;
   }
 
   .marque {
@@ -345,8 +363,8 @@
   }
 
   .pastille {
-    inline-size: 1.6rem;
-    block-size: 1.6rem;
+    inline-size: 26px;
+    block-size: 26px;
     flex: none;
     display: grid;
     place-items: center;
@@ -383,15 +401,31 @@
      arrondi. Une différence de forme reste lisible sans la couleur, et
      tient en contraste élevé forcé — ce que la Glycine seule ne fait
      pas (1,31:1, voir chrome.test.ts). */
+  /* L'étape en cours : la pastille RÉTRÉCIT et change de forme, de
+     26 px ronds à 22 px en carré arrondi. C'est un morphing, pas un
+     changement de couleur — il reste lisible en contraste élevé forcé,
+     ce que la Glycine seule ne fait pas (1,31:1, voir chrome.test.ts). */
   .jalon.active .pastille {
     background: var(--surface-chrome);
     border-color: var(--surface-chrome);
     color: var(--text-on-chrome);
-    border-radius: 9px;
+    inline-size: 22px;
+    block-size: 22px;
+    border-radius: 7px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .pastille {
+      transition:
+        inline-size 160ms ease,
+        block-size 160ms ease,
+        border-radius 160ms ease,
+        background-color 160ms ease;
+    }
   }
 
   .jalon-nom {
-    font-size: 0.85rem;
+    font-size: 12.5px;
     font-weight: 500;
     color: var(--ebene);
     white-space: nowrap;

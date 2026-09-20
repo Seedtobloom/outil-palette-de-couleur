@@ -14,12 +14,14 @@
 :root {
   /* Rythme : blocs majeurs 32–40 px, padding latéral 32 px,
      largeur de lecture des textes explicatifs plafonnée à 420 px. */
-  --gap-bloc: 2.25rem;
-  --pad-lat: 2rem;
-  --mesure: 420px;
-  /* Largeur du plan de travail. 86rem ≈ 1376 px : deux colonnes
-     confortables sur un 15 pouces, sans ligne de lecture interminable. */
-  --largeur-max: 86rem;
+  --gap-bloc: 24px;
+  --pad-lat: 28px;
+  --mesure: 62ch;
+  /* Largeur du plan de travail, gouttière et colonne d'analyse : les
+     trois mesures qui donnent sa proportion à la page. */
+  --largeur-max: 1380px;
+  --gouttiere: 26px;
+  --colonne-analyse: 300px;
 
   /* Formes : arrondis généreux sur les cartes, pilule sur les boutons. */
   --radius-lg: 22px;
@@ -60,9 +62,21 @@
 
   /* Verre dépoli du chrome : translucide + flou, jamais d'ombre. Il
      n'habille QUE le chrome — barre, panneaux, sous-cartes. Les zones
-     d'évaluation restent opaques (voir `.zone-evaluation`). */
+     d'évaluation restent opaques (voir `.zone-evaluation`).
+
+     Le flou est GRADUÉ selon l'altitude : barre 18px, panneaux 12px,
+     cartes 10px, petits objets 8px. C'est ce dégradé qui donne la
+     profondeur, puisqu'il n'y a pas d'ombre. */
   --verre: color-mix(in oklab, var(--blanc) 74%, transparent);
   --verre-bord: rgba(255, 255, 255, 0.55);
+
+  /* Ambiance : les quatre couleurs des halos de coin. Réécrites en
+     direct depuis la palette en cours par `ambiance.svelte.ts` ; ces
+     valeurs ne servent qu'avant le premier rendu. */
+  --amb-1: 65, 47, 33;
+  --amb-2: 242, 229, 194;
+  --amb-3: 228, 209, 254;
+  --amb-4: 242, 229, 194;
 }
 
 /*
@@ -155,52 +169,41 @@
  * posée dessus (règle des deux zones, brief §9.1).
  */
 html {
-  background:
-    radial-gradient(
-      1100px 760px at -4% -10%,
-      color-mix(in oklab, var(--paille) 100%, transparent),
-      transparent 66%
-    ),
-    radial-gradient(
-      980px 680px at 104% -8%,
-      color-mix(in oklab, var(--glycine) 76%, transparent),
-      transparent 64%
-    ),
-    radial-gradient(
-      900px 660px at -6% 104%,
-      color-mix(in oklab, var(--glycine) 46%, transparent),
-      transparent 62%
-    ),
-    radial-gradient(
-      1020px 720px at 105% 106%,
-      color-mix(in oklab, var(--paille) 72%, transparent),
-      transparent 64%
-    ),
-    var(--surface-panel);
-  background-attachment: fixed;
+  background: var(--surface-panel);
 }
 
-/* En sombre, les mêmes halos existent mais très assourdis : à pleine
-   force sur un fond presque noir, ils deviendraient deux auréoles. */
-:root[data-theme='sombre'] {
+/*
+ * Les halos prennent les couleurs de la palette en cours (voir
+ * `ambiance.svelte.ts`) et se fondent en 0,6 s. C'est le trait le plus
+ * visible de l'outil : on travaille dans sa propre palette.
+ *
+ * Ils restent très dilués (15 à 19 %) et leurs centres sont posés HORS
+ * du cadre : seuls les bords se teintent, le centre de l'écran reste
+ * neutre. C'est là que vivent les cartes blanches où les couleurs sont
+ * jugées — un fond marqué y fausserait la lecture (brief §9.1).
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  transition: background 600ms ease;
   background:
-    radial-gradient(
-      1200px 820px at -6% -14%,
-      color-mix(in oklab, var(--terre) 62%, transparent),
-      transparent 58%
-    ),
-    radial-gradient(
-      1050px 720px at 106% -10%,
-      color-mix(in oklab, var(--glycine) 12%, transparent),
-      transparent 55%
-    ),
-    radial-gradient(
-      1100px 760px at 108% 112%,
-      color-mix(in oklab, var(--terre) 44%, transparent),
-      transparent 58%
-    ),
-    var(--surface-panel);
-  background-attachment: fixed;
+    radial-gradient(820px 500px at -6% -8%, rgba(var(--amb-1), 0.19), transparent 65%),
+    radial-gradient(880px 560px at 106% 2%, rgba(var(--amb-2), 0.17), transparent 61%),
+    radial-gradient(780px 560px at 104% 106%, rgba(var(--amb-3), 0.15), transparent 63%),
+    radial-gradient(740px 500px at -4% 108%, rgba(var(--amb-4), 0.15), transparent 63%);
+}
+
+/* En sombre, les mêmes halos un cran plus bas : à pleine force sur un
+   fond presque noir, ils deviendraient des auréoles. */
+:root[data-theme='sombre'] body::before {
+  background:
+    radial-gradient(820px 500px at -6% -8%, rgba(var(--amb-1), 0.15), transparent 65%),
+    radial-gradient(880px 560px at 106% 2%, rgba(var(--amb-2), 0.1), transparent 61%),
+    radial-gradient(780px 560px at 104% 106%, rgba(var(--amb-3), 0.1), transparent 63%),
+    radial-gradient(740px 500px at -4% 108%, rgba(var(--amb-4), 0.1), transparent 63%);
 }
 
 body {

@@ -49,29 +49,37 @@
 </div>
 
 <style>
+  /* Pile centrée en bas : un message doit se lire sans quitter des yeux
+     ce qu'on vient de faire. À droite, il concurrence le panneau
+     d'analyse ; au centre, il passe et s'efface. */
   .pile {
     position: fixed;
-    inset-block-end: 1.1rem;
-    inset-inline-end: 1.1rem;
-    z-index: 60;
+    inset-block-end: 24px;
+    inset-inline-start: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
     display: grid;
-    gap: 0.5rem;
-    justify-items: end;
+    gap: 9px;
+    justify-items: center;
     pointer-events: none;
-    max-inline-size: min(26rem, calc(100vw - 2rem));
+    max-inline-size: min(30rem, calc(100vw - 2rem));
   }
 
+  /* Pilule d'encre inversée : le fond prend la couleur du texte de
+     l'interface, et réciproquement. C'est ce qui la détache de tout,
+     sans avoir besoin d'une couleur en plus. */
   .message {
     pointer-events: auto;
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    padding: 0.55rem 0.6rem 0.55rem 0.85rem;
-    border-radius: var(--radius);
-    background: var(--surface-chrome);
-    color: var(--text-on-chrome);
+    padding: 11px 12px 11px 18px;
+    border-radius: 13px;
+    background: var(--ink);
+    color: var(--off-white);
     box-shadow: var(--ombre-flottante);
-    font-size: 0.85rem;
+    font-size: 13px;
+    font-weight: 600;
     border-inline-start: 3px solid transparent;
   }
 
@@ -97,7 +105,7 @@
   .message button {
     background: none;
     border: none;
-    color: var(--text-on-chrome);
+    color: var(--off-white);
     min-block-size: 0;
     padding: 0.2rem 0.4rem;
     font-size: 0.82rem;
@@ -110,8 +118,8 @@
   }
 
   .message button:hover {
-    background: rgba(242, 229, 194, 0.18);
-    color: var(--text-on-chrome);
+    background: rgba(248, 246, 242, 0.18);
+    color: var(--off-white);
   }
 
   .fermer {
@@ -120,13 +128,13 @@
 
   @media (prefers-reduced-motion: no-preference) {
     .message {
-      animation: entree 220ms cubic-bezier(0.16, 1, 0.3, 1);
+      animation: entree 300ms cubic-bezier(0.34, 1.4, 0.5, 1);
     }
 
     @keyframes entree {
       from {
         opacity: 0;
-        transform: translateY(6px);
+        transform: translateY(14px);
       }
     }
   }

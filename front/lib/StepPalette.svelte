@@ -186,6 +186,7 @@
             <span class="cadenas" aria-hidden="true">🔒</span>
           {/if}
         </label>
+        <div class="corps">
         <input
           class="name"
           value={color.label}
@@ -241,6 +242,7 @@
             onclick={() => remove(color)}>✕</button
           >
         </div>
+        </div>
       </article>
     {/each}
     <button class="ajout" onclick={() => add()}>
@@ -283,40 +285,74 @@
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-    gap: 0.8rem;
+    grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
+    gap: 14px;
   }
 
+  /*
+   * La carte est une surface de verre, pas une liste d'éléments posés
+   * sur le fond : l'aplat occupe toute la largeur en haut, les
+   * commandes sont dessous, séparées par un filet. Au survol elle
+   * lévite de 3 px — c'est le seul retour de profondeur, puisqu'il n'y
+   * a pas d'ombre.
+   */
   .card {
     display: grid;
-    gap: 0.35rem;
+    gap: 0;
     padding: 0;
-    border: none;
-    background: none;
+    background: var(--verre);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--filet);
+    border-radius: 16px;
+    overflow: hidden;
     text-align: left;
     justify-items: stretch;
     align-content: start;
+    transition: transform 180ms ease, border-color 180ms ease;
+  }
+
+  .card:hover {
+    transform: translateY(-3px);
+    border-color: var(--filet-fort);
+  }
+
+  .corps {
+    display: grid;
+    gap: 0.3rem;
+    padding: 11px 13px 13px;
   }
 
   .card.saisie {
-    opacity: 0.45;
+    opacity: 0.4;
+  }
+
+  .card:hover .cadenas,
+  .card:focus-within .cadenas {
+    opacity: 1;
   }
 
   /* La carte visée par le dépôt : un filet, pas un déplacement — rien ne
      doit bouger sous le curseur pendant qu'on vise. */
-  .card.cible .swatch {
-    box-shadow:
-      inset 0 0 0 1px var(--ink-muted),
-      0 0 0 2px var(--surface-chrome);
+  /* Cible de dépôt : un contour POINTILLÉ décalé, pas une bordure —
+     une bordure décalerait la mise en page sous le curseur. */
+  .card.cible {
+    outline: 2px dashed var(--surface-chrome);
+    outline-offset: 2px;
   }
 
+  /* Aplat : 96 px, pleine largeur, coins haut arrondis par
+     l'`overflow:hidden` de la carte. Le liseré INTÉRIEUR délimite les
+     teintes très claires sans poser d'ombre sur l'échantillon. */
   .swatch {
     position: relative;
     display: block;
-    block-size: 5rem;
-    border-radius: var(--radius);
-    cursor: pointer;
-    box-shadow: inset 0 0 0 1px var(--ink-muted);
+    block-size: 96px;
+    cursor: grab;
+    box-shadow: inset 0 0 0 1px rgba(28, 18, 5, 0.12);
+  }
+
+  .swatch:active {
+    cursor: grabbing;
   }
 
   .swatch input {
@@ -333,12 +369,16 @@
     cursor: not-allowed;
   }
 
+  /* Le cadenas n'apparaît qu'au survol — sauf s'il est fermé, auquel
+     cas il reste visible : c'est un état, pas une commande. */
   .cadenas {
     position: absolute;
-    inset-block-start: 0.3rem;
-    inset-inline-end: 0.35rem;
+    inset-block-start: 8px;
+    inset-inline-end: 8px;
     font-size: 0.8rem;
     line-height: 1;
+    opacity: 0;
+    transition: opacity 150ms ease;
     /* Pastille blanche : le cadenas doit rester lisible quelle que soit
        la couleur en dessous — c'est exactement le cas d'usage du 3:1
        non textuel (SC 1.4.11), et aucune teinte d'échantillon ne peut le
@@ -380,8 +420,10 @@
 
   .actions {
     display: flex;
-    gap: 2px;
-    margin-block-start: 0.1rem;
+    gap: 4px;
+    margin-block-start: 10px;
+    padding-block-start: 10px;
+    border-block-start: 1px solid var(--filet);
   }
 
   .act {
@@ -417,10 +459,11 @@
   .ajout {
     display: grid;
     place-items: center;
-    gap: 0.3rem;
-    block-size: 5rem;
-    border: 1px dashed var(--ink-muted);
-    border-radius: var(--radius);
+    gap: 12px;
+    min-block-size: 206px;
+    border: 1.5px dashed var(--filet-fort);
+    border-radius: 16px;
+    background: var(--surface-attente);
     color: var(--text-muted);
     font-size: 0.82rem;
     align-self: start;

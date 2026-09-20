@@ -486,8 +486,8 @@
    */
   .flow {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 20rem;
-    gap: 1.6rem;
+    grid-template-columns: minmax(0, 1fr) var(--colonne-analyse);
+    gap: var(--gouttiere);
     align-items: start;
     max-inline-size: var(--largeur-max);
     margin: 0 auto;
@@ -535,32 +535,38 @@
   .stage-head {
     display: grid;
     gap: 0.15rem;
-    padding-block-end: 1.2rem;
+    padding-block-end: 24px;
     border-block-end: 1px solid var(--filet);
   }
 
   /* Sur-titre : c'est la seule marque de couleur de la tête de scène,
      en Terre. Il donne le repère de progression sans concurrencer le
      titre, qui reste en Ébène. */
+  /* Sur-titre : micro-capitales grasses et très espacées, en Terre.
+     Il fait contrepoids au titre en serif fine juste en dessous —
+     30 px en graisse 300 contre 11,5 px en 700, c'est cet écart qui
+     porte la signature typographique. */
   .etape-num {
-    margin: 0 0 0.1rem;
-    font-size: 0.6875rem;
-    font-weight: 500;
+    margin: 0 0 8px;
+    font-size: 11.5px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.08em;
     color: var(--surface-chrome);
   }
 
   .stage-head h2 {
-    font-size: 2rem;
-    line-height: 1.15;
+    font-size: 30px;
+    font-weight: 300;
+    line-height: 1.12;
+    letter-spacing: 0;
   }
 
   .lead {
-    margin: 0.3rem 0 0;
+    margin: 8px 0 0;
     color: var(--text-muted);
-    font-size: 0.9rem;
-    max-inline-size: 46rem;
+    font-size: 14px;
+    max-inline-size: var(--mesure);
   }
 
   /* Le panneau de départ est visuellement rattaché aux cartes de choix :
