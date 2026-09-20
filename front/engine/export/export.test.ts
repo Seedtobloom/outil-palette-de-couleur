@@ -116,3 +116,55 @@ describe('planche SVG', () => {
     expect(exportPlancheSvg([PALETTE[0]!])).toContain('1 couleur ·');
   });
 });
+
+/**
+ * Les associations validées sur la planche.
+ *
+ * Elles répondent à un manque réel de l'outil de référence : y retenir
+ * des associations de contraste ouvre la suite du parcours, mais ce
+ * travail de décision ne ressort dans AUCUN export. Ici, il devient la
+ * seconde moitié du livrable.
+ */
+describe('associations validées sur la planche', () => {
+  const PALETTE_2 = [
+    { hex: '#412f21', label: 'Terre' },
+    { hex: '#f2e5c2', label: 'Paille' },
+  ];
+  const ASSOC = [
+    {
+      texte: { hex: '#412f21', label: 'Terre' },
+      fond: { hex: '#f2e5c2', label: 'Paille' },
+    },
+  ];
+
+  it('n’ajoute rien quand aucune association n’est retenue', () => {
+    const svg = exportPlancheSvg(PALETTE_2, { date: '2026-09-20' });
+    expect(svg).not.toContain('Associations validées');
+  });
+
+  it('ajoute une section quand il y en a', () => {
+    const svg = exportPlancheSvg(PALETTE_2, { date: '2026-09-20', associations: ASSOC });
+    expect(svg).toContain('Associations validées');
+    expect(svg).toContain('Terre sur Paille');
+  });
+
+  it('rend le duo en conditions réelles, texte sur fond', () => {
+    const svg = exportPlancheSvg(PALETTE_2, { associations: ASSOC });
+    expect(svg).toContain('fill="#f2e5c2"');
+    expect(svg).toContain('fill="#412f21">Titre lisible');
+  });
+
+  it('donne le ratio mesuré et son verdict', () => {
+    const svg = exportPlancheSvg(PALETTE_2, { associations: ASSOC });
+    // Terre sur Paille : 10,13:1, largement AAA. (8,98 était Terre sur
+    // Glycine — l'attente de départ visait la mauvaise paire.)
+    expect(svg).toMatch(/10,1\d:1 · AAA/);
+  });
+
+  it('grandit avec le nombre d’associations', () => {
+    const une = exportPlancheSvg(PALETTE_2, { associations: ASSOC });
+    const deux = exportPlancheSvg(PALETTE_2, { associations: [...ASSOC, ...ASSOC] });
+    const hauteur = (svg: string) => Number(svg.match(/height="(\d+)"/)![1]);
+    expect(hauteur(deux)).toBeGreaterThan(hauteur(une));
+  });
+});

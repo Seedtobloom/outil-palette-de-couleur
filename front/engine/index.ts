@@ -98,7 +98,11 @@ export { buildTheme, type Theme, type ThemeMode, type AuditedPair } from './sema
 export { generatePalette, type GeneratedPalette, type PaletteOptions } from './palette';
 export { exportCss } from './export/css';
 export { exportAse } from './export/ase';
-export { exportPlancheSvg, type EntreePlanche } from './export/planche';
+export {
+  exportPlancheSvg,
+  type EntreePlanche,
+  type AssociationPlanche,
+} from './export/planche';
 
 export {
   construitPalette,

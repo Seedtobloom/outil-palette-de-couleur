@@ -227,7 +227,33 @@
     messages.succes('nuancier.ase téléchargé — à ouvrir dans le panneau Nuancier d’Illustrator.');
   }
 
-  const plancheSvg = $derived(exportPlancheSvg(settings.colors));
+  /**
+   * Les associations retenues à l'étape Contraste partent dans la
+   * planche. C'était le maillon manquant : les retenir ouvrait la suite
+   * du parcours, mais ce travail de décision ne ressortait dans aucun
+   * livrable — exactement le défaut de l'outil de référence, où
+   * `selectedPairings` ne sert qu'à débloquer et n'apparaît dans aucun
+   * export.
+   */
+  const associationsRetenues = $derived(
+    settings.pairings
+      .map((cle) => {
+        const [idTexte, idFond] = cle.split('|');
+        const texte = settings.colors.find((c) => c.id === idTexte);
+        const fond = settings.colors.find((c) => c.id === idFond);
+        return texte && fond
+          ? {
+              texte: { hex: texte.hex, label: texte.label },
+              fond: { hex: fond.hex, label: fond.label },
+            }
+          : null;
+      })
+      .filter((a): a is NonNullable<typeof a> => a !== null),
+  );
+
+  const plancheSvg = $derived(
+    exportPlancheSvg(settings.colors, { associations: associationsRetenues }),
+  );
 
   function telechargePlancheSvg(): void {
     telecharge(plancheSvg, 'planche-nuancier.svg', 'image/svg+xml;charset=utf-8');
@@ -438,7 +464,9 @@
           <div class="panel">
             <p class="panel-tete">
               Pour la création
-              <span class="panel-compte">{settings.colors.length} couleurs</span>
+              <span class="panel-compte">
+                {settings.colors.length} couleurs · {associationsRetenues.length} associations
+              </span>
             </p>
             <div class="deliver-row">
               <button class="solid" onclick={telechargeAse} disabled={settings.colors.length === 0}>
@@ -453,7 +481,9 @@
             </div>
             <p class="note-pied">
               Le .ase s’ouvre dans Illustrator, InDesign et Photoshop, avec tes noms. La planche
-              porte les deux contrastes de référence de chaque couleur, sur blanc et sur noir.
+              porte les deux contrastes de référence de chaque couleur, sur blanc et sur noir —
+              et, en seconde partie, les associations que tu as retenues à l’étape Contraste,
+              rendues en conditions réelles avec leur ratio.
             </p>
           </div>
 

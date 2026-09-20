@@ -26,6 +26,16 @@
   import { journal } from './journal.svelte';
   import { messages } from './messages.svelte';
 
+  let {
+    /** Les conseils de couverture sous la grille. L'étape Harmonie
+     *  montre la même grille, mais ses conseils à elle sont dans le
+     *  panneau de droite. */
+    conseils = true,
+    /** Identifiants des couleurs signalées par une analyse : elles
+     *  portent une pastille « ! » sur leur aplat. */
+    marques = [] as readonly string[],
+  }: { conseils?: boolean; marques?: readonly string[] } = $props();
+
   /** Génère une couleur de remplacement dans la bande manquante, en
    * restant dans la famille de la marque. */
   function suggestFor(band: 'light' | 'mid' | 'dark'): string {
@@ -182,6 +192,11 @@
             oninput={(e) => update(color, e.currentTarget.value)}
             aria-label={`Modifier ${color.label}`}
           />
+          {#if marques.includes(color.id)}
+            <!-- Fausse note repérée par l'analyse d'harmonie. Le signe
+                 porte l'information ; la couleur ne fait que renforcer. -->
+            <span class="alerte" title="Cette couleur sort de la logique du groupe">!</span>
+          {/if}
           {#if color.verrou}
             <span class="cadenas" aria-hidden="true">🔒</span>
           {/if}
@@ -261,6 +276,7 @@
     {/if}
   </div>
 
+  {#if conseils}
   <div class="advices">
     {#each report.advices as a (a.id)}
       <div class="advice" data-kind={a.kind}>
@@ -275,9 +291,36 @@
       </div>
     {/each}
   </div>
+  {/if}
 </div>
 
 <style>
+  /* La pastille d'alerte occupe le coin de l'aplat ; le cadenas se
+     décale alors à gauche pour ne pas la recouvrir. */
+  .alerte {
+    position: absolute;
+    inset-block-start: 8px;
+    inset-inline-end: 8px;
+    inline-size: 20px;
+    block-size: 20px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--non-conforme);
+    color: var(--blanc);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: 0 2px 6px rgba(28, 18, 5, 0.25);
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .swatch:has(.alerte) .cadenas {
+    inset-inline-end: auto;
+    inset-inline-start: 8px;
+  }
+
   .wrap {
     display: grid;
     gap: 1.1rem;

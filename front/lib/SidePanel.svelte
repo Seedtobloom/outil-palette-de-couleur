@@ -21,6 +21,7 @@
   } from '../engine';
   import { settings } from './state.svelte';
   import { journal } from './journal.svelte';
+  import PanneauHarmonie from './PanneauHarmonie.svelte';
 
   let {
     etapeId,
@@ -108,6 +109,12 @@
         {/if}
       </div>
     </section>
+  {/if}
+
+  <!-- L'harmonie a son propre panneau : corrections et réglages
+       d'ensemble, à côté du nuancier qu'ils modifient. -->
+  {#if etapeId === 'harmony'}
+    <PanneauHarmonie />
   {/if}
 
   {#if etapeId === 'contrast'}

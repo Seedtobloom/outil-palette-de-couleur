@@ -17,6 +17,21 @@ import { contrastRatio } from '../contrast/wcag';
 
 export type EntreePlanche = { hex: string; label: string };
 
+/**
+ * Une association validée : un texte sur un fond, avec son ratio.
+ *
+ * C'est le livrable qui manquait. Retenir des associations à l'étape
+ * Contraste demandait un vrai travail de décision — et ce travail ne
+ * ressortait nulle part : il ne servait qu'à ouvrir la suite du
+ * parcours. Ici, il devient la seconde moitié de la planche : « ce
+ * texte sur ce fond, 8,98:1, AA ». C'est exactement la ligne qu'on
+ * donne à une personne qui intègre.
+ */
+export type AssociationPlanche = {
+  texte: { hex: string; label: string };
+  fond: { hex: string; label: string };
+};
+
 const LARGEUR = 960;
 const MARGE = 48;
 const H_ENTETE = 124;
@@ -45,13 +60,25 @@ function verdict(valeur: number): string {
   return 'décoratif';
 }
 
+const H_SECTION = 62;
+const H_ASSOC = 76;
+
 export function exportPlancheSvg(
   entrees: readonly EntreePlanche[],
-  options: { titre?: string; date?: string } = {},
+  options: {
+    titre?: string;
+    date?: string;
+    associations?: readonly AssociationPlanche[];
+  } = {},
 ): string {
   const titre = options.titre ?? 'Nuancier';
   const date = options.date ?? new Date().toISOString().slice(0, 10);
-  const hauteur = H_ENTETE + entrees.length * H_LIGNE + H_PIED;
+  const associations = options.associations ?? [];
+  const hauteur =
+    H_ENTETE +
+    entrees.length * H_LIGNE +
+    (associations.length > 0 ? H_SECTION + associations.length * H_ASSOC : 0) +
+    H_PIED;
   const l: string[] = [];
 
   l.push(
@@ -104,6 +131,48 @@ export function exportPlancheSvg(
       `<line x1="${MARGE}" y1="${y + 84}" x2="${xc}" y2="${y + 84}" stroke="#f0ece5" stroke-width="1"/>`,
     );
   });
+
+  // — Les associations validées —
+  if (associations.length > 0) {
+    const y0 = H_ENTETE + entrees.length * H_LIGNE;
+    l.push(
+      `<text x="${MARGE}" y="${y0 + 28}" font-family="Alegreya, Georgia, serif" font-size="20" fill="#1c1205">Associations validées</text>`,
+    );
+    l.push(
+      `<text x="${MARGE}" y="${y0 + 48}" font-size="12" fill="#6b6259">Les duos texte / fond retenus, avec leur contraste mesuré.</text>`,
+    );
+
+    associations.forEach((a, i) => {
+      const y = y0 + H_SECTION + i * H_ASSOC;
+      // ⚠ Surtout pas `ratio` : ce nom est déjà celui de la fonction de
+      // formatage du module, et la variable la masquerait.
+      const valeur = contrastRatio(a.texte.hex, a.fond.hex);
+      const large = LARGEUR - MARGE * 2;
+
+      // Le duo est rendu en conditions réelles : c'est la seule façon
+      // de vérifier d'un coup d'œil que la ligne dit vrai.
+      l.push(
+        `<rect x="${MARGE}" y="${y}" width="${Math.round(large * 0.55)}" height="56" rx="10" fill="${echappe(a.fond.hex)}" stroke="#d9d3ca" stroke-width="1"/>`,
+      );
+      l.push(
+        `<text x="${MARGE + 16}" y="${y + 25}" font-size="16" font-weight="600" fill="${echappe(a.texte.hex)}">Titre lisible</text>`,
+      );
+      l.push(
+        `<text x="${MARGE + 16}" y="${y + 44}" font-size="12" fill="${echappe(a.texte.hex)}">Exemple de texte courant sur ce fond.</text>`,
+      );
+
+      const xd = MARGE + Math.round(large * 0.55) + 20;
+      l.push(
+        `<text x="${xd}" y="${y + 22}" font-size="13" fill="#1c1205">${echappe(a.texte.label)} sur ${echappe(a.fond.label)}</text>`,
+      );
+      l.push(
+        `<text x="${xd}" y="${y + 42}" font-size="12" fill="#6b6259" letter-spacing="0.3">${echappe(a.texte.hex.toUpperCase())} · ${echappe(a.fond.hex.toUpperCase())}</text>`,
+      );
+      l.push(
+        `<text x="${LARGEUR - MARGE}" y="${y + 32}" font-size="15" font-weight="600" fill="#1c1205" text-anchor="end">${ratio(a.texte.hex, a.fond.hex)}:1 · ${verdict(valeur)}</text>`,
+      );
+    });
+  }
 
   l.push(
     `<text x="${MARGE}" y="${hauteur - 26}" font-size="11" fill="#8a8178">Vérification des critères d’accessibilité liés à la couleur (WCAG 2.2). Ne constitue pas un audit complet.</text>`,
