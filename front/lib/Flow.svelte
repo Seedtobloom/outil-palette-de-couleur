@@ -446,24 +446,54 @@
           {#if apercus.length > 0}
           <div class="previews">
             {#each apercus as { mode, vue } (mode)}
+              <!--
+                Le filet de la carte est une TEINTE de la carte, pas la
+                couleur du détail en plein : à pleine force il cernait la
+                vignette comme un cadre et écrasait tout le reste. Il doit
+                seulement poser la surface — surtout quand la page a pris
+                la couleur de la carte et qu'il est le seul séparateur.
+              -->
               <div class="preview" style="background:{vue.fond.hex}">
                 <div
                   class="preview-card"
-                  style="background:{vue.carte.hex};border-color:{vue.detail.hex}"
+                  style="background:{vue.carte.hex};border-color:color-mix(in oklab, {vue.detail
+                    .hex} 30%, {vue.carte.hex})"
                 >
-                  <p class="preview-title" style="color:{vue.texte.hex}">
+                  <p class="preview-oeil" style="color:{vue.detail.hex}">
                     {mode === 'clair' ? 'Clair' : 'Sombre'}
                   </p>
+                  <p class="preview-titre" style="color:{vue.texte.hex}">Un titre qui porte</p>
                   <p class="preview-body" style="color:{vue.texte.hex}">
                     Un texte courant, et un
                     <span style="color:{vue.detail.hex}">détail plus discret</span>.
                   </p>
                   <p class="preview-actions">
-                    <span style="background:{vue.action.hex};color:{vue.surAction.hex}">
+                    <span
+                      class="bouton-plein"
+                      style="background:{vue.action.hex};color:{vue.surAction.hex}"
+                    >
                       Action
                     </span>
+                    <!--
+                      Un second bouton, en contour : il montre le même
+                      nuancier sur un autre registre, et il n'introduit
+                      aucune couleur de plus — son trait et son intitulé
+                      reprennent la couleur du texte, déjà validée sur
+                      cette carte.
+                    -->
+                    <span
+                      class="bouton-trait"
+                      style="color:{vue.texte.hex};border-color:color-mix(in oklab, {vue.texte
+                        .hex} 45%, {vue.carte.hex})"
+                    >
+                      Secondaire
+                    </span>
                   </p>
-                  <p class="preview-pied" style="color:{vue.detail.hex}">
+                  <p
+                    class="preview-pied"
+                    style="color:{vue.detail.hex};border-color:color-mix(in oklab, {vue.detail
+                      .hex} 22%, {vue.carte.hex})"
+                  >
                     {vue.carte.label} · texte {vue.texte.label} · {fmtRatio(vue.ratioTexte)}:1{vue.valide
                       ? ' ✓ retenue'
                       : ''}
@@ -765,53 +795,103 @@
     font-size: 0.72rem;
   }
 
+  /*
+   * — Les deux vignettes —
+   *
+   * Elles doivent se lire comme une interface, pas comme un empilement
+   * de paragraphes colorés. Tout l'effet tient à l'air : une page
+   * généreuse autour de la carte, une carte généreuse autour de son
+   * texte, et une hiérarchie franche entre l'œil, le titre et le corps.
+   *
+   * Aucune ombre, ici comme ailleurs (voir --ombre-carte dans app.css) :
+   * une ombre poserait un gris qui n'est pas du nuancier par-dessus des
+   * couleurs qu'on est justement en train de juger. Ce sont le filet et
+   * l'écart de clarté entre la page et la carte qui détachent la
+   * surface.
+   */
   .previews {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.8rem;
+    gap: 1rem;
+    align-items: stretch;
   }
 
   .preview {
-    border-radius: var(--radius);
-    padding: 1rem;
+    border-radius: 20px;
+    padding: 1.7rem 1.5rem;
+    display: grid;
+    align-items: start;
   }
 
   .preview-card {
     border: 1px solid;
-    border-radius: var(--radius);
-    padding: 0.85rem 0.95rem;
+    border-radius: 16px;
+    padding: 1.4rem 1.35rem 1.2rem;
   }
 
-  .preview-title {
-    margin: 0 0 0.25rem;
+  /* L'œil : le mode, en petites capitales espacées. Il campe la vignette
+     sans consommer la place d'un titre. */
+  .preview-oeil {
+    margin: 0 0 0.75rem;
+    font-size: 0.66rem;
     font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Le titre, dans la serif de l'outil : c'est lui qui donne à la
+     vignette l'air d'une vraie page, et il montre la palette sur un
+     corps où la couleur se voit vraiment. */
+  .preview-titre {
+    margin: 0 0 0.45rem;
+    font-family: var(--font-titre);
+    font-weight: 300;
+    font-size: 1.3rem;
+    line-height: 1.2;
   }
 
   .preview-body {
-    margin: 0 0 0.6rem;
-    font-size: 0.85rem;
+    margin: 0 0 1.15rem;
+    font-size: 0.87rem;
+    line-height: 1.55;
+    max-inline-size: 34ch;
   }
 
   .preview-actions {
     display: flex;
-    gap: 0.4rem;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
     margin: 0;
     font-size: 0.78rem;
   }
 
   .preview-actions span {
-    padding: 0.2rem 0.7rem;
-    border-radius: 100px;
+    padding: 0.42rem 1rem;
+    border-radius: var(--radius-pill);
+    font-weight: 500;
+    line-height: 1.2;
+  }
+
+  .bouton-trait {
+    background: none;
+    border: 1px solid;
   }
 
   /* La légende de l'aperçu : quelle couleur porte quoi, et le contraste
      obtenu. Sans elle, on regarde une vignette jolie sans savoir ce
      qu'elle dit — et c'est précisément ce qu'on reprochait à l'ancien
      aperçu. Elle prend la couleur du détail, donc une couleur du
-     nuancier : elle fait partie de la démonstration. */
+     nuancier : elle fait partie de la démonstration.
+
+     Le filet qui la sépare la sort de la simulation : ce qui est
+     au-dessus est l'interface, ce qui est en dessous en parle. */
   .preview-pied {
-    margin: 0.7rem 0 0;
-    font-size: 0.7rem;
+    margin: 1.2rem 0 0;
+    padding-block-start: 0.7rem;
+    border-block-start: 1px solid;
+    font-size: 0.69rem;
+    letter-spacing: 0.01em;
     font-variant-numeric: tabular-nums;
   }
 
@@ -872,6 +952,21 @@
 
     .previews {
       grid-template-columns: 1fr;
+    }
+
+    /* Sur téléphone, la générosité devient de la place perdue : la
+       vignette se resserre pour que la carte garde sa largeur de
+       lecture. */
+    .preview {
+      padding: 1.2rem 1rem;
+    }
+
+    .preview-card {
+      padding: 1.1rem 1rem 1rem;
+    }
+
+    .preview-titre {
+      font-size: 1.15rem;
     }
   }
 </style>

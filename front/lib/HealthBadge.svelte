@@ -197,4 +197,22 @@
     font-size: 0.7rem;
     color: var(--text-muted);
   }
+
+  /*
+   * Sur téléphone, le score se réduit à son chiffre.
+   *
+   * Ce n'est pas de la coquetterie : la barre de tête porte la marque,
+   * le fil des étapes, le score et cinq outils. À 390 px, le score
+   * complet (153 px) suffisait à faire déborder toute la page — le
+   * document entier mesurait 521 px de large et chaque étape défilait
+   * latéralement. Le chiffre seul dit la même chose ; la jauge et le
+   * mot ne font que l'illustrer, et le panneau de détail reste à un
+   * clic.
+   */
+  @media (max-width: 46rem) {
+    .badge-bar,
+    .badge-cap {
+      display: none;
+    }
+  }
 </style>

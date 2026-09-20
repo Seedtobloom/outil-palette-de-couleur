@@ -519,11 +519,36 @@
       row-gap: 0.5rem;
     }
 
+    /*
+     * ⚠ `min-inline-size: 0` N'EST PAS DÉCORATIF, c'est ce qui fait
+     * marcher la ligne du dessus.
+     *
+     * Un élément de grille a `min-width: auto` par défaut : il refuse de
+     * descendre sous la largeur de son contenu. Les six pastilles
+     * mesurent environ 465 px ; le fil imposait donc cette largeur à la
+     * barre, la barre à la page, et tout l'outil débordait de l'écran
+     * sur téléphone — avec un défilement horizontal parasite sur chaque
+     * étape. Le `overflow-x: auto` ne pouvait rien tant que le minimum
+     * n'était pas levé : il n'avait rien à rogner.
+     */
     .fil {
       order: 3;
       grid-column: 1 / -1;
+      min-inline-size: 0;
       overflow-x: auto;
       padding-block-end: 0.2rem;
+    }
+  }
+
+  /* Sur téléphone, le sigle porte la marque à lui seul : le mot
+     « Nuancier » prenait 88 px dont la barre n'a pas les moyens. */
+  @media (max-width: 46rem) {
+    .nom {
+      display: none;
+    }
+
+    .meta {
+      gap: 0.5rem;
     }
   }
 </style>
