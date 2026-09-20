@@ -121,6 +121,12 @@
         Ton nuancier est enregistré dans ce navigateur, sur cette machine. Rien n’est envoyé
         ailleurs — le partage de palette, lui, est un bouton explicite.
       </p>
+      <p class="explication">
+        Le bouton <strong>⧉</strong> de la barre du haut garde des <strong>versions</strong> :
+        des points de sauvegarde nommés, sur lesquels tu peux revenir. Pratique avant d’essayer
+        un réglage d’harmonie que tu n’es pas sûre de garder, ou pour comparer deux pistes.
+        Elles survivent au vidage ci-dessous : c’est un filet, il ne saute pas avec le reste.
+      </p>
       <button onclick={toutEffacer}>Vider le nuancier et la mémoire</button>
     </section>
   </div>

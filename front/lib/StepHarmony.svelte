@@ -43,21 +43,17 @@
   </div>
 
   {#if harmonie.actif}
-    <p class="en-apercu">
+    <p class="en-reglage">
       <span aria-hidden="true">≋</span>
-      Aperçu des réglages — {harmonie.nbModifiees} couleur{harmonie.nbModifiees > 1 ? 's' : ''}
-      changerai{harmonie.nbModifiees > 1 ? 'ent' : 't'}. Rien n’est encore écrit : valide à droite.
+      Réglage en cours — {harmonie.nbModifiees} couleur{harmonie.nbModifiees > 1 ? 's' : ''}
+      modifiée{harmonie.nbModifiees > 1 ? 's' : ''}. Un seul Ctrl+Z annule tout.
     </p>
   {/if}
 
   <!-- Le même nuancier qu'à l'étape 1, entièrement éditable : corriger
        une harmonie, c'est souvent changer une couleur à la main. Les
-       curseurs de droite s'y voient EN DIRECT, sans rien y écrire. -->
-  <StepPalette
-    conseils={false}
-    {marques}
-    apercu={harmonie.actif ? harmonie.apercu : null}
-  />
+       curseurs de droite écrivent directement dedans. -->
+  <StepPalette conseils={false} {marques} />
 </div>
 
 <style>
@@ -116,10 +112,10 @@
     color: var(--text-muted);
   }
 
-  /* Bandeau d'aperçu : il dit en toutes lettres que ce qu'on voit n'est
-     pas encore enregistré. Sans lui, on croirait la palette déjà
-     modifiée et on partirait à l'étape suivante. */
-  .en-apercu {
+  /* Bandeau de réglage : il dit qu'une séance est en cours et qu'un
+     seul Ctrl+Z la défait entièrement. Sans lui, on ne saurait pas que
+     les dizaines de petits mouvements ne comptent que pour un. */
+  .en-reglage {
     display: flex;
     align-items: center;
     gap: 0.5rem;

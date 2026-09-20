@@ -25,6 +25,7 @@
   import { settings, type PaletteEntry } from './state.svelte';
   import { journal } from './journal.svelte';
   import { messages } from './messages.svelte';
+  import { harmonie } from './harmonie.svelte';
 
   let {
     /** Les conseils de couverture sous la grille. L'étape Harmonie
@@ -34,24 +35,7 @@
     /** Identifiants des couleurs signalées par une analyse : elles
      *  portent une pastille « ! » sur leur aplat. */
     marques = [] as readonly string[],
-    /**
-     * Aperçu d'un réglage en cours : la grille affiche CES couleurs au
-     * lieu de celles du nuancier, sans rien y écrire. L'édition est
-     * suspendue pendant ce temps — cliquer un aplat qui montre un
-     * aperçu ouvrirait un sélecteur sur une valeur qui n'existe pas
-     * encore.
-     */
-    apercu = null as readonly string[] | null,
-  }: {
-    conseils?: boolean;
-    marques?: readonly string[];
-    apercu?: readonly string[] | null;
-  } = $props();
-
-  /** La couleur à AFFICHER : l'aperçu s'il y en a un, sinon la vraie. */
-  function affiche(color: PaletteEntry, i: number): string {
-    return apercu?.[i] ?? color.hex;
-  }
+  }: { conseils?: boolean; marques?: readonly string[] } = $props();
 
   /** Génère une couleur de remplacement dans la bande manquante, en
    * restant dans la famille de la marque. */
@@ -124,6 +108,10 @@
 
   function update(entree: PaletteEntry, hex: string): void {
     if (entree.verrou) return;
+    // Retoucher une couleur à la main referme la séance de réglage :
+    // sinon le prochain mouvement de curseur repartirait d'une base
+    // périmée et effacerait cette retouche.
+    harmonie.fige();
     journal.agis(`Changement de ${entree.label}`, () => {
       settings.colors = settings.colors.map((c) => (c.id === entree.id ? { ...c, hex } : c));
     });
@@ -201,11 +189,11 @@
           cible = null;
         }}
       >
-        <label class="swatch" class:apercu={apercu !== null} style="background:{affiche(color, i)}">
+        <label class="swatch" style="background:{color.hex}">
           <input
             type="color"
-            value={affiche(color, i)}
-            disabled={color.verrou || apercu !== null}
+            value={color.hex}
+            disabled={color.verrou}
             oninput={(e) => update(color, e.currentTarget.value)}
             aria-label={`Modifier ${color.label}`}
           />
@@ -227,8 +215,8 @@
           aria-label="Nom de la couleur"
         />
         <div class="meta">
-          <span class="hex value">{affiche(color, i)}</span>
-          <span class="band">{BAND_LABELS[bandOfHex(affiche(color, i))].replace(/s$/, '')}</span>
+          <span class="hex value">{color.hex}</span>
+          <span class="band">{BAND_LABELS[bandOfHex(color.hex)].replace(/s$/, '')}</span>
         </div>
 
         <!--
@@ -415,11 +403,6 @@
     cursor: grabbing;
   }
 
-  /* Pendant un aperçu, l'aplat n'est plus cliquable : ce qu'il montre
-     n'est pas encore dans le nuancier. */
-  .swatch.apercu {
-    cursor: default;
-  }
 
   .swatch input {
     position: absolute;

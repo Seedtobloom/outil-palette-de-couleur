@@ -101,31 +101,9 @@
    */
 
   function choisitSchema(schema: SchemaVise): void {
-    settings.harmonie.schema = schema;
-    // Choisir un schéma sans force ne montrerait rien : on amorce.
-    if (schema !== 'auto' && settings.harmonie.force === 0) {
-      settings.harmonie.force = FORCE_AMORCEE;
-    }
+    harmonie.choisitSchema(schema, FORCE_AMORCEE);
   }
 
-  function reinitialise(): void {
-    settings.harmonie.schema = 'auto';
-    harmonie.reinitialise();
-  }
-
-  function appliqueLesReglages(): void {
-    const cible = harmonie.apercu;
-    const n = harmonie.nbModifiees;
-    if (n === 0) return;
-    journal.agis(`Réglage de ${n} couleur${n > 1 ? 's' : ''}`, () => {
-      settings.colors = settings.colors.map((c, i) => ({ ...c, hex: cible[i] as string }));
-    });
-    reinitialise();
-    messages.succes(`${n} couleur${n > 1 ? 's' : ''} ajustée${n > 1 ? 's' : ''}.`, {
-      libelle: 'Annuler',
-      faire: () => journal.annule(),
-    });
-  }
 </script>
 
 <div class="panneau-harmonie">
@@ -203,23 +181,35 @@
             min={curseur.min}
             max={curseur.max}
             step="1"
-            bind:value={settings.harmonie[curseur.cle]}
+            value={settings.harmonie[curseur.cle]}
+            oninput={(e) => harmonie.regle(curseur.cle, Number(e.currentTarget.value))}
           />
         </label>
       {/each}
     </div>
 
+    {#if harmonie.harmonisationSansEffet}
+      <!--
+        Le curseur de force est à fond et rien ne bouge : ce n'est pas
+        une panne. En mode automatique, le schéma visé est celui que
+        l'analyse vient de reconnaître DANS la palette — les teintes
+        sont donc déjà posées dessus. Le dire, plutôt que de laisser
+        croire à un réglage cassé.
+      -->
+      <p class="sans-effet">
+        Tes teintes sont déjà alignées sur le schéma
+        <b>{LIBELLES_SCHEMA[harmonie.schemaVise]}</b> : l’harmonisation n’a rien à déplacer.
+        Choisis un schéma explicite pour forcer un autre accord.
+      </p>
+    {/if}
+
     {#if harmonie.actif}
       <p class="rappel-apercu">
-        L’effet se voit sur le nuancier, à gauche. Rien n’est écrit tant que tu n’as pas validé.
+        Les couleurs sont modifiées à mesure. Un seul Ctrl+Z annule tout le réglage.
       </p>
-
-      <button class="solid large" onclick={appliqueLesReglages} disabled={harmonie.nbModifiees === 0}>
-        {harmonie.nbModifiees === 0
-          ? 'Rien à appliquer'
-          : `Appliquer à ${harmonie.nbModifiees} couleur${harmonie.nbModifiees > 1 ? 's' : ''}`}
+      <button class="large" onclick={() => harmonie.reinitialise()}>
+        Revenir aux couleurs de départ
       </button>
-      <button class="large" onclick={reinitialise}>Réinitialiser les réglages</button>
     {/if}
   </section>
 </div>
@@ -394,6 +384,16 @@
     font-size: 11.5px;
     line-height: 1.45;
     color: var(--text-muted);
+  }
+
+  .sans-effet {
+    margin: 0;
+    font-size: 11.5px;
+    line-height: 1.45;
+    padding: 0.55rem 0.7rem;
+    border-radius: var(--radius);
+    background: var(--surface-attente);
+    border: 1px solid var(--bord-attente);
   }
 
 

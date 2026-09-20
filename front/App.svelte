@@ -7,12 +7,15 @@
   import { theme } from './lib/theme.svelte';
   import { restaure, sauvegarde } from './lib/persistance.svelte';
   import { appliqueAmbiance } from './lib/ambiance.svelte';
+  import { versions } from './lib/versions.svelte';
   import Flow from './lib/Flow.svelte';
   import HealthBadge from './lib/HealthBadge.svelte';
   import Messages from './lib/Messages.svelte';
   import Aide from './lib/Aide.svelte';
+  import Versions from './lib/Versions.svelte';
 
   let aideOuverte = $state(false);
+  let versionsOuvertes = $state(false);
 
   const palette: GeneratedPalette | null = $derived.by(() => {
     try {
@@ -60,6 +63,9 @@
   // journal est vidé juste après : la première chose annulable doit être
   // une action de la graphiste, pas le rechargement de son travail.
   const nuancierRetrouve = restaure();
+  // Même règle pour la liste des versions : une lecture de la mémoire
+  // locale, une fois, hors de tout effet.
+  versions.charge();
   journal.oublie();
   if (nuancierRetrouve) {
     messages.montre('Ton nuancier a été retrouvé, tu reprends où tu t’étais arrêtée.', 'info');
@@ -212,6 +218,28 @@
               : 'Rien à rétablir'}
             onclick={() => annuleDepuisBarre(true)}>↷</button
           >
+          <!--
+            Les versions. Elles voisinent avec ↶ ↷ parce qu'elles jouent
+            dans le même registre : revenir en arrière. L'annulation
+            défait le dernier geste, la version rouvre un état entier.
+            La pastille dit combien sont en réserve — sans elle, rien ne
+            distingue un tiroir plein d'un tiroir vide.
+          -->
+          <button
+            class="outil"
+            title={versions.liste.length
+              ? `Versions enregistrées (${versions.liste.length})`
+              : 'Enregistrer une version'}
+            aria-label={versions.liste.length
+              ? `Versions enregistrées (${versions.liste.length})`
+              : 'Enregistrer une version'}
+            onclick={() => (versionsOuvertes = true)}
+          >
+            <span aria-hidden="true">⧉</span>
+            {#if versions.liste.length}<span class="compte" aria-hidden="true"
+                >{versions.liste.length}</span
+              >{/if}
+          </button>
           <button
             class="outil"
             title={theme.effectif === 'sombre' ? 'Passer en clair' : 'Passer en sombre'}
@@ -245,6 +273,7 @@
 
 <Messages />
 <Aide bind:ouvert={aideOuverte} />
+<Versions bind:ouvert={versionsOuvertes} />
 
 <style>
   /* — Grain — posé sur toute la fenêtre, sous l'interface. */
@@ -445,6 +474,7 @@
   }
 
   .outil {
+    position: relative;
     inline-size: 2rem;
     block-size: 2rem;
     min-block-size: 0;
@@ -463,6 +493,23 @@
     background: var(--surface-panel);
     border-color: var(--filet);
     color: var(--text-main);
+  }
+
+  /* Le compte des versions, posé en exposant sur le bouton. Il est
+     `aria-hidden` : le nombre est déjà dans l'intitulé du bouton, le
+     répéter ferait doublon au lecteur d'écran. */
+  .outil .compte {
+    position: absolute;
+    inset-block-start: -1px;
+    inset-inline-end: -1px;
+    min-inline-size: 14px;
+    padding-inline: 3px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-chrome);
+    color: var(--text-on-chrome);
+    font-size: 9.5px;
+    line-height: 14px;
+    font-variant-numeric: tabular-nums;
   }
 
 
